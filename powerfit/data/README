@@ -1,0 +1,17 @@
+the orientation sets were downloaded from:
+charles.karney.info/orientation/
+
+for more in-depth information see:
+Charles F.F. Karney
+Quaternions in molecular modeling
+J.Mol.Graph.Mod. 25(5), 595-604 (Jan. 2007)
+Preprint: arXiv:physics/0506177
+
+format is:
+Any number of initial comment lines beginning with #
+A line containing 'format quaternion'
+A line containing N alpha(degree) c
+N lines containing q0i q1i q2i q3i wi
+
+wi are the relative weights, which is important for average orientations
+but it has no value here.
