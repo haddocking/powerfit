@@ -2,7 +2,7 @@ from __future__ import absolute_import, division
 import numpy as np
 from numpy.fft import rfftn, irfftn
 
-import .volume
+from powerfit import volume
 
 try:
     import pyopencl as cl
@@ -55,7 +55,7 @@ class PowerFitter(object):
         return self._rotations
     @rotations.setter
     def rotations(self, rotations):
-        return self._rotations = rotations
+        self._rotations = rotations
 
     @property
     def queue(self):
@@ -91,9 +91,9 @@ class PowerFitter(object):
         # normalize map
         ind = d['modelmap'] > 0
         d['modelmap'][ind] /= d['modelmap'][ind].std()
-        d['modelmap'][ind] -= d['modelmap'][[ind].mean()
+        d['modelmap'][ind] -= d['modelmap'][ind].mean()
 
-        if self.queu is None:
+        if self.queue is None:
             self._cpu_init()
         else:
             self._gpu_init()
@@ -175,7 +175,7 @@ class PowerFitter(object):
 
         for n in xrange(d['nrot']//g['n'] + 1):
 
-            k.rotate_model_and_mask(q, g['sampler'], 
+            k.rotate_map_and_mask(q, g['sampler'], 
                     g['im_modelmap'], g['im_mask'], 
                     g['rotmat'],
                     g['modelmap'], g['modelmask'], n)

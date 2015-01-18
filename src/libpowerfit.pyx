@@ -47,7 +47,7 @@ def blur_points(np.ndarray[np.float64_t, ndim=2] points,
                     dz = z - points[n, 2]
                     distance2 = x2y2 + dz**2
                     if distance2 <= extend2:
-                        volume[z,y,x] += weights[n, 3] * exp(-distance2/dsigma2)
+                        out[z,y,x] += weights[n, 3] * exp(-distance2/dsigma2)
 
 def dilate_points(np.ndarray[np.float64_t, ndim=2] points,
                   double radius,
@@ -97,4 +97,4 @@ def dilate_points(np.ndarray[np.float64_t, ndim=2] points,
                     dz = z - points[n, 2]
                     distance2 = x2y2 + dz**2
                     if distance2 <= radius2:
-                        volume[z,y,x] = 1.0
+                        out[z,y,x] = 1.0

@@ -1,6 +1,6 @@
 from __future__ import division
 import numpy as np
-import .libpowerfit as lpf
+import powerfit.libpowerfit as lpf
 
 def rotate(points, rotmat, center=None):
     if center is None:
