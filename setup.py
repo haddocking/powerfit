@@ -3,9 +3,12 @@ from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
 from Cython.Build import cythonize
+import numpy
 
 ext_modules = [Extension("powerfit.libpowerfit",
-                         [os.path.join("src", "libpowerfit.pyx")],)
+                         [os.path.join("src", "libpowerfit.pyx")],
+                         include_dirs=[numpy.get_include()],
+                         )
               ]
 
 scripts = [os.path.join('scripts', 'powerfit')]
@@ -26,4 +29,5 @@ setup(name="powerfit",
       package_data = package_data,
       scripts=scripts,
       requires=['numpy', 'scipy', 'cython'],
+      include_dirs=[numpy.get_include()],
     )
