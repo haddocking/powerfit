@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division
+from __future__ import absolute_import, division, print_function
 from time import time as _time
 from sys import stdout as _stdout
 import warnings
@@ -154,6 +154,9 @@ class PowerFitter(object):
             self._gpu_init()
             best_lcc, rot_ind = self._gpu_search()
 
+        if _stdout.isatty():
+            print()
+
         best_lcc = volume.Volume(best_lcc, d['voxelspacing'], d['origin'])
         return solutions.Solutions(best_lcc, self.rotations, rot_ind)
 
@@ -219,13 +222,13 @@ class PowerFitter(object):
         return c['best_lcc'], c['rot_ind']
 
     def _print_progress(self, n, total, time0):
-        pdone = n/total
+        m = n + 1
+        pdone = m/total
         t = _time() - time0
-        if n > 0:
-            _stdout.write('\r{:d}/{:d} ({:.2%}, ETA: {:d}s)'\
-                    .format(n, total, pdone, 
-                            int(t/pdone - t)))
-            _stdout.flush()
+        _stdout.write('\r{:d}/{:d} ({:.2%}, ETA: {:d}s)      '\
+                .format(m, total, pdone, 
+                        int(t/pdone - t)))
+        _stdout.flush()
 
     def _gpu_init(self):
         self._gpu_data = {}
