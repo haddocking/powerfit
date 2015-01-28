@@ -77,8 +77,6 @@ def cpu_powerfit(args, rotmat):
             processes[n].join()
 
         # combine results 
-        print()
-        print('Total time searching: ', time() - time0)
         print('Combining results')
         best_lcc = Volume.fromfile('lcc_0.mrc')
         best_rotmat_ind = np.load('rotmat_ind_0.npy')
