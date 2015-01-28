@@ -46,23 +46,9 @@ def run_powerfit_instance(args, rotmat, n):
     sol = pf.search()
     sol.save('lcc_{:d}.mrc'.format(n), 'rotmat_{:d}.npy'.format(n), 'rotmat_ind_{:d}.npy'.format(n))
 
-    
-def main():
-
-    args = parse_args()
-
-    time0 = time()
-
-    q, w, a = proportional_orientations(args.angle)
-    rotmat = quat_to_rotmat(q)
-    nrot = rotmat.shape[0]
-
-    queue = None
-    if args.gpu:
-        queue = get_queue()
-
-    if queue is None:
+def cpu_powerfit(args, rotmat):
         # determine the number of jobs that should be created
+        nrot = rotmat.shape[0]
         try:
             jobs = min(mp.cpu_count(), args.nproc)
         except NotImplementedError:
@@ -105,13 +91,7 @@ def main():
             ind = lcc.array > best_lcc.array 
             best_lcc.array[ind] = lcc.array[ind]
             best_rotmat_ind[ind] = rotmat_ind[ind]
-
-
-        print('Writing combined results')
         sol = Solutions(best_lcc, rotmat, best_rotmat_ind)
-        sol.save()
-        sol.write_pdb(PDB.fromfile(args.model), num=args.num)
-        sol.write_local_solutions()
 
         print('Cleaning')
         for n in range(jobs):
@@ -121,7 +101,51 @@ def main():
             os.remove(f_lcc)
             os.remove(f_rotmat_ind)
             os.remove(f_rotmat)
-        print('Total time: ', time() - time0)
+
+        return sol
+    
+def gpu_powerfit(args, rotmat, queue):
+
+    pf = PowerFitter()
+    pf.map = Volume.fromfile(args.map)
+    pf.model = PDB.fromfile(args.model)
+    pf.resolution = args.resolution
+    pf.rotations = rotmat
+    pf.laplace = args.laplace
+    pf.core_weighted = args.core_weighted
+    pf.queue = queue
+
+    sol = pf.search()
+
+    return sol
+
+    
+def main():
+
+    args = parse_args()
+
+    time0 = time()
+
+    q, w, a = proportional_orientations(args.angle)
+    rotmat = quat_to_rotmat(q)
+
+    queue = None
+    if args.gpu:
+        queue = get_queue()
+
+    if queue is None:
+        if args.gpu:
+            print('GPU-queue not found. Falling back on CPU-implementation.')
+        sol = cpu_powerfit(args, rotmat)
+    else:
+        sol = gpu_powerfit(args, rotmat, queue)
+
+    print('Writing results')
+    sol.save()
+    sol.write_pdb(PDB.fromfile(args.model), num=args.num)
+    sol.write_local_solutions()
+    print('Total time: ', time() - time0)
+
 
 if __name__=='__main__':
     main()

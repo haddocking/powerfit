@@ -10,9 +10,9 @@ ext_modules = [Extension("powerfit.libpowerfit",
 
 scripts = [os.path.join('scripts', 'powerfit')]
 
-package_data = {'powerfit': [os.path.join('data', '/*.npy'), 
+package_data = {'powerfit': [os.path.join('data', '*.npy'), 
                              os.path.join('kernels', '*.cl'), 
-                             os.path.join('IO', '*.py'],
+                             os.path.join('IO', '*.py')],
                }
 
 setup(name="powerfit",

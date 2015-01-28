@@ -35,6 +35,25 @@ class Kernels():
             """int* array, int value""",
             """array[i] = value;""",)
 
+        self.kernels.lcc = ElementwiseKernel(ctx,
+            """float *gcc, float *map_ave, float *map2_ave,
+               float norm_factor, float *lcc""",
+            """float var = norm_factor*map2_ave[i] - pown(map_ave[i], 2);
+               if (var > 0.01)
+                   lcc[i] = gcc[i]/sqrt(var);
+               else
+                   lcc[i] = 0.0f;""",
+            )
+
+        self.kernels.take_best = ElementwiseKernel(ctx,
+            """float *lcc, float *best_lcc, int *rotmat_ind, int ind""",
+            """if (lcc[i] > best_lcc[i]) {
+                   best_lcc[i] = lcc[i];
+                   rotmat_ind[i] = ind;
+               }""",
+            )
+            
+
         
     def c_conj_multiply(self, queue, array1, array2, out):
         if (array1.dtype == array2.dtype == out.dtype == np.complex64):
@@ -73,6 +92,14 @@ class Kernels():
         kernel.set_args(sampler, image3d, inv_rotmat16, array_buffer.data, _center, shape)
         status = cl.enqueue_nd_range_kernel(queue, kernel, work_groups, None)
 
+        return status
+
+    def lcc(self, queue, gcc, map_ave, map2_ave, norm_factor, lcc):
+        status = self.kernels.lcc(gcc, map_ave, map2_ave, np.float32(norm_factor), lcc)
+        return status
+        
+    def take_best(self, queue, lcc, best_lcc, rotmat_ind, n):
+        status = self.kernels.take_best(lcc, best_lcc, rotmat_ind, np.int32(n))
         return status
 
     def fill(self, queue, array, value):
