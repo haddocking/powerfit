@@ -1,8 +1,15 @@
 from __future__ import absolute_import, division
+from time import time as _time
+from sys import stdout as _stdout
+import warnings
+
 import numpy as np
 from numpy.fft import rfftn, irfftn
 
 from powerfit import volume
+from powerfit import libpowerfit
+from powerfit.solutions import Solutions
+from scipy.ndimage import laplace
 
 try:
     import pyopencl as cl
@@ -24,7 +31,7 @@ class PowerFitter(object):
         # optional
         self._queue = None
         self._laplace = False
-        self._coreweighted = False
+        self._core_weighted = False
 
         # data container
         self._data = {}
@@ -32,6 +39,7 @@ class PowerFitter(object):
     @property
     def map(self):
         return self._map
+
     @map.setter
     def map(self, em):
         self._map = em
@@ -39,6 +47,7 @@ class PowerFitter(object):
     @property
     def model(self):
         return self._model
+
     @model.setter
     def model(self, model):
         self._model = model
@@ -46,6 +55,7 @@ class PowerFitter(object):
     @property
     def resolution(self):
         return self._resolution
+
     @resolution.setter
     def resolution(self, resolution):
         self._resolution = resolution
@@ -53,9 +63,10 @@ class PowerFitter(object):
     @property
     def rotations(self):
         return self._rotations
+
     @rotations.setter
     def rotations(self, rotations):
-        self._rotations = rotations
+        self._rotations = np.asarray(rotations, dtype=np.float64)
 
     @property
     def queue(self):
@@ -64,6 +75,24 @@ class PowerFitter(object):
     def queue(self, queue):
         self._queue = queue
 
+    @property
+    def core_weighted(self):
+        return self._core_weighted
+
+    @core_weighted.setter
+    def core_weighted(self, core_weighted):
+        self._core_weighted = core_weighted
+
+    @property
+    def laplace(self):
+        return self._laplace
+
+    @laplace.setter
+    def laplace(self, value):
+        if not isinstance(value, bool):
+            raise TypeError("Value should be either True or False.")
+        self._laplace = value
+
     def initialize(self):
         if any(x is None for x in [self.map, self.model, 
             self.rotations, self.resolution]):
@@ -71,125 +100,150 @@ class PowerFitter(object):
 
         d = self._data
 
-        d['map'] = self.map.data
-        d['rotations'] = self.rotations
+        d['map'] = self.map.array.astype(np.float64)
+        if self.laplace:
+            laplace(d['map'], d['map'], mode='constant')
+        d['shape'] = d['map'].shape
+        d['voxelspacing'] = self.map.voxelspacing
+        d['origin'] = self.map.origin
+        d['map_center'] = array_center(d['map'])
+
+        d['rotations'] = np.asarray(self.rotations, dtype=np.float64)
         d['nrot'] = self.rotations.shape[0]
 
-        d['modelmaskvol'] = volume.zeros_like(self.map)
-        radius = self.resolution/2.0
-        dilate_points(self.model.coor - self.map.origin, radius, d['modelmask'])
+        # coordinates are set to the middle of the array
+        grid_coor = (self.model.coor + (-self.model.center + d['voxelspacing']*d['map_center']))/d['voxelspacing']
 
-        d['modelmapvol'] = volume.zeros_like(self.map)
-        blur_points(self.model.coor - self.map.origin, 
-                sigma, self.model.atomnumber, d['modelmap'])
+        # make mask
+        mask = np.zeros_like(d['map'])
+        radius = 0.5*self.resolution/d['voxelspacing']
+        libpowerfit.dilate_points(grid_coor, radius, mask)
 
-        d['modelmap'] = d['modelmapvol'].data
-        d['modelmask'] = d['modelmaskvol'].data
+        # make density
+        modelmap = np.zeros_like(d['map'])
+        sigma = resolution2sigma(self.resolution)/d['voxelspacing']
+        libpowerfit.blur_points(grid_coor, self.model.atomnumber.astype(np.float64), sigma, modelmap)
 
-        d['modelmap'] *= d['modelmask']
+        if self.laplace:
+            laplace(modelmap, output=modelmap, mode='constant')
 
-        # normalize map
-        ind = d['modelmap'] > 0
-        d['modelmap'][ind] /= d['modelmap'][ind].std()
-        d['modelmap'][ind] -= d['modelmap'][ind].mean()
+        if self.core_weighted:
+            core_indices(mask, out=mask)
 
-        if self.queue is None:
-            self._cpu_init()
-        else:
-            self._gpu_init()
+        d['mask'] = mask
+        d['norm_factor'] = d['mask'].sum()
+
+        normalize(modelmap, mask)
+
+        if self.core_weighted:
+            modelmap *= d['mask']
+
+        d['modelmap'] = modelmap
 
     def search(self):
+        d = self._data
         self.initialize()
 
-        if self.queue is None:
-            self._cpu_search()
-        else:
-            self._gpu_search()
-        pass
+        self._cpu_init()
+        best_lcc, rot_ind = self._cpu_search()
+
+        best_lcc = volume.Volume(best_lcc, d['voxelspacing'], d['origin'])
+        return Solutions(best_lcc, self.rotations, rot_ind)
 
     def _cpu_init(self):
 
+        d = self._data
         self._cpu_data = {}
         c = self._cpu_data
 
-        c['ft_map'] = np.zeros(self.map.data.shape, dtype=np.complex128)
-        c['ft_map2'] = np.zeros_like(c['ft_map'])
+        c['map'] = d['map']
+            
+        c['map_center'] = d['map_center']
 
-        c['ft_map'][:] = rfftn(d['map'])
-        c['ft_map2'][:] = rfftn(d['map']**2)
-        pass
+        c['im_modelmap'] = d['modelmap']
+        c['modelmap'] = np.zeros_like(d['modelmap'])
 
-    def _gpu_init(self):
+        c['im_mask'] = d['mask']
+        c['mask'] = np.zeros_like(d['mask'])
+        c['norm_factor'] = d['norm_factor']
 
-        self._gpu_data = {}
-        g = self._gpu_data
-        q = self.queue
+        c['rotations'] = d['rotations']
+        c['nrot'] = d['nrot']
+        c['vlength'] = int(np.linalg.norm(self.model.coor - self.model.center, axis=1).max()/d['voxelspacing'] +\
+                0.5*self.resolution/d['voxelspacing'] + 1)
 
-        # bring data to gpu
-        g['map'] = cl_array.to_device(q, float32array(d['map']))
-        g['im_modelmap'] = cl.image_from_array(q.context, float32array(d['modelmap']))
-        g['im_modelmask'] = cl.image_from_array(q.context, float32array(d['modelmask']))
-        g['rotmat'] = cl_array.to_device(q, float32array(d['rotations']))
-        g['sampler'] = cl.Sampler(q.context, False, cl.addressing_mode.CLAMP,
-                cl.filter_mode.LINEAR)
 
-        # determine the number of rotations that we can determine in one go
-        # for computational efficiency
-        g['n'] = d['map'].size//256**3
+        c['best_lcc'] = np.zeros_like(d['map'])
+        c['rot_ind'] = np.zeros(d['shape'], dtype=np.int32)
 
-        # work arrays
-        # real arrays
-        g['shape'] = list(g['map'].shape)
-        g['modelmap'] = cl_array.zeros(q, [n] + g['shape'], dtype=np.float32)
-        g['modelmask'] = cl_array.zeros_like(g['modelmap'])
-        g['modelmask2'] = cl_array.zeros_like(g['modelmap'])
-        g['mapave'] = cl_array.zeros_like(g['modelmap'])
-        g['map2ave'] = cl_array.zeros_like(g['modelmap'])
-        g['gcc'] = cl_array.zeros_like(g['modelmap'])
+    def _cpu_search(self):
 
-        # complex arrays
-        g['ft_shape'] = [g['shape'][0]//2 + 1, g['shape'][1], g['shape'][2]]
-        # only need one of these
-        g['ft_map'] = cl_array.zeros(q, g['ft_shape'], dtype=np.complex64)
-        g['ft_map2'] = cl_array.zeros(q, g['ft_shape'], dtype=np.complex64)
+        c = self._cpu_data
+        
+        # initial calculations
+        c['ft_map'] = rfftn(c['map'])
+        c['ft_map2'] = rfftn(c['map']**2)
 
-        # need multiple of these
-        g['ft_modelmap'] = cl_array.zeros(q, [n] + g['ft_shape'], dtype=np.complex64)
-        g['ft_modelmask'] = cl_array.zeros_like(g['ft_modelmap'])
-        g['ft_modelmask2'] = cl_array.zeros_like(g['ft_modelmap'])
-        g['ft_mapave'] = cl_array.zeros_like(g['ft_modelmap'])
-        g['ft_map2ave'] = cl_array.zeros_like(g['ft_modelmap'])
+        time0 = _time()
+        for n in xrange(c['nrot']):
+            libpowerfit.rotate_image3d(c['im_modelmap'], np.linalg.inv(c['rotations'][n]), c['map_center'], c['vlength'], c['modelmap'])
+            libpowerfit.rotate_image3d(c['im_mask'], np.linalg.inv(c['rotations'][n]), c['map_center'], c['vlength'], c['mask'])
 
-        # set kernels
-        g['kernels'] = Kernels(q.context)
+            c['gcc'] = irfftn(rfftn(c['modelmap']).conj() * c['ft_map'])
 
-    def _gpu_search(self):
+            if self.core_weighted:
+                c['map_ave'] = irfftn(rfftn(c['mask']).conj() * c['ft_map'])
+                c['map2_ave'] = irfftn(rfftn(c['mask']**2).conj() * c['ft_map2'])
+            else:
+                # saves a FFT calculation
+                c['ft_mask'] = rfftn(c['mask']).conj()
+                c['map_ave'] = irfftn(c['ft_mask'] * c['ft_map'])
+                c['map2_ave'] = irfftn(c['ft_mask'] * c['ft_map2'])
 
-        q = self.queue
-        g = self._gpu_data
-        k = g['kernels']
+            c['lcc'] = c['gcc']/np.sqrt((c['map2_ave']*c['norm_factor'] - c['map_ave']**2).clip(0.001))
 
-        k.rfftn(q, g['map'], g['ft_map'])
-        k.r_multiply(g['map'], g['map'], g['map2ave'])
-        k.rfftn(q, g['map2ave'], g['ft_map2'])
+            ind = c['lcc'] > c['best_lcc']
+            c['best_lcc'][ind] = c['lcc'][ind]
+            c['rot_ind'][ind] = n
 
-        for n in xrange(d['nrot']//g['n'] + 1):
+            if _stdout.isatty():
+                self._print_progress(n, c['nrot'], time0)
 
-            k.rotate_map_and_mask(q, g['sampler'], 
-                    g['im_modelmap'], g['im_mask'], 
-                    g['rotmat'],
-                    g['modelmap'], g['modelmask'], n)
+        return c['best_lcc'], c['rot_ind']
 
-            k.rfftn(q, g['modelmap'], g['ft_modelmap'])
-            k.c_conj_multiply(g['ft_modelmap'], g['ft_map'], g['ft_gcc'])
-            k.irfftn(q, g['ft_gcc'], g['gcc'])
+    def _print_progress(self, n, total, time0):
+        pdone = n/total
+        t = _time() - time0
+        if n > 0:
+            _stdout.write('\r{:d}/{:d} ({:.2%}, ETA: {:d}s)'\
+                    .format(n, total, pdone, 
+                            int(t/pdone - t)))
+            _stdout.flush()
 
-            k.rfftn(q, g['modelmask'], g['ft_model_mask'])
-            k.c_conj_multiply(g['ft_modelmask'], g['ft_map'])
-            k.irfftn(q, g['ft_mapave'], g['ft_mapave'])
+def core_indices(mask, out=None):
 
-            k.c_conj_multiply(g['ft_modelmask'], g['ft_map2'], g['ft_map2ave'])
-            k.irfftn(q, g['ft_map2ave'], g['map2ave'])
+    if out is None:
+        out = mask.copy()
 
-            k.lcc(g['gcc'], g['mapave'], g['map2ave'], d['varlimit'])
+    tmp = mask.copy()
+    tmp2 = np.zeros_like(mask)
+    while tmp.sum() > 0:
+        libpowerfit.binary_erosion(tmp, tmp2)
+        tmp = tmp2.copy()
+        out += tmp2
 
+    return out
+
+def array_center(array):
+    """Return center of array in xyz coor"""
+    return (np.asarray(array.shape, dtype=np.float64)/2.0)[::-1]
+
+def resolution2sigma(resolution):
+    return resolution/(np.sqrt(2.0) * np.pi)
+
+def normalize(modelmap, mask):
+    modelmap *= mask
+    ind = mask > 0
+    modelmap[ind] /= modelmap[ind].std()
+    modelmap[ind] -= modelmap[ind].mean()
+    return modelmap

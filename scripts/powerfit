@@ -1,0 +1,127 @@
+#! /usr/bin/python
+from __future__ import print_function, division, absolute_import
+
+from argparse import ArgumentParser
+import multiprocessing as mp
+from time import time
+import os
+
+import numpy as np
+
+from powerfit import PDB, Volume, PowerFitter, Solutions
+from powerfit.rotations import proportional_orientations, quat_to_rotmat
+from powerfit.helpers import get_queue
+
+def parse_args():
+    
+    p = ArgumentParser()
+    
+    p.add_argument('model', type=str)
+    p.add_argument('map', type=str)
+
+    p.add_argument('resolution', type=float)
+
+    p.add_argument('-a', '--angle', dest='angle', type=float, default=10)
+    p.add_argument('-l', '--laplace', dest='laplace', action='store_true')
+    p.add_argument('-cw', '--core-weighted', dest='core_weighted', action='store_true')
+
+    p.add_argument('-n', '--num', dest='num', type=int, default=10)
+
+    p.add_argument('-g', '--gpu', dest='gpu', action='store_true')
+    p.add_argument('-p', '--nproc', dest='nproc', type=int, default=1)
+
+    return p.parse_args()
+
+    
+def run_powerfit_instance(args, rotmat, n):
+    
+    pf = PowerFitter()
+    pf.map = Volume.fromfile(args.map)
+    pf.model = PDB.fromfile(args.model)
+    pf.resolution = args.resolution
+    pf.rotations = rotmat
+    pf.laplace = args.laplace
+    pf.core_weighted = args.core_weighted
+
+    sol = pf.search()
+    sol.save('lcc_{:d}.mrc'.format(n), 'rotmat_{:d}.npy'.format(n), 'rotmat_ind_{:d}.npy'.format(n))
+
+    
+def main():
+
+    args = parse_args()
+
+    time0 = time()
+
+    q, w, a = proportional_orientations(args.angle)
+    rotmat = quat_to_rotmat(q)
+    nrot = rotmat.shape[0]
+
+    queue = None
+    if args.gpu:
+        queue = get_queue()
+
+    if queue is None:
+        # determine the number of jobs that should be created
+        try:
+            jobs = min(mp.cpu_count(), args.nproc)
+        except NotImplementedError:
+            jobs = args.nproc
+        jobs = min(jobs, nrot)
+        nrot_per_job = nrot//jobs
+        
+        processes = []
+        for n in range(jobs):
+            
+            init_rot = n*nrot_per_job
+            end_rot = init_rot + nrot_per_job
+
+            sub_rotmat = rotmat[init_rot: end_rot]
+            if n == (jobs - 1):
+                sub_rotmat = rotmat[init_rot:]
+
+            processes.append(mp.Process(target=run_powerfit_instance, args=(args, sub_rotmat, n)))
+
+        print('Starting jobs')
+        for n in range(jobs):
+            processes[n].start()
+
+        print('Waiting for jobs')
+        for n in range(jobs):
+            processes[n].join()
+
+        # combine results 
+        print()
+        print('Total time searching: ', time() - time0)
+        print('Combining results')
+        best_lcc = Volume.fromfile('lcc_0.mrc')
+        best_rotmat_ind = np.load('rotmat_ind_0.npy')
+        for n in range(1, jobs):
+            f_lcc= 'lcc_{:d}.mrc'.format(n)
+            f_rotmat_ind = 'rotmat_ind_{:d}.npy'.format(n)
+            lcc = Volume.fromfile(f_lcc)
+            rotmat_ind = np.load(f_rotmat_ind) + nrot_per_job*n
+
+            ind = lcc.array > best_lcc.array 
+            best_lcc.array[ind] = lcc.array[ind]
+            best_rotmat_ind[ind] = rotmat_ind[ind]
+
+
+        print('Writing combined results')
+        sol = Solutions(best_lcc, rotmat, best_rotmat_ind)
+        sol.save()
+        sol.write_pdb(PDB.fromfile(args.model), num=args.num)
+        sol.write_local_solutions()
+
+        print('Cleaning')
+        for n in range(jobs):
+            f_lcc= 'lcc_{:d}.mrc'.format(n)
+            f_rotmat_ind = 'rotmat_ind_{:d}.npy'.format(n)
+            f_rotmat = 'rotmat_{:d}.npy'.format(n)
+            os.remove(f_lcc)
+            os.remove(f_rotmat_ind)
+            os.remove(f_rotmat)
+        print('Total time: ', time() - time0)
+
+if __name__=='__main__':
+    main()

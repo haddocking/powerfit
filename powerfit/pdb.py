@@ -1,8 +1,8 @@
-from __future__ import absolute_import
-from .IO.pdb import parse_pdb, write_pdb
+from __future__ import absolute_import, print_function, division
 import operator
 import numpy as np
-from numpy.linalg import norm as _norm
+from powerfit.IO.pdb import parse_pdb, write_pdb
+import powerfit.atompar
 
 class PDB(object):
 
@@ -12,10 +12,12 @@ class PDB(object):
 
     def __init__(self, pdbdata):
         self.data = pdbdata
-        self.nmodels = np.unique(self.data['model']).size
-	self.nchains = np.unique(self.data['chain']).size
-        self.nresidues = np.unique(self.data['resi']).size
-        self.natoms = self.data['atom_id'].shape[0]
+
+    @property
+    def atomnumber(self):
+        elements, ind = np.unique(self.data['element'], return_inverse=True)
+        atomnumbers = np.asarray([powerfit.atompar.parameters[e]['Z'] for e in elements], dtype=np.float64)
+        return atomnumbers[ind]
 
     @property
     def coor(self):
@@ -33,12 +35,13 @@ class PDB(object):
     def chain_list(self):
         return np.unique(self.data['chain'])
 
+    @property
+    def sequence(self):
+        resids, indices = np.unique(self.data['resi'], return_index=True)
+        return self.data['resn'][indices]
+
     def combine(self, pdb):
         return PDB(np.hstack((self.data, pdb.data)))
-
-    @property
-    def distance_to_center(self):
-        return _norm(self.coor - self.center, axis=1)
 
     def duplicate(self):
         return PDB(self.data.copy())
@@ -46,13 +49,9 @@ class PDB(object):
     def rmsd(self, pdb):
         return np.sqrt(((self.coor - pdb.coor)**2).mean()*3)
 
-    def rotate(self, rotmat, center=None):
-        if center is None:
-            self.data['x'], self.data['y'], self.data['z'] =\
-                 np.mat(rotmat) * np.mat(self.coor).T
-        else:
-            self.data['x'], self.data['y'], self.data['z'] =\
-                 np.mat(rotmat) * np.mat(self.coor - np.asarray(center)).T + np.asarray(center)
+    def rotate(self, rotmat):
+        self.data['x'], self.data['y'], self.data['z'] =\
+             np.mat(rotmat) * np.mat(self.coor).T
 
     def select(self, identifier, value, loperator='=='):
         """A simple and probably pretty inefficient way of selection atoms"""
@@ -69,11 +68,6 @@ class PDB(object):
         selection = np.where(oper(self.data[identifier], value))
 
         return PDB(self.data[selection])
-
-    @property
-    def sequence(self):
-        resids, indices = np.unique(self.data['resi'], return_index=True)
-        return self.data['resn'][indices]
 
     def tofile(self, fid):
         write_pdb(fid, self.data)
