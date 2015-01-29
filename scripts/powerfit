@@ -11,6 +11,7 @@ import numpy as np
 from powerfit import PDB, Volume, PowerFitter, Solutions
 from powerfit.rotations import proportional_orientations, quat_to_rotmat
 from powerfit.helpers import get_queue
+from powerfit import volume
 
 def parse_args():
     
@@ -33,10 +34,10 @@ def parse_args():
     return p.parse_args()
 
     
-def run_powerfit_instance(args, rotmat, n):
+def run_powerfit_instance(args, vol, rotmat, n):
     
     pf = PowerFitter()
-    pf.map = Volume.fromfile(args.map)
+    pf.map = vol
     pf.model = PDB.fromfile(args.model)
     pf.resolution = args.resolution
     pf.rotations = rotmat
@@ -46,7 +47,7 @@ def run_powerfit_instance(args, rotmat, n):
     sol = pf.search()
     sol.save('lcc_{:d}.mrc'.format(n), 'rotmat_{:d}.npy'.format(n), 'rotmat_ind_{:d}.npy'.format(n))
 
-def cpu_powerfit(args, rotmat):
+def cpu_powerfit(args, vol, rotmat):
         # determine the number of jobs that should be created
         nrot = rotmat.shape[0]
         try:
@@ -66,7 +67,7 @@ def cpu_powerfit(args, rotmat):
             if n == (jobs - 1):
                 sub_rotmat = rotmat[init_rot:]
 
-            processes.append(mp.Process(target=run_powerfit_instance, args=(args, sub_rotmat, n)))
+            processes.append(mp.Process(target=run_powerfit_instance, args=(args, vol, sub_rotmat, n)))
 
         print('Starting jobs')
         for n in range(jobs):
@@ -102,10 +103,10 @@ def cpu_powerfit(args, rotmat):
 
         return sol
     
-def gpu_powerfit(args, rotmat, queue):
+def gpu_powerfit(args, vol, rotmat, queue):
 
     pf = PowerFitter()
-    pf.map = Volume.fromfile(args.map)
+    pf.map = vol
     pf.model = PDB.fromfile(args.model)
     pf.resolution = args.resolution
     pf.rotations = rotmat
@@ -127,6 +128,16 @@ def main():
     q, w, a = proportional_orientations(args.angle)
     rotmat = quat_to_rotmat(q)
 
+    vol = Volume.fromfile(args.map)
+    print('Initial shape: ', vol.shape)
+    resampling_factor = vol.voxelspacing/(0.25*args.resolution)
+    if resampling_factor < 0.9:
+        vol = volume.resample(vol, factor=resampling_factor)
+    #vol = volume.trim(vol, 0)
+    vol.tofile('trimmed.mrc')
+    vol = volume.resize_radix235(vol)
+    print('Final shape: ', vol.shape)
+
     queue = None
     if args.gpu:
         queue = get_queue()
@@ -134,9 +145,9 @@ def main():
     if queue is None:
         if args.gpu:
             print('GPU-queue not found. Falling back on CPU-implementation.')
-        sol = cpu_powerfit(args, rotmat)
+        sol = cpu_powerfit(args, vol, rotmat)
     else:
-        sol = gpu_powerfit(args, rotmat, queue)
+        sol = gpu_powerfit(args, vol, rotmat, queue)
 
     print('Writing results')
     sol.save()

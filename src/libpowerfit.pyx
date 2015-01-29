@@ -1,8 +1,9 @@
 import cython
 import numpy as np
 cimport numpy as np
-from libc.math cimport ceil, exp, floor
+from libc.math cimport ceil, exp, floor, abs
 
+@cython.boundscheck(False)
 def blur_points(np.ndarray[np.float64_t, ndim=2] points,
                 np.ndarray[np.float64_t, ndim=1] weights,
                 double sigma,
@@ -38,12 +39,21 @@ def blur_points(np.ndarray[np.float64_t, ndim=2] points,
         zmax = <int> floor(points[n, 2] + extend)
 
         for x in range(xmin, xmax+1):
+            if (abs(x) >= out.shape[2]):
+                continue
             dx = x - points[n, 0]
             x2 = dx**2
             for y in range(ymin, ymax+1):
+                if (abs(y) >= out.shape[1]):
+                    continue
+
                 dy = y - points[n, 1]
                 x2y2 = x2 + dy**2
                 for z in range(zmin, zmax+1):
+
+                    if (abs(z) >= out.shape[0]):
+                        continue
+
                     dz = z - points[n, 2]
                     distance2 = x2y2 + dz**2
                     if distance2 <= extend2:
@@ -87,12 +97,18 @@ def dilate_points(np.ndarray[np.float64_t, ndim=2] points,
         zmax = <int> floor(points[n, 2] + radius)
 
         for x in range(xmin, xmax+1):
+            if (abs(x) >= out.shape[2]):
+                continue
             dx = x - points[n, 0]
             x2 = dx**2
             for y in range(ymin, ymax+1):
+                if (abs(y) >= out.shape[1]):
+                    continue
                 dy = y - points[n, 1]
                 x2y2 = x2 + dy**2
                 for z in range(zmin, zmax+1):
+                    if (abs(z) >= out.shape[0]):
+                        continue
                     dz = z - points[n, 2]
                     distance2 = x2y2 + dz**2
                     if distance2 <= radius2:
