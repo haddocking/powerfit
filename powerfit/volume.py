@@ -1,4 +1,4 @@
-from __future__ import division
+from __future__ import division, print_function
 import numpy as np
 from scipy.ndimage import zoom
 from .libpowerfit import binary_erosion
@@ -13,13 +13,13 @@ class Volume(object):
 
     def __init__(self, array, voxelspacing=1.0, origin=(0, 0, 0)):
 
-        self._array = array
+        self.array = array
         self._voxelspacing = voxelspacing
         self._origin = origin
 
-    @property
+    #@property
     def array(self):
-        return self._array
+        return self.array
 
     @property
     def voxelspacing(self):
@@ -96,42 +96,44 @@ def resize_radix235(volume):
     
     radix235_shape = [radix235(x) for x in volume.shape]
     array = np.zeros(radix235_shape, dtype=np.float64)
+    array[:volume.shape[0], :volume.shape[1], :volume.shape[2]] = volume.array
 
     return Volume(array, volume.voxelspacing, volume.origin)
 
 def resample(volume, factor, order=1):
     
     resampled_array = zoom(volume.array, factor, order=order)
-    resampled_voxelspacing = volume.voxelspacing * factor
-    resampled_origin = [x*factor for x in volume.origin]
+    resampled_voxelspacing = volume.voxelspacing / factor
 
-    return Volume(resampled_array, resampled_voxelspacing, resampled_origin)
+    return Volume(resampled_array, resampled_voxelspacing, volume.origin)
 
-def trim(volume, threshold=0, margin=2):
+def trim(volume, threshold, margin=4):
     
-    array = volume.array
-    extend = {}
-    for axis in range(array.ndim):
-        tmp = np.swapaxes(array, 0, axis)
-        slices = tmp.shape[0]
+    array = volume.array.astype(np.float64)
+    extend = []
+    tmp1 = np.copy(volume.array)
+    for axis in range(volume.array.ndim):
+        array = np.swapaxes(array, 0, axis)
+        slices = array.shape[0]
         for s in range(slices):
             if array[s + 1].max() > threshold:
                 low = max(0, s - margin)
-            break
+                break
         for s in range(slices):
-            if array[s - (s + 1)].max() > threshold:
-                high = min(slices, slices - s + margin)
-            break
+            if array[slices - (s + 1)].max() > threshold:
+                high = min(slices, slices - s + margin) + 1
+                break
 
-        extend[axis]['low'] = low
-        extend[axis]['high'] = high
+        extend.append((low, high))
+        array = np.swapaxes(array, axis, 0)
 
-    sub_array = array[extend[0]['low']:extend[0]['high'],
-                 extend[1]['low']:extend[1]['high'],
-                 extend[2]['low']:extend[2]['high']]
+    print(extend)
+    (zmin, zmax), (ymin, ymax), (xmin, xmax) = extend
+    sub_array = np.ascontiguousarray(array[xmin:xmax, ymin:ymax, zmin:zmax].astype(np.float64))
+
     origin = []
-    origin.append(volume.origin[0] + volume.voxelspacing*extend[2]['low'])
-    origin.append(volume.origin[1] + volume.voxelspacing*extend[1]['low'])
-    origin.append(volume.origin[2] + volume.voxelspacing*extend[0]['low'])
+    origin.append(volume.origin[0] + volume.voxelspacing*xmin)
+    origin.append(volume.origin[1] + volume.voxelspacing*ymin)
+    origin.append(volume.origin[2] + volume.voxelspacing*zmin)
 
     return Volume(sub_array, volume.voxelspacing, origin)
