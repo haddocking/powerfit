@@ -112,7 +112,7 @@ class PowerFitter(object):
         if d['map'].max() < 1:
             d['map'] *= 1/d['map'].max()
         if self.laplace:
-            laplace(d['map'], d['map'], mode='constant')
+            d['map'] = laplace(d['map'], mode='constant')
 
         d['shape'] = d['map'].shape
         d['voxelspacing'] = self.map.voxelspacing
@@ -136,7 +136,7 @@ class PowerFitter(object):
         libpowerfit.blur_points(grid_coor, self.model.atomnumber.astype(np.float64), sigma, modelmap)
 
         if self.laplace:
-            laplace(modelmap, output=modelmap, mode='constant')
+            modelmap = laplace(modelmap, mode='constant')
 
         if self.core_weighted:
             core_indices(mask, out=mask)
