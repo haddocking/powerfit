@@ -4,7 +4,15 @@ from sys import stdout as _stdout
 import warnings
 
 import numpy as np
-from numpy.fft import rfftn, irfftn
+try:
+    import pyfftw
+    pyfftw.interfaces.cache.enable()
+    pyfftw.interfaces.cache.set_keepalive_time(10)
+    rfftn = pyfftw.interfaces.numpy_fft.rfftn
+    irfftn = pyfftw.interfaces.numpy_fft.irfftn
+except ImportError:
+    from numpy.fft import rfftn, irfftn
+
 from scipy.ndimage import laplace
 
 from powerfit import volume, libpowerfit, solutions
