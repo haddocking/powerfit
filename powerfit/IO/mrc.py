@@ -11,7 +11,7 @@ def parse_mrc(fid):
 
     array = mrcfile.get_density()
     voxelspacing = mrcfile.get_voxelspacing()
-    origin = [voxelspacing * x for x in mrcfile.get_nstart()]
+    origin = mrcfile.get_nstart()
 
     return array, voxelspacing, origin
 
@@ -110,7 +110,7 @@ class MRCFile(object):
         return self.header['xlength']/float(self.header['nx'])
 
     def get_nstart(self):
-	return self.header['zstart'], self.header['ystart'], self.header['xstart']
+	return self.header['xstart'], self.header['ystart'], self.header['zstart']
 
     def get_density(self):
         """
@@ -146,6 +146,7 @@ class MRCFile(object):
             if mode == 2:
                 rewindfactor = 1
             density = np.fromfile(mrc, dtype = endian + datatype)[256*rewindfactor:].reshape((ns,nr,nc))
+            density = density.astype(datatype)
 
         order = (header['mapc'], header['mapr'], header['maps'])
         if order == (1,3,2):
@@ -174,12 +175,12 @@ def to_mrc(fid, volume, labels=[]):
         out.write(pack('i', ny))
         out.write(pack('i', nz))
 
-        dtype = volume.array.dtype
-        if dtype == np.int8:
+        dtype = volume.array.dtype.name
+        if dtype == 'int8':
             mode = 0
-        elif dtype in (np.int16, np.int32):
+        elif dtype in ('int16', 'int32'):
             mode = 1
-        elif dtype in (np.float32, np.float64):
+        elif dtype in ('float32', 'float64'):
             mode = 2
         else:
             raise TypeError("Data type ({:})is not supported.".format(dtype))
