@@ -69,7 +69,43 @@ See the general instructions above to see how.
 To run PowerFit on Windows, install a Python distribution with NumPy, Cython and Scipy included such as [Anaconda](http://continuum.io/downloads).
 The general instructions above can then be followed.
 
-## Examples
+## Usage
+
+After installing PowerFit the commandline tool *powerfit* should be at your disposal.
+The general pattern to invoke *powerfit* is
+
+    powerfit <pdb> <map> <resolution>
+
+where <pdb> is an atomic model in the PDB-format, <map> is a density map in CCP4 or MRC-format, and <resolution> is the resolution of the map in angstrom.
+This performs a 10&deg; rotational search using the Local Cross-Correlation score on a single CPU-core.
+During the search, *powerfit* will update you about the progress of the search if you are using it interactively in the shell.
+When the search is finished, *powerfit* will output several files
+
+* 10 best scoring structures (fit_*n*.pdb)
+* A Cross-correlation map, showing at each voxel the highest LCC-value found ( *lcc.mrc* )
+* All the non-redundant solutions found ordered by the LCC-score together with their xyz-postions and rotation matrix ( *solutions.out* )
+* A log file, showing the input parameters and what was happening when ( *powerfit.log* )
+
+### Options
+
+First, to see all options and there descriptions type
+
+    powerfit --help
+
+The information should explain all options decently. 
+However, here are some examples for common operations.
+
+To perform a search with an approximate 24&deg; rotational sampling interval
+
+    powerfit <pdb> <map> <resolution> -a 24
+
+To use multiple CPU cores
+
+    powerfit <pdb> <map> <resolution> -p 8
+
+To off-load computations to the GPU
+
+    powerfit <pdb> <map> <resolution> -g
 
 ## Licensing
 
