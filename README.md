@@ -33,13 +33,14 @@ To offload computations to the GPU the following is also required
 
 ## Installation
 
-If you already have fulfilled the requirements, the installation should be as easy as
+If you already have fulfilled the requirements, the installation should be as easy as opening up a shell and typing
 
     git clone https://github.com/haddocking/powerfit.git
     cd powerfit
     (sudo) python setup.py install
 
-or if git is not available to you, download powerfit-master.zip and
+or if *git* is not available to you, download *powerfit-master.zip* from the right side of the page, 
+open up a shell, go to the location where you downloaded *powerfit-master.zip* and type
 
     unzip powerfit-master.zip
     cd powerfit-master/
@@ -51,18 +52,18 @@ If you are starting from a clean system, the following instructrions should get 
 
 Unix systems usually include already a Python distribution.
 To easily install the required Python packages, first install the Python package manager [pip](https://pip.pypa.io/en/latest/installing.html).
-Open up a terminal and go to the location where get-pip.py was downloaded. Type
+Download *get-pip.py*, open up a terminal and go to the location where *get-pip.py* was downloaded. Type
 
     (sudo) python get-pip.py
 
-This installs pip, making package management easy.
+This installs *pip*, making Python package management easy.
 To install NumPy, Cython and SciPy type
 
     (sudo) pip install numpy cython scipy
 
-Sit back and wait till the compilation and installing is done.
+Sit back and wait till the compilation and installion is finished.
 You system is now prepared to install PowerFit. 
-See the general instructions above to see how.
+Follow the general instructions above to see how.
 
 ### Windows
 
@@ -79,7 +80,7 @@ The general pattern to invoke *powerfit* is
 where <pdb> is an atomic model in the PDB-format, <map> is a density map in CCP4 or MRC-format, and <resolution> is the resolution of the map in angstrom.
 This performs a 10&deg; rotational search using the Local Cross-Correlation score on a single CPU-core.
 During the search, *powerfit* will update you about the progress of the search if you are using it interactively in the shell.
-When the search is finished, *powerfit* will output several files
+When the search is finished, several output files are created
 
 * 10 best scoring structures (fit_*n*.pdb)
 * A Cross-correlation map, showing at each voxel the highest LCC-value found ( *lcc.mrc* )
