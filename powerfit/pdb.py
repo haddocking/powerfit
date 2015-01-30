@@ -1,14 +1,23 @@
 from __future__ import absolute_import, print_function, division
+import os.path
 import operator
 import numpy as np
 from powerfit.IO.pdb import parse_pdb, write_pdb
+from powerfit.IO.mmcif import parse_cif
 import powerfit.atompar
 
 class PDB(object):
 
     @classmethod
     def fromfile(cls, pdbfile):
-        return cls(parse_pdb(pdbfile))
+        extension = os.path.splitext(pdbfile)[1]
+     
+        if extension == '.cif':
+            return cls(parse_cif(pdbfile))
+        elif extension in ('.pdb', '.ent'):
+            return cls(parse_pdb(pdbfile))
+        else:
+            raise ValueError("Format of file is not recognized")
 
     def __init__(self, pdbdata):
         self.data = pdbdata

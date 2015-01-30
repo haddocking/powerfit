@@ -2,6 +2,7 @@ build/
 env/
 packages/
 test-cases/
+analysis/
 
 *.c
 *.pyc

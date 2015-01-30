@@ -46,13 +46,13 @@ open up a shell, go to the location where you downloaded *powerfit-master.zip* a
     cd powerfit-master/
     (sudo) python setup.py install
 
-If you are starting from a clean system, the following instructrions should get you up and running in no time.
+If you are starting from a clean system, the following instructions should get you up and running in no time.
 
 ### Unix (Linux/MacOSX)
 
 Unix systems usually include already a Python distribution.
 To easily install the required Python packages, first install the Python package manager [pip](https://pip.pypa.io/en/latest/installing.html).
-Download *get-pip.py*, open up a terminal and go to the location where *get-pip.py* was downloaded. Type
+Download *get-pip.py*, open up a terminal and navigate to the location of *get-pip.py*. Type
 
     (sudo) python get-pip.py
 
@@ -61,7 +61,7 @@ To install NumPy, Cython and SciPy type
 
     (sudo) pip install numpy cython scipy
 
-Sit back and wait till the compilation and installion is finished.
+Sit back and wait till the compilation and installation is finished.
 You system is now prepared to install PowerFit. 
 Follow the general instructions above to see how.
 
