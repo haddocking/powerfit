@@ -4,6 +4,7 @@ from scipy.ndimage import label, maximum_position
 from powerfit.volume import Volume
 
 class Solutions(object):
+
     @classmethod
     def load(cls, lcc_fname, rotmat_fname, rotmat_ind_fname):
         return cls(Volume.fromfile(lcc_fname), 
@@ -34,16 +35,33 @@ class Solutions(object):
             positions += list(maximum_position(lcc, labels, range(1, nfeatures + 1)))
         positions = set(positions)
 
-        # a solutions consists of the LCC-value, the xyz-coordinate in space and its corresponding rotation
+        # a solutions consists of the LCC-value, the xyz-coordinate 
+        # in space and its corresponding rotation
         local_solutions = []
         for p in positions:
             rotmat = self.rotmat[self.rotmat_ind[p]]
-            xyzcoor = [(i + ni)*self.best_lcc.voxelspacing for i, ni in zip(p, self.best_lcc.start[::-1])]
+            xyzcoor = [(i + ni)*self.best_lcc.voxelspacing\
+                    for i, ni in zip(p, self.best_lcc.start[::-1])]
 
             local_solutions.append((self.best_lcc.array[p], xyzcoor, rotmat))
         local_solutions = sorted(local_solutions, key=lambda lcc: lcc[0], reverse = True)
 
         self._local_solutions = local_solutions
+
+    def get_models(self, num=10):
+        if not self._local_solutions:
+            self.generate_local_solutions()
+        
+        num = min(num, len(self._local_solutions))
+        models = []
+        for n in range(0, num):
+            lcc, xyzcoor, rotmat = self._local_solutions[n]
+            outmodel = model.duplicate()
+            outmodel.coor -= model.center
+            outmodel.rotate(rotmat)
+            outmodel.coor += np.asarray(xyzcoor, dtype=np.float64)[::-1]
+            models.append(outmodel)
+        return models
 
     def save(self, lcc_fname='lcc.mrc', rotmat_fname='rotmat.npy', 
             rotmat_ind_fname='rotmat_ind.npy'):
@@ -75,7 +93,7 @@ class Solutions(object):
                 lcc, xyzcoor, rotmat = sol
                 line = '{:5.3f}' + ' {:8.3f}'*3 + ' {:8.5f}'*9 + '\n'
                 out.write(line.format(lcc, xyzcoor[0], xyzcoor[1], xyzcoor[2], 
-                rotmat[0][0], rotmat[0][1], rotmat[0][2],
-                rotmat[1][0], rotmat[1][1], rotmat[1][2],
-                rotmat[2][0], rotmat[2][1], rotmat[2][2],
-                ))
+                        rotmat[0][0], rotmat[0][1], rotmat[0][2],
+                        rotmat[1][0], rotmat[1][1], rotmat[1][2],
+                        rotmat[2][0], rotmat[2][1], rotmat[2][2],
+                        ))
