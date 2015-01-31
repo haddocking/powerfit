@@ -77,15 +77,15 @@ The general pattern to invoke *powerfit* is
 
     powerfit <pdb> <map> <resolution>
 
-where <pdb> is an atomic model in the PDB-format, <map> is a density map in CCP4 or MRC-format, and <resolution> is the resolution of the map in angstrom.
+where \<pdb\> is an atomic model in the PDB-format, \<map\> is a density map in CCP4 or MRC-format, and \<resolution\> is the resolution of the map in angstrom.
 This performs a 10&deg; rotational search using the Local Cross-Correlation score on a single CPU-core.
 During the search, *powerfit* will update you about the progress of the search if you are using it interactively in the shell.
 When the search is finished, several output files are created
 
 * 10 best scoring structures (fit_*n*.pdb)
-* A Cross-correlation map, showing at each voxel the highest LCC-value found ( *lcc.mrc* )
-* All the non-redundant solutions found ordered by the LCC-score together with their xyz-postions and rotation matrix ( *solutions.out* )
-* A log file, showing the input parameters and what was happening when ( *powerfit.log* )
+* A Cross-correlation map, showing at each voxel the highest LCC-value found (*lcc.mrc*)
+* All the non-redundant solutions found ordered by the LCC-score together with their xyz-postions and rotation matrix (*solutions.out*)
+* A log file, showing the input parameters and what was happening when (*powerfit.log*)
 
 ### Options
 
