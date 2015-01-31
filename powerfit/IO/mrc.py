@@ -138,15 +138,9 @@ class MRCFile(object):
         ns = header['ns']
 
         with open(mrc_file,'rb') as mrc:
-            # TODO do it properly
-            if mode == 0:
-                rewindfactor = 4
-            if mode == 1:
-                rewindfactor = 2
-            if mode == 2:
-                rewindfactor = 1
-            density = np.fromfile(mrc, dtype = endian + datatype)[256*rewindfactor:].reshape((ns,nr,nc))
-            density = density.astype(datatype)
+            mrc.seek(1024)
+            density = np.fromfile(mrc, dtype = endian + datatype).reshape((ns,nr,nc))
+            #density = density.astype(datatype)
 
         order = (header['mapc'], header['mapr'], header['maps'])
         if order == (1,3,2):
@@ -170,7 +164,7 @@ def to_mrc(fid, volume, labels=[]):
     voxelspacing = volume.voxelspacing
     with open(fid, 'wb') as out:
 
-        nx, ny, nz = volume.shape
+        nz, ny, nx = volume.shape
         out.write(pack('i', nx))
         out.write(pack('i', ny))
         out.write(pack('i', nz))

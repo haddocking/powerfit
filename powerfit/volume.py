@@ -17,10 +17,6 @@ class Volume(object):
         self._voxelspacing = voxelspacing
         self._origin = origin
 
-    #@property
-    def array(self):
-        return self.array
-
     @property
     def voxelspacing(self):
         return self._voxelspacing
@@ -109,27 +105,24 @@ def resample(volume, factor, order=1):
 
 def trim(volume, threshold, margin=4):
     
-    array = volume.array.astype(np.float64)
     extend = []
-    tmp1 = np.copy(volume.array)
     for axis in range(volume.array.ndim):
-        array = np.swapaxes(array, 0, axis)
-        slices = array.shape[0]
+        volume.array = np.swapaxes(volume.array, 0, axis)
+        slices = volume.array.shape[0]
         for s in range(slices):
-            if array[s + 1].max() > threshold:
+            if volume.array[s + 1].max() > threshold:
                 low = max(0, s - margin)
                 break
         for s in range(slices):
-            if array[slices - (s + 1)].max() > threshold:
-                high = min(slices, slices - s + margin) + 1
+            if volume.array[slices - (s + 1)].max() > threshold:
+                high = min(slices, slices - s + margin)
                 break
 
         extend.append((low, high))
-        array = np.swapaxes(array, axis, 0)
+        volume.array = np.swapaxes(volume.array, axis, 0)
 
-    print(extend)
     (zmin, zmax), (ymin, ymax), (xmin, xmax) = extend
-    sub_array = np.ascontiguousarray(array[xmin:xmax, ymin:ymax, zmin:zmax].astype(np.float64))
+    sub_array = volume.array[zmin: zmax, ymin: ymax, xmin: xmax]
 
     origin = []
     origin.append(volume.origin[0] + volume.voxelspacing*xmin)

@@ -133,8 +133,7 @@ def main():
     resampling_factor = vol.voxelspacing/(0.25*args.resolution)
     if resampling_factor < 0.9:
         vol = volume.resample(vol, factor=resampling_factor)
-    #vol = volume.trim(vol, 0)
-    vol.tofile('trimmed.mrc')
+    vol = volume.trim(vol, 0.1*vol.array.max())
     vol = volume.resize_radix235(vol)
     print('Final shape: ', vol.shape)
 
