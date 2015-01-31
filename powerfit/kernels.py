@@ -72,6 +72,27 @@ class Kernels():
             raise TypeError("Array type is not supported")
         return status
 
+    def blur_points(self, queue, points, weights, sigma, out):
+
+        kernel = self.kernels.blur_points
+
+        shape = np.zeros(4, dtype=np.int32)
+        shape[:3] = out.shape
+
+        kernel.set_args(points.data, weights.data, np.float32(sigma),
+                out.data, shape, np.int32(points.shape[0]))
+
+        compute_units = queue.device.max_compute_units
+        max_wg = compute_units*16*8
+        zwg = int(max(1, min(max_wg, out.shape[0])))
+        ywg = int(max(1, min(max_wg - zwg, out.shape[1])))
+        xwg = int(max(1, min(max_wg - zwg - ywg, out.shape[2])))
+        wg = (zwg, ywg, xwg)
+
+        status = cl.enqueue_nd_range_kernel(queue, kernel, wg, None)
+
+        return status
+
     def rotate_image3d(self, queue, sampler, image3d,
             rotmat, array_buffer, center):
 

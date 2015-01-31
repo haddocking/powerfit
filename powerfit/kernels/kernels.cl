@@ -65,6 +65,75 @@ void count(__global int *interspace,
 }
 
 __kernel
+void blur_points(__global float4 points,
+                 __global float weights,
+                 float sigma,
+                 __global float out,
+                 int4 shape, int npoints)
+{
+    const int zid = get_global_id(0);
+    const int yid = get_global_id(1);
+    const int xid = get_global_id(2);
+
+    const int zstride = get_global_size(0);
+    const int ystride = get_global_size(1);
+    const int xstride = get_global_size(2);
+
+    const float sigma2 = pown(sigma, 2)
+    const float extend2 = pown(4*sigma, 2);
+    const int slice = shape.s2 * shape.s1;
+    const float hx = 0.5 * shape.s2;
+    const float hy = 0.5 * shape.s1;
+    const float hz = 0.5 * shape.s0;
+
+    unsigned int i, iz, iy, ix, z_ind, yz_ind;
+    float z, y, x, z2, y2z2, x2y2z2;
+
+    for (i = 0; i < npoints; i ++){
+
+        for (iz = zid; iz < shape.s0; iz += zstride){
+
+            z = iz;
+            if (z > hz)
+                z -= shape.s0;
+                
+            z2 = pown(z - points[i].s0, 2);
+
+            if (z2 > extend2)
+                continue
+
+            z_ind = iz*slice;
+
+            for (iy = yid; iy < shape.s1; iy += ystride){
+                y = iy;
+                if (y > hy)
+                    y -= shape.s1;
+                    
+                y2z2 = pown(y - points[i].s1, 2) + z2;
+
+                if (y2z2 > extend2)
+                    continue
+
+                yz_ind = iy*shape.s2 + z_ind;
+
+                for (ix = xid; ix < shape.s2; ix += xstride){
+                    x = ix;
+                    if (x > hx)
+                        x -= shape.s2;
+                        
+                    x2y2z2 = pown(x - points[i].s2, 2) + y2z2;
+
+                    if (x2y2z2 > extend2)
+                        continue
+
+                    out[yz_ind + ix] += weights[i]*exp(-x2y2z2/sigma2);
+                }
+            }
+        }
+    }
+}
+
+__kernel
 void dilate_points_add(__global float8 *constraints, 
                        float16 rotmat, 
                        __global int *restspace, int4 shape, int nrestraints)
