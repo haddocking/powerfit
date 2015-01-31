@@ -1,17 +1,18 @@
+from __future__ import division, absolute_import, print_function
 import sys
-from struct import pack
+import os.path
+from struct import pack, unpack
+from collections import OrderedDict
+
 import numpy as np
 
-import sys, struct
-import numpy as np
-from collections import OrderedDict
 
 def parse_mrc(fid):
     mrcfile = MRCFile(fid)
 
-    array = mrcfile.get_density()
-    voxelspacing = mrcfile.get_voxelspacing()
-    origin = mrcfile.get_nstart()
+    array = mrcfile.density
+    voxelspacing = mrcfile.voxelspacing
+    origin = mrcfile.origin
 
     return array, voxelspacing, origin
 
@@ -20,109 +21,136 @@ class MRCFile(object):
     Class for MRC-type files
     """
 
-    def __init__(self, source):
+    def __init__(self, fid, fmt=None):
+
     
-        self.source = source
-	self.endian = self._get_endianness()
-        self.header = self._get_header()
+        if isinstance(fid, file):
+            pass
+        elif isinstance(fid, str):
+            if fmt is None:
+                fmt = os.path.splitext(fid)[1][1:]
 
-    def _get_endianness(self):
-        """Determines the endianness of the mrc-file. 
-        This is determined by the 212 to 216th byte of the file.
-        It returns '<' for little-endianness and '>' for big-endianness.
-        """
+            fid = open(fid, 'rb')
+        else:
+            raise TypeError('Input should either be a file of filename')
 
-        with open(self.source, 'rb') as mapfile:
-            byte = mapfile.read(216)[212]
-            machst = hex(ord(byte))
+        if fmt not in ('ccp4', 'mrc', 'map'):
+            raise ValueError('Format should either be ccp4 or mrc.')
 
-            if machst not in ('0x44', '0x11'):
-                raise ValueError, 'Machine stamp value is not recognized'
+        self._fid = fid
+        self.fmt = fmt
+        self._header = {}
 
-            if (machst == '0x44'):
-                endian = '<'
-            elif (machst == '0x11'):
-                endian = '>'
-	    else:
-		raise IOError("Could not determine the endianness of the file")
+        self._fid.seek(212)
+        machst = hex(ord(self._fid.read(1)))
+        if (machst == '0x44'):
+            endian = '<'
+        elif (machst == '0x11'):
+            endian = '>'
+        else:
+            raise IOError("Could not determine the endianness of the file")
+        self._endian = endian
 
-        return endian
-
-    def _get_header(self):
-        """Parses a MRC-file and returns the header as an OrderedDict.
-
-        See: ami.scripps.edu/software/mrctools/mrc_specification.php
-        of resulting numbers.
-        """
-
-        mrc_file = self.source
-
-        # first determine endianness of file
-        endian = self._get_endianness()
-
-        # read the header part
+        self._fid.seek(0)
         headertype = 'i'*10 + 'f'*6 + 'i'*3 + 'f'*3 + 'i'*3\
                + 'f'*27 + 'c'*8 + 'f'*1 + 'i'*1 + 'c'*(80*10)
+        raw_header = unpack(endian + headertype, self._fid.read(1024))
+        self._header = OrderedDict()
+        self._header['nc'] = raw_header[0]
+        self._header['nr'] = raw_header[1]
+        self._header['ns'] = raw_header[2]
+        self._header['mode'] = raw_header[3]
+        self._header['ncstart'] = raw_header[4]
+        self._header['nrstart'] = raw_header[5]
+        self._header['nsstart'] = raw_header[6]
+        self._header['nx'] = raw_header[7]
+        self._header['ny'] = raw_header[8]
+        self._header['nz'] = raw_header[9]
+        self._header['xlength'] = raw_header[10]
+        self._header['ylength'] = raw_header[11]
+        self._header['zlength'] = raw_header[12]
+        self._header['alpha'] = raw_header[13]
+        self._header['beta'] = raw_header[14]
+        self._header['gamma'] = raw_header[15]
+        self._header['mapc'] = raw_header[16]
+        self._header['mapr'] = raw_header[17]
+        self._header['maps'] = raw_header[18]
+        self._header['amin'] = raw_header[19]
+        self._header['amax'] = raw_header[20]
+        self._header['amean'] = raw_header[21]
+        self._header['ispg'] = raw_header[22]
+        self._header['nsymbt'] = raw_header[23]
+        self._header['lskflg'] = raw_header[24]
+        self._header['skwmat'] = raw_header[25:34]
+        self._header['skwtrn'] = raw_header[34:37]
+        self._header['extra'] = raw_header[37:49]
+	self._header['xstart'] = raw_header[49]
+	self._header['ystart'] = raw_header[50]
+	self._header['zstart'] = raw_header[51]
+        self._header['map'] = "".join(raw_header[52:56])
+        self._header['machst'] = " ".join(map(hex,map(ord,raw_header[56:60])))
+        self._header['rms'] = raw_header[60]
+        self._header['nlabel'] = raw_header[61]
+        self._header['label'] = "".join(raw_header[62:862]).strip()
+    
+    @property
+    def fid(self):
+        return self._fid
 
-        with open(mrc_file,'rb') as mapfile:
-            raw_header = struct.unpack(endian + headertype, mapfile.read(1024) )
+    @property
+    def fmt(self):
+        return self._fmt
 
-        header = OrderedDict()
-        header['nc'] = raw_header[0]
-        header['nr'] = raw_header[1]
-        header['ns'] = raw_header[2]
-        header['mode'] = raw_header[3]
-        header['ncstart'] = raw_header[4]
-        header['nrstart'] = raw_header[5]
-        header['nsstart'] = raw_header[6]
-        header['nx'] = raw_header[7]
-        header['ny'] = raw_header[8]
-        header['nz'] = raw_header[9]
-        header['xlength'] = raw_header[10]
-        header['ylength'] = raw_header[11]
-        header['zlength'] = raw_header[12]
-        header['alpha'] = raw_header[13]
-        header['beta'] = raw_header[14]
-        header['gamma'] = raw_header[15]
-        header['mapc'] = raw_header[16]
-        header['mapr'] = raw_header[17]
-        header['maps'] = raw_header[18]
-        header['amin'] = raw_header[19]
-        header['amax'] = raw_header[20]
-        header['amean'] = raw_header[21]
-        header['ispg'] = raw_header[22]
-        header['nsymbt'] = raw_header[23]
-        header['lskflg'] = raw_header[24]
-        header['skwmat'] = raw_header[25:34]
-        header['skwtrn'] = raw_header[34:37]
-        header['extra'] = raw_header[37:49]
-	header['xstart'] = raw_header[49]
-	header['ystart'] = raw_header[50]
-	header['zstart'] = raw_header[51]
-        header['map'] = "".join(raw_header[52:56])
-        header['machst'] = " ".join(map(hex,map(ord,raw_header[56:60])))
-        header['rms'] = raw_header[60]
-        header['nlabel'] = raw_header[61]
-        header['label'] = "".join(raw_header[62:862]).strip()
-        return header
+    @fmt.setter
+    def fmt(self, fmt):
+        if fmt not in ('ccp4', 'mrc', 'map'):
+            raise ValueError('Format should either be ccp4 or mrc.')
+        self._fmt = fmt
 
-    def get_voxelspacing(self):
-        return self.header['xlength']/float(self.header['nx'])
+    @property
+    def header(self):
+        return self._header
 
-    def get_nstart(self):
-	return self.header['xstart'], self.header['ystart'], self.header['zstart']
+    @property
+    def voxelspacing(self):
+        return self.header['xlength']/self.header['nx']
 
-    def get_density(self):
-        """
-        Parses a CCP4-file and returns the density.
-        """
+    @property
+    def origin(self):
+        if self.fmt == 'mrc':
+            origin = (self.header['xstart'], 
+                    self.header['ystart'], self.header['zstart'])
+        elif self.fmt in ('map', 'ccp4'):
+            order = (self.header['mapc'], 
+                    self.header['mapr'], self.header['maps'])
+            if order == (1, 2, 3):
+                start = (self.header['ncstart'], 
+                        self.header['nrstart'], self.header['nsstart'])
+            elif order == (1,3,2):
+                start = (self.header['ncstart'], 
+                        self.header['nsstart'], self.header['nrstart'])
+            elif order == (2,1,3):
+                start = (self.header['nrstart'], 
+                        self.header['ncstart'], self.header['nsstart'])
+            elif order == (2,3,1):
+                start = (self.header['nrstart'], 
+                        self.header['nsstart'], self.header['ncstart'])
+            elif order == (3,1,2):
+                start = (self.header['nsstart'], 
+                        self.header['ncstart'], self.header['nrstart'])
+            elif order == (3,2,1):
+                start = (self.header['nsstart'], 
+                        self.header['nrstart'], self.header['ncstart'])
 
-        mrc_file = self.source
-        endian = self.endian
-        header= self.header
+            origin = [x * self.voxelspacing for x in start]
+        return origin
+
+
+    @property
+    def density(self):
 
         # determine nc, nr, ns and mode/datatype of density
-        mode = header['mode']
+        mode = self.header['mode']
         if mode == 0:
             datatype = 'i1'
         elif mode == 1:
@@ -133,16 +161,14 @@ class MRCFile(object):
 	    raise IOError("Datatype of density is not recoginized")
 
         # read the density and reshape it
-        nc = header['nc']
-        nr = header['nr']
-        ns = header['ns']
+        nc = self.header['nc']
+        nr = self.header['nr']
+        ns = self.header['ns']
 
-        with open(mrc_file,'rb') as mrc:
-            mrc.seek(1024)
-            density = np.fromfile(mrc, dtype = endian + datatype).reshape((ns,nr,nc))
-            #density = density.astype(datatype)
+        self.fid.seek(1024)
+        density = np.fromfile(self.fid, dtype=self._endian + datatype).reshape((ns,nr,nc))
 
-        order = (header['mapc'], header['mapr'], header['maps'])
+        order = (self.header['mapc'], self.header['mapr'], self.header['maps'])
         if order == (1,3,2):
             density = np.swapaxes(density, 0, 1)
         elif order == (2,1,3):
