@@ -1,6 +1,7 @@
 # PowerFit
 
 ## About PowerFit
+
 PowerFit is a Python package and simple command-line program to automatically fit high-resolution atomic structures in cryo-EM densities.
 To this end it performs a full-exhaustive 6-dimensional cross-correlation search between the atomic structure and the density.
 It takes as input an atomic structure in PDB-format and a cryo-EM density with its resolution;
@@ -33,13 +34,15 @@ To offload computations to the GPU the following is also required
 
 ## Installation
 
-If you already have fulfilled the requirements, the installation should be as easy as opening up a shell and typing
+If you already have fulfilled the requirements, 
+the installation should be as easy as opening up a shell and typing
 
     git clone https://github.com/haddocking/powerfit.git
     cd powerfit
     (sudo) python setup.py install
 
-or if *git* is not available to you, download *powerfit-master.zip* from the right side of the page, 
+or if *git* is not available to you, 
+download *powerfit-master.zip* from the right side of the page, 
 open up a shell, go to the location where you downloaded *powerfit-master.zip* and type
 
     unzip powerfit-master.zip
@@ -51,7 +54,8 @@ If you are starting from a clean system, the following instructions should get y
 ### Unix (Linux/MacOSX)
 
 Unix systems usually include already a Python distribution.
-To easily install the required Python packages, first install the Python package manager [pip](https://pip.pypa.io/en/latest/installing.html).
+To easily install the required Python packages, 
+first install the Python package manager [pip](https://pip.pypa.io/en/latest/installing.html).
 Download *get-pip.py*, open up a terminal and navigate to the location of *get-pip.py*. Type
 
     (sudo) python get-pip.py
@@ -77,7 +81,9 @@ The general pattern to invoke *powerfit* is
 
     powerfit <pdb> <map> <resolution>
 
-where \<pdb\> is an atomic model in the PDB-format, \<map\> is a density map in CCP4 or MRC-format, and \<resolution\> is the resolution of the map in angstrom.
+where \<pdb\> is an atomic model in the PDB-format, 
+\<map\> is a density map in CCP4 or MRC-format, 
+and \<resolution\> is the resolution of the map in &aring;ngstrom.
 This performs a 10&deg; rotational search using the Local Cross-Correlation score on a single CPU-core.
 During the search, *powerfit* will update you about the progress of the search if you are using it interactively in the shell.
 When the search is finished, several output files are created
@@ -89,24 +95,27 @@ When the search is finished, several output files are created
 
 ### Options
 
-First, to see all options and there descriptions type
+First, to see all options and their descriptions type
 
     powerfit --help
 
 The information should explain all options decently. 
-However, here are some examples for common operations.
+In addtion, here are some examples for common operations.
 
 To perform a search with an approximate 24&deg; rotational sampling interval
 
     powerfit <pdb> <map> <resolution> -a 24
 
-To use multiple CPU cores
+To use multiple CPU cores with laplace pre-filter and 5&deg; rotational interval
 
-    powerfit <pdb> <map> <resolution> -p 8
+    powerfit <pdb> <map> <resolution> -p 4 -l -a 5
 
-To off-load computations to the GPU
+To off-load computations to the GPU and use the core-weighted scoring function and write out the top 15 solutions
 
-    powerfit <pdb> <map> <resolution> -g
+    powerfit <pdb> <map> <resolution> -g -cw -n 15
+
+Note that all options can be combined except for the -g and -p n flag:
+calculations are eiter performed on the CPU or GPU.
 
 ## Licensing
 
