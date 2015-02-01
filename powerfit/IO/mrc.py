@@ -27,15 +27,12 @@ class MRCFile(object):
         if isinstance(fid, file):
             pass
         elif isinstance(fid, str):
-            if fmt is None:
-                fmt = os.path.splitext(fid)[1][1:]
-
             fid = open(fid, 'rb')
         else:
             raise TypeError('Input should either be a file of filename')
 
-        if fmt not in ('ccp4', 'mrc', 'map'):
-            raise ValueError('Format should either be ccp4 or mrc.')
+        if fmt is None:
+            fmt = os.path.splitext(fid.name)[1].strip('.')
 
         self._fid = fid
         self.fmt = fmt

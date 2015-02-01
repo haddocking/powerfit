@@ -1,6 +1,14 @@
 import numpy as np
 
 def parse_pdb(pdbfile):
+
+    if isinstance(pdbfile, file):
+        pass
+    elif isinstance(pdbfile, str):
+        pdbfile = open(pdbfile)
+    else:
+        raise TypeError('Input should either be a file or string.')
+
     ATOM = "ATOM "
     MODEL = "MODEL "
 
@@ -22,7 +30,7 @@ def parse_pdb(pdbfile):
 
     model_number = 1
 
-    for line in open(pdbfile):
+    for line in pdbfile:
 
         if line.startswith(MODEL):
             model_number = int(line[10:14])

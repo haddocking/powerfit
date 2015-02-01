@@ -10,7 +10,12 @@ class PDB(object):
 
     @classmethod
     def fromfile(cls, pdbfile):
-        extension = os.path.splitext(pdbfile)[1]
+        try:
+            fname = pdbfile.name
+        except AttributeError:
+            fname = pdbfile
+
+        extension = os.path.splitext(fname)[1]
      
         if extension == '.cif':
             return cls(parse_cif(pdbfile))

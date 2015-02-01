@@ -5,7 +5,7 @@ from __future__ import print_function, division, absolute_import
 import os
 from sys import stdout
 from time import time
-from argparse import ArgumentParser
+from argparse import ArgumentParser, FileType
 import multiprocessing as mp
 
 import numpy as np
@@ -23,10 +23,10 @@ def parse_args():
 
     p = ArgumentParser()
 
-    p.add_argument('model', type=str,
+    p.add_argument('model', type=file,
             help='Atomic model to be fitted in the density. ' +\
                  'Format should either be PDB or mmCIF')
-    p.add_argument('map', type=str,
+    p.add_argument('map', type=FileType('rb'),
             help='Target density map to fit the model in. ' +\
                  'Data should either be in CCP4 or MRC format')
 
@@ -175,7 +175,7 @@ def main():
 
 
     vol = Volume.fromfile(args.map)
-    write('Density data read from: {:s}'.format(args.map))
+    write('Density data read from: {:s}'.format(args.map.name))
     write('Resolution of data: {:.2f}'.format(args.resolution))
     write('Initial shape of density data: {:}'.format(str(vol.shape)))
 
@@ -192,7 +192,7 @@ def main():
     write('Final shape of density data after trimming and resizing: {:}'.format(str(vol.shape)))
 
     model = PDB.fromfile(args.model)
-    write('High-resolution model read from: {:s}'.format(args.model))
+    write('High-resolution model read from: {:s}'.format(args.model.name))
 
     q, w, a = proportional_orientations(args.angle)
     rotmat = quat_to_rotmat(q)

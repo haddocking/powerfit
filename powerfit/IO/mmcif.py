@@ -4,8 +4,15 @@ from collections import OrderedDict
 import numpy as np
 
 def parse_cif(infile):
+    if isinstance(infile, file):
+        pass
+    elif isinstance(infile, str):
+        infile = open(infile)
+    else:
+        raise TypeError("Input should either be a file or string.")
+
     atom_site = OrderedDict()
-    with open(infile) as f:
+    with infile as f:
         for line in f:
             
             if line.startswith('_atom_site.'):
