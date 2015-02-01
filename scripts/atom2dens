@@ -1,6 +1,68 @@
 #! /usr/local/bin/python
 from __future__ import print_function
-from powerfit import PDB
+from argparse import ArgumentParser, FileType
+import sys
+
+import numpy as np
+from powerfit import PDB, Volume
+from powerfit.helpers import resolution2sigma
 from powerfit.libpowerfit import blur_points
 
 
+def parse_args():
+    p = ArgumentParser()
+
+
+    p.add_argument('model', type=file,
+            help='High-resolution model.')
+    p.add_argument('resolution', type=float,
+            help='Target resolution in angstrom.')
+
+    p.add_argument('-vs', '--voxelspacing', dest='voxelspacing', type=float, default=None,
+            help='Voxel spacing of resulting density in angstrom.')
+    p.add_argument('-o', '--output', dest='output', type=str, default='out.mrc',
+            help='Name of output map.')
+    p.add_argument('-s', '--shape', dest='shape', nargs=3, type=int, default=None,
+            help='Shape of density in voxels. Order is (NZ, NY, NX).')
+
+    return p.parse_args()
+
+def main():
+    args = parse_args()
+
+    print(args)
+
+    model = PDB.fromfile(args.model)
+
+    # determine voxelspacing
+    if args.voxelspacing is None:
+        voxelspacing = args.resolution/4.0
+    else:
+        if not voxelspacing > 0.0:
+            raise ValueError("Voxel spacing should be bigger than 0.")
+        voxelspacing = args.voxelspacing
+
+    # determine minimal shape of box size
+    sigma = resolution2sigma(args.resolution)
+
+    if args.shape is None:
+        coor = model.coor - model.center
+        min_dimensions = np.max(coor, axis=0) - np.min(coor, axis=0) + 8*sigma
+        shape = np.ceil(min_dimensions/voxelspacing)[::-1] + 1
+        print(min_dimensions, shape)
+    else:
+        shape = np.asarray(args.shape)
+
+    # determine origin
+    start = np.floor(model.center[::-1]/voxelspacing - 0.5*shape)
+    origin = start[::-1]*voxelspacing
+    print(start, origin)
+
+    array = np.zeros(shape, dtype=np.float64)
+    grid_coor = (model.coor - origin)/voxelspacing
+    blur_points(grid_coor, model.atomnumber, sigma/voxelspacing, array)
+
+    vol = Volume(array, voxelspacing, origin).tofile(args.output)
+
+if __name__=='__main__':
+    main()
