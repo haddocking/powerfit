@@ -65,10 +65,10 @@ void count(__global int *interspace,
 }
 
 __kernel
-void blur_points(__global float4 points,
-                 __global float weights,
+void blur_points(__global float4 *points,
+                 __global float *weights,
                  float sigma,
-                 __global float out,
+                 __global float *out,
                  int4 shape, int npoints)
 {
     const int zid = get_global_id(0);
@@ -79,7 +79,7 @@ void blur_points(__global float4 points,
     const int ystride = get_global_size(1);
     const int xstride = get_global_size(2);
 
-    const float sigma2 = pown(sigma, 2)
+    const float sigma2 = pown(sigma, 2);
     const float extend2 = pown(4*sigma, 2);
     const int slice = shape.s2 * shape.s1;
     const float hx = 0.5 * shape.s2;
@@ -100,7 +100,7 @@ void blur_points(__global float4 points,
             z2 = pown(z - points[i].s0, 2);
 
             if (z2 > extend2)
-                continue
+                continue;
 
             z_ind = iz*slice;
 
@@ -112,7 +112,7 @@ void blur_points(__global float4 points,
                 y2z2 = pown(y - points[i].s1, 2) + z2;
 
                 if (y2z2 > extend2)
-                    continue
+                    continue;
 
                 yz_ind = iy*shape.s2 + z_ind;
 
@@ -124,7 +124,7 @@ void blur_points(__global float4 points,
                     x2y2z2 = pown(x - points[i].s2, 2) + y2z2;
 
                     if (x2y2z2 > extend2)
-                        continue
+                        continue;
 
                     out[yz_ind + ix] += weights[i]*exp(-x2y2z2/sigma2);
                 }
