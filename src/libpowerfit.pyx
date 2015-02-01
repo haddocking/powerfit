@@ -22,7 +22,7 @@ def blur_points(np.ndarray[np.float64_t, ndim=2] points,
     cdef unsigned int n
     cdef int x, y, z, xmin, ymin, zmin, xmax, ymax, zmax
     cdef double extend, extend2, dsigma2
-    cdef double dx, x2, dy, x2y2, dz, distance2
+    cdef double z2, y2z2, x2y2z2
 
     extend = 4.0 * sigma
     extend2 = extend**2
@@ -38,28 +38,26 @@ def blur_points(np.ndarray[np.float64_t, ndim=2] points,
         ymax = <int> floor(points[n, 1] + extend)
         zmax = <int> floor(points[n, 2] + extend)
 
-        for x in range(xmin, xmax+1):
-            if (abs(x) >= out.shape[2]):
+        for z in range(zmin, zmax+1):
+            if (abs(z) >= out.shape[0]):
                 continue
-            dx = x - points[n, 0]
-            x2 = dx**2
+            z2 = (z - points[n, 2])**2
+
             for y in range(ymin, ymax+1):
                 if (abs(y) >= out.shape[1]):
                     continue
+                y2z2 = (y - points[n, 1])**2 + z2
 
-                dy = y - points[n, 1]
-                x2y2 = x2 + dy**2
-                for z in range(zmin, zmax+1):
-
-                    if (abs(z) >= out.shape[0]):
+                for x in range(xmin, xmax+1):
+                    if (abs(x) >= out.shape[2]):
                         continue
+                    x2y2z2 = (x - points[n, 0])**2 + y2z2
 
-                    dz = z - points[n, 2]
-                    distance2 = x2y2 + dz**2
-                    if distance2 <= extend2:
-                        out[z,y,x] += weights[n] * exp(-distance2/dsigma2)
+                    if x2y2z2 <= extend2:
+                        out[z,y,x] += weights[n] * exp(-x2y2z2/dsigma2)
     return out
 
+@cython.boundscheck(False)
 def dilate_points(np.ndarray[np.float64_t, ndim=2] points,
                   double radius,
                   np.ndarray[np.float64_t, ndim=3] out,
@@ -82,7 +80,7 @@ def dilate_points(np.ndarray[np.float64_t, ndim=2] points,
     cdef unsigned int n
     cdef int x, y, z, xmin, ymin, zmin, xmax, ymax, zmax
     cdef double radius2
-    cdef double dx, x2, dy, x2y2, dz, distance2
+    cdef double z2, y2z2, x2y2z2
 
     radius2 = radius**2
 
@@ -96,22 +94,22 @@ def dilate_points(np.ndarray[np.float64_t, ndim=2] points,
         ymax = <int> floor(points[n, 1] + radius)
         zmax = <int> floor(points[n, 2] + radius)
 
-        for x in range(xmin, xmax+1):
-            if (abs(x) >= out.shape[2]):
+        for z in range(zmin, zmax+1):
+            if (abs(z) >= out.shape[0]):
                 continue
-            dx = x - points[n, 0]
-            x2 = dx**2
+            z2 = (z - points[n, 2])**2
+
             for y in range(ymin, ymax+1):
                 if (abs(y) >= out.shape[1]):
                     continue
-                dy = y - points[n, 1]
-                x2y2 = x2 + dy**2
-                for z in range(zmin, zmax+1):
-                    if (abs(z) >= out.shape[0]):
+                y2z2 = (y - points[n, 1])**2 + z2
+
+                for x in range(xmin, xmax+1):
+                    if (abs(x) >= out.shape[2]):
                         continue
-                    dz = z - points[n, 2]
-                    distance2 = x2y2 + dz**2
-                    if distance2 <= radius2:
+                    x2y2z2 = (x - points[n, 0])**2 + y2z2
+
+                    if x2y2z2 <= radius2:
                         out[z,y,x] = 1.0
 
 @cython.boundscheck(False)
