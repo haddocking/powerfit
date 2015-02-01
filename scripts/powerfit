@@ -1,10 +1,12 @@
 #! /usr/bin/python
+# -*- coding: utf-8 -*-
 from __future__ import print_function, division, absolute_import
 
+import os
+from sys import stdout
+from time import time
 from argparse import ArgumentParser
 import multiprocessing as mp
-from time import time
-import os
 
 import numpy as np
 
@@ -12,6 +14,10 @@ from powerfit import PDB, Volume, PowerFitter, Solutions
 from powerfit.rotations import proportional_orientations, quat_to_rotmat
 from powerfit.helpers import get_queue
 from powerfit import volume
+
+import logging
+logging.basicConfig(filename='powerfit.log', level=logging.INFO,
+        format='%(asctime)s %(message)s')
 
 def parse_args():
 
@@ -57,13 +63,14 @@ def parse_args():
     return p.parse_args()
 
 
-def run_powerfit_instance(args, vol, rotmat, n):
+def run_powerfit_instance(model, vol, rotmat, args, n):
 
     pf = PowerFitter()
     pf.map = vol
-    pf.model = PDB.fromfile(args.model)
-    pf.resolution = args.resolution
+    pf.model = model
     pf.rotations = rotmat
+
+    pf.resolution = args.resolution
     pf.laplace = args.laplace
     pf.core_weighted = args.core_weighted
 
@@ -73,39 +80,47 @@ def run_powerfit_instance(args, vol, rotmat, n):
             'rotmat_ind_{:d}.npy'.format(n))
 
 
-def cpu_powerfit(args, vol, rotmat):
+def cpu_powerfit(model, vol, rotmat, args):
+
         # determine the number of jobs that should be created
         nrot = rotmat.shape[0]
+        write('Requested number of processes: {:d}'.format(args.nproc))
         try:
             jobs = min(mp.cpu_count(), args.nproc)
+            write('Maximum allowed processes: {:d}'.format(mp.cpu_count()))
         except NotImplementedError:
             jobs = args.nproc
         jobs = min(jobs, nrot)
         nrot_per_job = nrot//jobs
 
+        write('Number of jobs created: {:d}'.format(jobs))
+        write('Rotations sampled per job: {:d}'.format(nrot_per_job))
+
+        write('Creating jobs.')
         processes = []
         for n in range(jobs):
 
             init_rot = n*nrot_per_job
             end_rot = init_rot + nrot_per_job
+            if n == (jobs - 1):
+                end_rot = None
 
             sub_rotmat = rotmat[init_rot: end_rot]
-            if n == (jobs - 1):
-                sub_rotmat = rotmat[init_rot:]
 
             processes.append(mp.Process(target=run_powerfit_instance,
-                    args=(args, vol, sub_rotmat, n)))
+                    args=(model, vol, sub_rotmat, args, n)))
 
-        print('Starting jobs')
+        write('Starting jobs.')
         for n in range(jobs):
             processes[n].start()
 
-        print('Waiting for jobs')
+        write('Waiting for jobs to end.')
         for n in range(jobs):
             processes[n].join()
 
         # combine results
-        print('Combining results')
+        write('All jobs done.')
+        write('Combining results.')
         best_lcc = Volume.fromfile('lcc_0.mrc')
         best_rotmat_ind = np.load('rotmat_ind_0.npy')
         for n in range(1, jobs):
@@ -119,7 +134,7 @@ def cpu_powerfit(args, vol, rotmat):
             best_rotmat_ind[ind] = rotmat_ind[ind]
         sol = Solutions(best_lcc, rotmat, best_rotmat_ind)
 
-        print('Cleaning')
+        write('Removing intermediate files')
         for n in range(jobs):
             f_lcc= 'lcc_{:d}.mrc'.format(n)
             f_rotmat_ind = 'rotmat_ind_{:d}.npy'.format(n)
@@ -131,13 +146,14 @@ def cpu_powerfit(args, vol, rotmat):
         return sol
 
 
-def gpu_powerfit(args, vol, rotmat, queue):
+def gpu_powerfit(queue, model, vol, rotmat, args):
 
     pf = PowerFitter()
     pf.map = vol
-    pf.model = PDB.fromfile(args.model)
-    pf.resolution = args.resolution
+    pf.model = model
     pf.rotations = rotmat
+
+    pf.resolution = args.resolution
     pf.laplace = args.laplace
     pf.core_weighted = args.core_weighted
     pf.queue = queue
@@ -146,6 +162,10 @@ def gpu_powerfit(args, vol, rotmat, queue):
 
     return sol
 
+def write(line):
+    if stdout.isatty():
+        print(line)
+    logging.info(line)
 
 def main():
 
@@ -153,17 +173,33 @@ def main():
 
     time0 = time()
 
-    q, w, a = proportional_orientations(args.angle)
-    rotmat = quat_to_rotmat(q)
 
     vol = Volume.fromfile(args.map)
-    print('Initial shape: ', vol.shape)
+    write('Density data read from: {:s}'.format(args.map))
+    write('Resolution of data: {:.2f}'.format(args.resolution))
+    write('Initial shape of density data: {:}'.format(str(vol.shape)))
+
     resampling_factor = vol.voxelspacing/(0.25*args.resolution)
     if resampling_factor < 0.9:
         vol = volume.resample(vol, factor=resampling_factor)
+        write('Resamped density to 1/4 of resolution voxel spacing')
+        write('Shape of density data reduced to: {:}'.format(str(vol.shape)))
+
     vol = volume.trim(vol, 0.1*vol.array.max())
     vol = volume.resize_radix235(vol)
-    print('Final shape: ', vol.shape)
+    write('Final shape of density data after trimming and resizing: {:}'.format(str(vol.shape)))
+
+    model = PDB.fromfile(args.model)
+    write('High-resolution model read from: {:s}'.format(args.model))
+
+    q, w, a = proportional_orientations(args.angle)
+    rotmat = quat_to_rotmat(q)
+    write(u'Requested rotational sampling density: {:.2f}\N{DEGREE SIGN}'.format(args.angle))
+    write(u'Real rotational sampling density: {:.2f}\N{DEGREE SIGN}.'.format(a))
+    write('Total number of rotations sampled: {:d}'.format(len(rotmat)))
+
+    write('Laplace pre-filter: {:}'.format(args.laplace))
+    write('Core-weighted local cross correlation: {:}'.format(args.core_weighted))
 
     queue = None
     if args.gpu:
@@ -171,16 +207,26 @@ def main():
 
     if queue is None:
         if args.gpu:
-            print('GPU-queue not found. Falling back on CPU-implementation.')
-        sol = cpu_powerfit(args, vol, rotmat)
-    else:
-        sol = gpu_powerfit(args, vol, rotmat, queue)
+            write('GPU-queue not found. Falling back on CPU-implementation.')
+        write('Using CPU-version.')
 
-    print('Writing results')
+        sol = cpu_powerfit(model, vol, rotmat, args)
+    else:
+        write('Using GPU-accelerated search.')
+        sol = gpu_powerfit(queue, model, vol, rotmat, args)
+
+    write('Searching done. Analyzing solutions.')
+    sol.generate_local_solutions()
+    write('Found {:d} non-redundant solutions.'.format(len(sol._local_solutions)))
+    write('Saving raw results.')
     sol.save()
-    sol.write_pdb(PDB.fromfile(args.model), num=args.num)
+    write('Writing top {:d} models to file.'.format(args.num))
+    sol.write_pdb(model, num=args.num)
     sol.write_local_solutions()
-    print('Total time: ', time() - time0)
+
+    tot_time = time() - time0
+    m, s = divmod(int(round(tot_time)), 60)
+    write('Total time required: {:d}m {:d}s'.format(m ,s))
 
 
 if __name__=='__main__':
