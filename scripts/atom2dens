@@ -5,8 +5,13 @@ import sys
 
 import numpy as np
 from powerfit import PDB, Volume
-from powerfit.helpers import resolution2sigma
+from powerfit.helpers import resolution2sigma, get_queue
 from powerfit.libpowerfit import blur_points
+try:
+    from powerfit.kernels import Kernels
+    import pyopencl.array as cl_array
+except ImportError:
+    pass
 
 
 def parse_args():
@@ -24,6 +29,8 @@ def parse_args():
             help='Name of output map.')
     p.add_argument('-s', '--shape', dest='shape', nargs=3, type=int, default=None,
             help='Shape of density in voxels. Order is (NZ, NY, NX).')
+    p.add_argument('-g', '--gpu', dest='gpu', action='store_true',
+            help='Use GPU-acceleration')
 
     return p.parse_args()
 
@@ -38,7 +45,7 @@ def main():
     if args.voxelspacing is None:
         voxelspacing = args.resolution/4.0
     else:
-        if not voxelspacing > 0.0:
+        if not args.voxelspacing > 0.0:
             raise ValueError("Voxel spacing should be bigger than 0.")
         voxelspacing = args.voxelspacing
 
@@ -47,7 +54,7 @@ def main():
 
     if args.shape is None:
         coor = model.coor - model.center
-        min_dimensions = np.max(coor, axis=0) - np.min(coor, axis=0) + 8*sigma
+        min_dimensions = 2*np.maximum(np.max(coor, axis=0), np.abs(np.min(coor, axis=0))) + 8*sigma
         shape = np.ceil(min_dimensions/voxelspacing)[::-1] + 1
         print(min_dimensions, shape)
     else:
@@ -60,7 +67,23 @@ def main():
 
     array = np.zeros(shape, dtype=np.float64)
     grid_coor = (model.coor - origin)/voxelspacing
-    blur_points(grid_coor, model.atomnumber, sigma/voxelspacing, array)
+
+    if args.gpu:
+        queue = get_queue()
+    else:
+        queue = None
+    
+    if queue is None:
+        blur_points(grid_coor, model.atomnumber, sigma/voxelspacing, array)
+    else:
+        k = Kernels(queue.context)
+        g_array = cl_array.to_device(queue, np.asarray(array, dtype=np.float32))
+        g_grid_coor = cl_array.to_device(queue, 
+                np.ascontiguousarray(np.hstack((grid_coor.astype(np.float32), np.zeros((grid_coor.shape[0], 1), dtype=np.float32)))))
+        g_weights = cl_array.to_device(queue, model.atomnumber.astype(np.float32))
+        k.blur_points(queue, g_grid_coor, g_weights, sigma/voxelspacing, g_array)
+        queue.finish()
+        array = g_array.get()
 
     vol = Volume(array, voxelspacing, origin).tofile(args.output)
 
