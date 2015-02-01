@@ -114,7 +114,7 @@ To off-load computations to the GPU and use the core-weighted scoring function a
 
     powerfit <pdb> <map> <resolution> -g -cw -n 15
 
-Note that all options can be combined except for the -g and -p n flag:
+Note that all options can be combined except for the `-g` and `-p n` flag:
 calculations are eiter performed on the CPU or GPU.
 
 ## Licensing
