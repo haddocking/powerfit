@@ -83,11 +83,12 @@ class Kernels():
                 out.data, shape, np.int32(points.shape[0]))
 
         compute_units = queue.device.max_compute_units
-        max_wg = compute_units*16*8
+        max_wg = compute_units*16*8*8
         zwg = int(max(1, min(max_wg, out.shape[0])))
         ywg = int(max(1, min(max_wg - zwg, out.shape[1])))
         xwg = int(max(1, min(max_wg - zwg - ywg, out.shape[2])))
         wg = (zwg, ywg, xwg)
+        print(wg)
 
         status = cl.enqueue_nd_range_kernel(queue, kernel, wg, None)
 

@@ -82,9 +82,9 @@ void blur_points(__global float4 *points,
     const float sigma2 = pown(sigma, 2);
     const float extend2 = pown(4*sigma, 2);
     const int slice = shape.s2 * shape.s1;
-    const float hx = 0.5 * shape.s2;
-    const float hy = 0.5 * shape.s1;
-    const float hz = 0.5 * shape.s0;
+    //const float hx = 0.5 * shape.s2;
+    //const float hy = 0.5 * shape.s1;
+    //const float hz = 0.5 * shape.s0;
 
     unsigned int i, iz, iy, ix, z_ind, yz_ind;
     float z, y, x, z2, y2z2, x2y2z2;
@@ -94,10 +94,10 @@ void blur_points(__global float4 *points,
         for (iz = zid; iz < shape.s0; iz += zstride){
 
             z = iz;
-            if (z > hz)
-                z -= shape.s0;
+            //if (z > hz)
+            //    z -= shape.s0;
                 
-            z2 = pown(z - points[i].s0, 2);
+            z2 = pown(z - points[i].s2, 2);
 
             if (z2 > extend2)
                 continue;
@@ -106,8 +106,8 @@ void blur_points(__global float4 *points,
 
             for (iy = yid; iy < shape.s1; iy += ystride){
                 y = iy;
-                if (y > hy)
-                    y -= shape.s1;
+                //if (y > hy)
+                //    y -= shape.s1;
                     
                 y2z2 = pown(y - points[i].s1, 2) + z2;
 
@@ -118,10 +118,10 @@ void blur_points(__global float4 *points,
 
                 for (ix = xid; ix < shape.s2; ix += xstride){
                     x = ix;
-                    if (x > hx)
-                        x -= shape.s2;
+                    //if (x > hx)
+                    //    x -= shape.s2;
                         
-                    x2y2z2 = pown(x - points[i].s2, 2) + y2z2;
+                    x2y2z2 = pown(x - points[i].s0, 2) + y2z2;
 
                     if (x2y2z2 > extend2)
                         continue;
