@@ -20,7 +20,9 @@ def main():
                                  ]
                    }
 
-    scripts = [os.path.join('scripts', 'powerfit')]
+    scripts = [os.path.join('scripts', 'powerfit'),
+               os.path.join('scripts', 'atom2dens'),
+               ]
 
     setup(name="powerfit",
           version='0.1.0',
