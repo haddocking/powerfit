@@ -1,17 +1,12 @@
 #! /usr/local/bin/python
-from __future__ import print_function
+from __future__ import print_function, absolute_import, division
 from argparse import ArgumentParser, FileType
 import sys
 
 import numpy as np
 from powerfit import PDB, Volume
-from powerfit.helpers import resolution2sigma, get_queue
+from powerfit.helpers import resolution2sigma
 from powerfit.libpowerfit import blur_points
-try:
-    from powerfit.kernels import Kernels
-    import pyopencl.array as cl_array
-except ImportError:
-    pass
 
 
 def parse_args():
@@ -20,24 +15,24 @@ def parse_args():
 
     p.add_argument('model', type=file,
             help='High-resolution model.')
+
     p.add_argument('resolution', type=float,
             help='Target resolution in angstrom.')
 
     p.add_argument('-vs', '--voxelspacing', dest='voxelspacing', type=float, default=None,
             help='Voxel spacing of resulting density in angstrom.')
+
     p.add_argument('-o', '--output', dest='output', type=str, default='out.mrc',
-            help='Name of output map.')
+            help='Name of output map. Format is either MRC or CCP4.')
+
     p.add_argument('-s', '--shape', dest='shape', nargs=3, type=int, default=None,
             help='Shape of density in voxels. Order is (NZ, NY, NX).')
-    p.add_argument('-g', '--gpu', dest='gpu', action='store_true',
-            help='Use GPU-acceleration')
 
     return p.parse_args()
 
 def main():
-    args = parse_args()
 
-    print(args)
+    args = parse_args()
 
     model = PDB.fromfile(args.model)
 
@@ -48,43 +43,33 @@ def main():
         if not args.voxelspacing > 0.0:
             raise ValueError("Voxel spacing should be bigger than 0.")
         voxelspacing = args.voxelspacing
+    print('Voxel spacing: {:.2f}.'.format(voxelspacing))
 
     # determine minimal shape of box size
     sigma = resolution2sigma(args.resolution)
 
     if args.shape is None:
         coor = model.coor - model.center
-        min_dimensions = 2*np.maximum(np.max(coor, axis=0), np.abs(np.min(coor, axis=0))) + 8*sigma
+        min_dimensions = 2*np.maximum(np.max(coor, axis=0), 
+                np.abs(np.min(coor, axis=0))) + 8*sigma
         shape = np.ceil(min_dimensions/voxelspacing)[::-1] + 1
-        print(min_dimensions, shape)
     else:
         shape = np.asarray(args.shape)
+    print('Shape of density: {:}'.format(str(shape)))
 
     # determine origin
     start = np.floor(model.center[::-1]/voxelspacing - 0.5*shape)
     origin = start[::-1]*voxelspacing
-    print(start, origin)
+
+    print('Origin of density: {:}'.format(str(origin)))
 
     array = np.zeros(shape, dtype=np.float64)
     grid_coor = (model.coor - origin)/voxelspacing
 
-    if args.gpu:
-        queue = get_queue()
-    else:
-        queue = None
-    
-    if queue is None:
-        blur_points(grid_coor, model.atomnumber, sigma/voxelspacing, array)
-    else:
-        k = Kernels(queue.context)
-        g_array = cl_array.to_device(queue, np.asarray(array, dtype=np.float32))
-        g_grid_coor = cl_array.to_device(queue, 
-                np.ascontiguousarray(np.hstack((grid_coor.astype(np.float32), np.zeros((grid_coor.shape[0], 1), dtype=np.float32)))))
-        g_weights = cl_array.to_device(queue, model.atomnumber.astype(np.float32))
-        k.blur_points(queue, g_grid_coor, g_weights, sigma/voxelspacing, g_array)
-        queue.finish()
-        array = g_array.get()
+    print('Blurring model to target resolution.')
+    blur_points(grid_coor, model.atomnumber, sigma/voxelspacing, array)
 
+    print('Writing density to file {:s}.'.format(args.output))
     vol = Volume(array, voxelspacing, origin).tofile(args.output)
 
 if __name__=='__main__':
