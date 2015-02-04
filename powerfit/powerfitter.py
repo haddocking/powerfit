@@ -150,6 +150,8 @@ class PowerFitter(object):
             modelmap *= d['mask']
 
         d['modelmap'] = modelmap
+        d['varlimit'] = 0.001 * modelmap[modelmap != 0].var() *\
+                (d['map'].max()/d['modelmap'].max())**2 * d['norm_factor']**2
 
     def search(self):
         d = self._data
@@ -184,6 +186,7 @@ class PowerFitter(object):
         c['im_mask'] = d['mask']
         c['mask'] = np.zeros_like(d['mask'])
         c['norm_factor'] = d['norm_factor']
+        c['varlimit'] = d['varlimit']
 
         c['rotations'] = d['rotations']
         c['nrot'] = d['nrot']
@@ -218,7 +221,7 @@ class PowerFitter(object):
                 c['map_ave'] = irfftn(c['ft_mask'] * c['ft_map'])
                 c['map2_ave'] = irfftn(c['ft_mask'] * c['ft_map2'])
 
-            c['lcc'] = c['gcc']/np.sqrt((c['map2_ave']*c['norm_factor'] - c['map_ave']**2).clip(0.001))
+            c['lcc'] = c['gcc']/np.sqrt((c['map2_ave']*c['norm_factor'] - c['map_ave']**2).clip(c['varlimit']))
 
             ind = c['lcc'] > c['best_lcc']
             c['best_lcc'][ind] = c['lcc'][ind]
@@ -248,6 +251,7 @@ class PowerFitter(object):
         g['nrot'] = d['nrot']
         g['rotations'] = d['rotations']
         g['norm_factor'] = d['norm_factor']
+        g['varlimit'] = d['varlimit']
         g['map_center'] = d['map_center']
 
 
@@ -296,6 +300,7 @@ class PowerFitter(object):
         k.rfftn(q, g['map'], g['ft_map'])
         k.multiply(q, g['map'], g['map'], g['map_ave'])
         k.rfftn(q, g['map_ave'], g['ft_map2'])
+        q.finish()
 
         time0 = _time()
 
@@ -323,7 +328,7 @@ class PowerFitter(object):
 
             k.irfftn(q, g['ft_map2_ave'], g['map2_ave'])
 
-            k.lcc(q, g['gcc'], g['map_ave'], g['map2_ave'], g['norm_factor'], g['lcc'])
+            k.lcc(q, g['gcc'], g['map_ave'], g['map2_ave'], g['norm_factor'], g['lcc'], g['varlimit'])
 
             k.take_best(q, g['lcc'], g['best_lcc'], g['rotmat_ind'], n)
 

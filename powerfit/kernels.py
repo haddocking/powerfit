@@ -37,9 +37,9 @@ class Kernels():
 
         self.kernels.lcc = ElementwiseKernel(ctx,
             """float *gcc, float *map_ave, float *map2_ave,
-               float norm_factor, float *lcc""",
+               float norm_factor, float *lcc, float varlimit""",
             """float var = norm_factor*map2_ave[i] - pown(map_ave[i], 2);
-               if (var > 0.01)
+               if (var > varlimit)
                    lcc[i] = gcc[i]/sqrt(var);
                else
                    lcc[i] = 0.0f;""",
@@ -116,8 +116,11 @@ class Kernels():
 
         return status
 
-    def lcc(self, queue, gcc, map_ave, map2_ave, norm_factor, lcc):
-        status = self.kernels.lcc(gcc, map_ave, map2_ave, np.float32(norm_factor), lcc)
+    def lcc(self, queue, gcc, map_ave, map2_ave, norm_factor, lcc, varlimit):
+
+        status = self.kernels.lcc(gcc, map_ave, map2_ave, 
+                np.float32(norm_factor), lcc, np.float32(varlimit))
+
         return status
         
     def take_best(self, queue, lcc, best_lcc, rotmat_ind, n):
