@@ -123,7 +123,8 @@ class PowerFitter(object):
         d['nrot'] = self.rotations.shape[0]
 
         # coordinates are set to the middle of the array
-        grid_coor = (self.model.coor + (-self.model.center + d['voxelspacing']*d['map_center']))/d['voxelspacing']
+        grid_coor = (self.model.coor + (-self.model.center + \
+                d['voxelspacing']*d['map_center']))/d['voxelspacing']
 
         # make mask
         mask = np.zeros_like(d['map'])
@@ -133,7 +134,8 @@ class PowerFitter(object):
         # make density
         modelmap = np.zeros_like(d['map'])
         sigma = resolution2sigma(self.resolution)/d['voxelspacing']
-        libpowerfit.blur_points(grid_coor, self.model.atomnumber.astype(np.float64), sigma, modelmap)
+        libpowerfit.blur_points(grid_coor, 
+                self.model.atomnumber.astype(np.float64), sigma, modelmap)
 
         if self.laplace:
             modelmap = laplace(modelmap, mode='constant')
@@ -190,9 +192,9 @@ class PowerFitter(object):
 
         c['rotations'] = d['rotations']
         c['nrot'] = d['nrot']
-        c['vlength'] = int(np.linalg.norm(self.model.coor - self.model.center, axis=1).max()/d['voxelspacing'] +\
+        c['vlength'] = int(np.linalg.norm(self.model.coor -\
+                self.model.center, axis=1).max()/d['voxelspacing'] +\
                 0.5*self.resolution/d['voxelspacing'] + 1)
-
 
         c['best_lcc'] = np.zeros_like(d['map'])
         c['rot_ind'] = np.zeros(d['shape'], dtype=np.int32)
@@ -207,8 +209,14 @@ class PowerFitter(object):
 
         time0 = _time()
         for n in xrange(c['nrot']):
-            libpowerfit.rotate_image3d(c['im_modelmap'], np.linalg.inv(c['rotations'][n]), c['map_center'], c['vlength'], c['modelmap'])
-            libpowerfit.rotate_image3d(c['im_mask'], np.linalg.inv(c['rotations'][n]), c['map_center'], c['vlength'], c['mask'])
+
+            libpowerfit.rotate_image3d(c['im_modelmap'], 
+                    np.linalg.inv(c['rotations'][n]), 
+                    c['map_center'], c['vlength'], c['modelmap'])
+
+            libpowerfit.rotate_image3d(c['im_mask'], 
+                    np.linalg.inv(c['rotations'][n]), 
+                    c['map_center'], c['vlength'], c['mask'])
 
             c['gcc'] = irfftn(rfftn(c['modelmap']).conj() * c['ft_map'])
 
@@ -221,7 +229,8 @@ class PowerFitter(object):
                 c['map_ave'] = irfftn(c['ft_mask'] * c['ft_map'])
                 c['map2_ave'] = irfftn(c['ft_mask'] * c['ft_map2'])
 
-            c['lcc'] = c['gcc']/np.sqrt((c['map2_ave']*c['norm_factor'] - c['map_ave']**2).clip(c['varlimit']))
+            c['lcc'] = c['gcc']/np.sqrt((c['map2_ave']*c['norm_factor'] -\
+                    c['map_ave']**2).clip(c['varlimit']))
 
             ind = c['lcc'] > c['best_lcc']
             c['best_lcc'][ind] = c['lcc'][ind]
@@ -253,7 +262,6 @@ class PowerFitter(object):
         g['norm_factor'] = d['norm_factor']
         g['varlimit'] = d['varlimit']
         g['map_center'] = d['map_center']
-
 
         # bring to GPU
         g['map'] = cl_array.to_device(q, float32array(d['map']))
@@ -328,7 +336,8 @@ class PowerFitter(object):
 
             k.irfftn(q, g['ft_map2_ave'], g['map2_ave'])
 
-            k.lcc(q, g['gcc'], g['map_ave'], g['map2_ave'], g['norm_factor'], g['lcc'], g['varlimit'])
+            k.lcc(q, g['gcc'], g['map_ave'], g['map2_ave'], 
+                    g['norm_factor'], g['lcc'], g['varlimit'])
 
             k.take_best(q, g['lcc'], g['best_lcc'], g['rotmat_ind'], n)
 
