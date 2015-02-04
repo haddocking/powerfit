@@ -47,6 +47,12 @@ def parse_args():
             help='Use core-weighted local cross-correlation score. ' +\
                  'Can be combined with the Laplace pre-filter.')
 
+    p.add_argument('-nr', '--no-resampling', dest='no_resampling', action='store_true',
+            help='Do not resample the density map.')
+    
+    p.add_argument('-nt', '--no-trimming', dest='no_trimming', action='store_true',
+            help='Do not trim the density map.')
+
     p.add_argument('-n', '--num', dest='num', type=int, default=10,
             help='Number of models written to file. This number ' +\
                  'will be capped if less solutions are found as requested.')
@@ -173,21 +179,23 @@ def main():
 
     time0 = time()
 
-
     vol = Volume.fromfile(args.map)
     write('Density data read from: {:s}'.format(args.map.name))
     write('Resolution of data: {:.2f}'.format(args.resolution))
     write('Initial shape of density data: {:}'.format(str(vol.shape)))
 
-    resampling_factor = vol.voxelspacing/(0.25*args.resolution)
-    if resampling_factor < 0.9:
-        write('Old voxel spacing: {:.2f}'.format(vol.voxelspacing))
-        vol = volume.resample(vol, factor=resampling_factor)
-        write('Resamped density to 1/4 of resolution voxel spacing')
-        write('New voxel spacing: {:.2f}'.format(vol.voxelspacing))
-        write('Shape of density data reduced to: {:}'.format(str(vol.shape)))
+    if not args.no_resampling:
+        resampling_factor = vol.voxelspacing/(0.25*args.resolution)
+        if resampling_factor < 0.9:
+            write('Old voxel spacing: {:.2f}'.format(vol.voxelspacing))
+            vol = volume.resample(vol, factor=resampling_factor)
+            write('Resamped density to 1/4 of resolution voxel spacing')
+            write('New voxel spacing: {:.2f}'.format(vol.voxelspacing))
+            write('Shape of density data reduced to: {:}'.format(str(vol.shape)))
 
-    vol = volume.trim(vol, 0.1*vol.array.max())
+    if not args.no_trimming:
+        vol = volume.trim(vol, 0.1*vol.array.max())
+
     vol = volume.resize_radix235(vol)
     write('Final shape of density data after trimming and resizing: {:}'.format(str(vol.shape)))
 
