@@ -135,8 +135,7 @@ MIT licence
 
 ## Tested platforms
 
-|Operating system | Hardware                     |
-|                 | CPU single | CPU multi | GPU |
+| Operating System| CPU single | CPU multi | GPU |
 | --------------- | ---------- | --------- | --- |
 |Linux            | Yes        | Yes       | Yes |
 |MacOSX           | Yes        | Yes       | No  |
