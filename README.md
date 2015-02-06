@@ -85,7 +85,7 @@ Follow the general instructions above to install PowerFit.
 ### Windows
 
 First install git for Windows, as it comes in addition to git itself with a minimal bash shell.
-Go to [git-scm](https://git-scm.com/download/win), download *git* and install it.
+Go to [git-scm](https://git-scm.com/download/), download *git* and install it.
 Next, install a Python distribution with NumPy, Cython and Scipy included such as [Anaconda](http://continuum.io/downloads).
 After installation, open up the bash shell shipped with *git* and follow the general instructions written above.
 
