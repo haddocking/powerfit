@@ -49,18 +49,20 @@ open up a shell, go to the location where you downloaded *powerfit-master.zip* a
     cd powerfit-master/
     (sudo) python setup.py install
 
-If you are starting from a clean system, the following instructions should get you up and running in no time.
+If you are starting from a clean system, follow the instructions for your particular operating system as described below, 
+they should get you up and running in no time.
 
-### Unix (Linux/MacOSX)
+### Linux 
 
-Unix systems usually include already a Python distribution.
+Linux systems usually already include a Python2.7 distribution.
+First make sure the Python header files are available
+
+    (sudo) apt-get install python-dev
+
 To easily install the required Python packages, 
 first install the Python package manager [pip](https://pip.pypa.io/en/latest/installing.html).
-Download *get-pip.py*, open up a terminal and navigate to the location of *get-pip.py*. Type
+Download *get-pip.py* and install pip as explained at the pip website.
 
-    (sudo) python get-pip.py
-
-This installs *pip*, making Python package management easy.
 To install NumPy, Cython and SciPy type
 
     (sudo) pip install numpy cython scipy
@@ -69,10 +71,14 @@ Sit back and wait till the compilation and installation is finished.
 You system is now prepared to install PowerFit. 
 Follow the general instructions above to see how.
 
+### MacOSX (10.7+)
+
 ### Windows
 
-To run PowerFit on Windows, install a Python distribution with NumPy, Cython and Scipy included such as [Anaconda](http://continuum.io/downloads).
-The general instructions above can then be followed.
+First install git for Windows, as it comes in addition to git itself with a nice bash shell.
+Go to [git-scm](https://git-scm.com/download/win), download *git* and install it.
+After this, install a Python distribution with NumPy, Cython and Scipy included such as [Anaconda](http://continuum.io/downloads).
+After installation, open up the bash shell shipped with git and follow the general instructions written above.
 
 ## Usage
 
@@ -88,7 +94,7 @@ This performs a 10&deg; rotational search using the Local Cross-Correlation scor
 During the search, *powerfit* will update you about the progress of the search if you are using it interactively in the shell.
 When the search is finished, several output files are created
 
-* 10 best scoring structures (fit_*n*.pdb)
+* 10 best scoring structures (fit\_*n*.pdb)
 * A Cross-correlation map, showing at each voxel the highest LCC-value found (*lcc.mrc*)
 * All the non-redundant solutions found ordered by the LCC-score together with their xyz-postions and rotation matrix (*solutions.out*)
 * A log file, showing the input parameters and what was happening when (*powerfit.log*)
@@ -118,6 +124,7 @@ Note that all options can be combined except for the `-g` and `-p` flag:
 calculations are either performed on the CPU or GPU.
 If both are given, *powerfit* will first try to run on the GPU.
 
+
 ## Licensing
 
 If this software was useful to your research, please cite us
@@ -125,3 +132,12 @@ If this software was useful to your research, please cite us
 **G.C.P. van Zundert and A.M.J.J. Bonvin**. *Fast and sensitive rigid body fitting in cryo-EM densities with PowerFit.* AIMS Biophysics (submitted).
 
 MIT licence
+
+## Tested platforms
+
+|Operating system | Hardware                     |
+|                 | CPU single | CPU multi | GPU |
+|-----------------|------------|-----------|-----|
+|Linux            | Yes        | Yes       | Yes |
+|MacOSX           | Yes        | Yes       | No  |
+|Windows          | Yes        | Fail      | No  |
