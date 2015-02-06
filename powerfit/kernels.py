@@ -100,7 +100,7 @@ class Kernels():
         kernel = self.kernels.rotate_image3d
         compute_units = queue.device.max_compute_units
 
-        work_groups = (compute_units*16*8, 1, 1)
+        work_groups = (compute_units*16*8*4, 1, 1)
 
         shape = np.asarray(list(array_buffer.shape) + [np.product(array_buffer.shape)], dtype=np.int32)
 
