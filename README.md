@@ -137,7 +137,7 @@ MIT licence
 
 |Operating system | Hardware                     |
 |                 | CPU single | CPU multi | GPU |
-|-----------------|------------|-----------|-----|
+| --------------- | ---------- | --------- | --- |
 |Linux            | Yes        | Yes       | Yes |
 |MacOSX           | Yes        | Yes       | No  |
 |Windows          | Yes        | Fail      | No  |
