@@ -60,8 +60,8 @@ First make sure the Python header files are available
     (sudo) apt-get install python-dev
 
 To easily install the required Python packages, 
-first install the Python package manager [pip](https://pip.pypa.io/en/latest/installing.html).
-Download *get-pip.py* and install pip as explained at the pip website.
+first install the Python package manager [*pip*](https://pip.pypa.io/en/latest/installing.html).
+Download *get-pip.py* and install *pip* as explained at their website.
 
 To install NumPy, Cython and SciPy type
 
@@ -73,12 +73,21 @@ Follow the general instructions above to see how.
 
 ### MacOSX (10.7+)
 
+First install [*pip*](https://pip.pypa.io/en/latest/installing.html), the Python package manager, by following the installation instructions on the website. 
+Next, install NumPy, Cython and Scipy by typing
+
+    (sudo) pip install numpy cython scipy
+
+Wait for the installation to finish (this might take awhile).
+Follow the general instructions above to install PowerFit.
+
+
 ### Windows
 
-First install git for Windows, as it comes in addition to git itself with a nice bash shell.
+First install git for Windows, as it comes in addition to git itself with a minimal bash shell.
 Go to [git-scm](https://git-scm.com/download/win), download *git* and install it.
-After this, install a Python distribution with NumPy, Cython and Scipy included such as [Anaconda](http://continuum.io/downloads).
-After installation, open up the bash shell shipped with git and follow the general instructions written above.
+Next, install a Python distribution with NumPy, Cython and Scipy included such as [Anaconda](http://continuum.io/downloads).
+After installation, open up the bash shell shipped with *git* and follow the general instructions written above.
 
 ## Usage
 
@@ -140,3 +149,6 @@ MIT licence
 |Linux            | Yes        | Yes       | Yes |
 |MacOSX           | Yes        | Yes       | No  |
 |Windows          | Yes        | Fail      | No  |
+
+The GPU version has been tested on:
+NVIDIA GTX680 and AMD Radeon 7730M for Linux
