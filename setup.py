@@ -22,6 +22,7 @@ def main():
 
     scripts = [os.path.join('scripts', 'powerfit'),
                os.path.join('scripts', 'atom2dens'),
+               os.path.join('scripts', 'generate_fits'),
                ]
 
     setup(name="powerfit",
