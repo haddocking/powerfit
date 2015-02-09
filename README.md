@@ -55,9 +55,9 @@ they should get you up and running in no time.
 ### Linux 
 
 Linux systems usually already include a Python2.7 distribution.
-First make sure the Python header files are available
+First make sure the Python header files and *git* are available 
 
-    (sudo) apt-get install python-dev
+    (sudo) apt-get install python-dev git
 
 To easily install the required Python packages, 
 first install the Python package manager [*pip*](https://pip.pypa.io/en/latest/installing.html).
@@ -91,7 +91,7 @@ After installation, open up the bash shell shipped with *git* and follow the gen
 
 ## Usage
 
-After installing PowerFit the commandline tool *powerfit* should be at your disposal.
+After installing PowerFit the command line tool *powerfit* should be at your disposal.
 The general pattern to invoke *powerfit* is
 
     powerfit <pdb> <map> <resolution>
@@ -151,4 +151,4 @@ MIT licence
 |Windows          | Yes        | Fail      | No  |
 
 The GPU version has been tested on:
-NVIDIA GTX680 and AMD Radeon 7730M for Linux
+NVIDIA GeForce GTX680 and AMD Radeon 7730M for Linux
