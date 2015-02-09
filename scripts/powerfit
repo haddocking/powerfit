@@ -22,27 +22,27 @@ def parse_args():
     p = ArgumentParser()
 
     p.add_argument('model', type=file,
-            help='Atomic model to be fitted in the density. ' +\
+            help='Atomic model to be fitted in the density. '
                  'Format should either be PDB or mmCIF')
     p.add_argument('map', type=FileType('rb'),
-            help='Target density map to fit the model in. ' +\
+            help='Target density map to fit the model in. '
                  'Data should either be in CCP4 or MRC format')
 
     p.add_argument('resolution', type=float,
             help='Resolution of map in angstrom')
 
     p.add_argument('-a', '--angle', dest='angle', type=float, default=10,
-            help='Rotational sampling density in degree. Increasing ' +\
-                 'this number by a factor of 2 results in approximately ' +\
+            help='Rotational sampling density in degree. Increasing '
+                 'this number by a factor of 2 results in approximately '
                  '8 times more rotations sampled.')
 
     p.add_argument('-l', '--laplace', dest='laplace', action='store_true',
-            help='Use the Laplace pre-filter density data. ' +\
-                 'Can be combined ' +\
+            help='Use the Laplace pre-filter density data. '
+                 'Can be combined '
                  'with the core-weighted local cross-correlation.')
 
     p.add_argument('-cw', '--core-weighted', dest='core_weighted', action='store_true',
-            help='Use core-weighted local cross-correlation score. ' +\
+            help='Use core-weighted local cross-correlation score. '
                  'Can be combined with the Laplace pre-filter.')
 
     p.add_argument('-nr', '--no-resampling', dest='no_resampling', action='store_true',
@@ -55,20 +55,24 @@ def parse_args():
             help='Intensity cutoff to which the map will be trimmed. '
                  'Default is 10% of maximum intensity.')
 
+    p.add_argument('-c', '--chain', dest='chain', type=str, default=None,
+            help='The chain ID of the structure to be fitted. '
+                 'Default is the whole structure.')
+
     p.add_argument('-d', '--directory', dest='directory', type=str, default='./',
             help='Directory where the results are stored.')
 
     p.add_argument('-n', '--num', dest='num', type=int, default=10,
-            help='Number of models written to file. This number ' +\
+            help='Number of models written to file. This number '
                  'will be capped if less solutions are found as requested.')
 
     p.add_argument('-g', '--gpu', dest='gpu', action='store_true',
-            help='Off-load the intensive calculations to the GPU. ' +\
+            help='Off-load the intensive calculations to the GPU. '
                  'If none is found, the CPU-version is used instead.')
 
     p.add_argument('-p', '--nproc', dest='nproc', type=int, default=1,
-            help='Number of processors used during search. ' +\
-                 'The number will be capped at the total number ' +\
+            help='Number of processors used during search. '
+                 'The number will be capped at the total number '
                  'of available processors on your machine.')
 
     return p.parse_args()
@@ -213,11 +217,19 @@ def main():
             trimming_cutoff = args.trimming_cutoff
         vol = volume.trim(vol, trimming_cutoff)
 
+        write('Trimming cutoff set to: {:.3f}'.format(trimming_cutoff))
+        write('Shape of density data after trimming: {:s}'.format(str.vol.shape))
+
     vol = volume.resize_radix235(vol)
-    write('Final shape of density data after trimming and resizing: {:}'.format(str(vol.shape)))
+    write('Final shape of density data: {:}'.format(str(vol.shape)))
 
     model = PDB.fromfile(args.model)
     write('High-resolution model read from: {:s}'.format(args.model.name))
+    if args.chain is not None:
+        model = model.select('chain', args.chain)
+        if model.data.size == 0:
+            raise ValueError('Chain is not available in structure.')
+        write('Selected chain: {:s}'.format(args.chain))
 
     q, w, a = proportional_orientations(args.angle)
     rotmat = quat_to_rotmat(q)
