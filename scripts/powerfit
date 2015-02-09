@@ -59,7 +59,7 @@ def parse_args():
             help='The chain ID of the structure to be fitted. '
                  'Default is the whole structure.')
 
-    p.add_argument('-d', '--directory', dest='directory', type=str, default='./',
+    p.add_argument('-d', '--directory', dest='directory', type=str, default='.',
             help='Directory where the results are stored.')
 
     p.add_argument('-n', '--num', dest='num', type=int, default=10,
