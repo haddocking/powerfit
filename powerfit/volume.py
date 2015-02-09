@@ -109,7 +109,7 @@ def trim(volume, threshold, margin=4):
     for axis in range(volume.array.ndim):
         volume.array = np.swapaxes(volume.array, 0, axis)
         slices = volume.array.shape[0]
-        for s in range(slices):
+        for s in range(slices - 1):
             if volume.array[s + 1].max() > threshold:
                 low = max(0, s - margin)
                 break
@@ -118,7 +118,11 @@ def trim(volume, threshold, margin=4):
                 high = min(slices, slices - s + margin)
                 break
 
-        extend.append((low, high))
+        try:
+            extend.append((low, high))
+        except UnboundLocalError:
+            raise ValueError("The cutoff value is too high. Reduce the value.")
+
         volume.array = np.swapaxes(volume.array, axis, 0)
 
     (zmin, zmax), (ymin, ymax), (xmin, xmax) = extend
