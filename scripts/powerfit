@@ -16,8 +16,6 @@ from powerfit.helpers import get_queue
 from powerfit import volume
 
 import logging
-logging.basicConfig(filename='powerfit.log', level=logging.INFO,
-        format='%(asctime)s %(message)s')
 
 def parse_args():
 
@@ -53,6 +51,13 @@ def parse_args():
     p.add_argument('-nt', '--no-trimming', dest='no_trimming', action='store_true',
             help='Do not trim the density map.')
 
+    p.add_argument('-tc', '--trimming-cutoff', dest='trimming_cutoff', type=float, default=None,
+            help='Intensity cutoff to which the map will be trimmed. '
+                 'Default is 10% of maximum intensity.')
+
+    p.add_argument('-d', '--directory', dest='directory', type=str, default='./',
+            help='Directory where the results are stored.')
+
     p.add_argument('-n', '--num', dest='num', type=int, default=10,
             help='Number of models written to file. This number ' +\
                  'will be capped if less solutions are found as requested.')
@@ -81,9 +86,9 @@ def run_powerfit_instance(model, vol, rotmat, args, n):
     pf.core_weighted = args.core_weighted
 
     sol = pf.search()
-    sol.save('lcc_{:d}.mrc'.format(n),
-            'rotmat_{:d}.npy'.format(n),
-            'rotmat_ind_{:d}.npy'.format(n))
+    sol.save(os.path.join(args.directory, 'lcc_{:d}.mrc'.format(n)),
+            os.path.join(args.directory, 'rotmat_{:d}.npy'.format(n)),
+            os.path.join(args.directory, 'rotmat_ind_{:d}.npy'.format(n)))
 
 
 def cpu_powerfit(model, vol, rotmat, args):
@@ -127,11 +132,12 @@ def cpu_powerfit(model, vol, rotmat, args):
         # combine results
         write('All jobs done.')
         write('Combining results.')
-        best_lcc = Volume.fromfile('lcc_0.mrc')
-        best_rotmat_ind = np.load('rotmat_ind_0.npy')
+        best_lcc = Volume.fromfile(os.path.join(args.directory, 'lcc_0.mrc'))
+        best_rotmat_ind = np.load(os.path.join(args.directory, 'rotmat_ind_0.npy'))
         for n in range(1, jobs):
-            f_lcc= 'lcc_{:d}.mrc'.format(n)
-            f_rotmat_ind = 'rotmat_ind_{:d}.npy'.format(n)
+            f_lcc = os.path.join(args.directory, 'lcc_{:d}.mrc'.format(n))
+            f_rotmat_ind = os.path.join(args.directory, 'rotmat_ind_{:d}.npy'.format(n))
+
             lcc = Volume.fromfile(f_lcc)
             rotmat_ind = np.load(f_rotmat_ind) + nrot_per_job*n
 
@@ -142,9 +148,10 @@ def cpu_powerfit(model, vol, rotmat, args):
 
         write('Removing intermediate files')
         for n in range(jobs):
-            f_lcc= 'lcc_{:d}.mrc'.format(n)
-            f_rotmat_ind = 'rotmat_ind_{:d}.npy'.format(n)
-            f_rotmat = 'rotmat_{:d}.npy'.format(n)
+            f_lcc = os.path.join(args.directory, 'lcc_{:d}.mrc'.format(n))
+            f_rotmat_ind = os.path.join(args.directory, 'rotmat_ind_{:d}.npy'.format(n))
+            f_rotmat = os.path.join(args.directory, 'rotmat_{:d}.npy'.format(n))
+
             os.remove(f_lcc)
             os.remove(f_rotmat_ind)
             os.remove(f_rotmat)
@@ -177,6 +184,12 @@ def main():
 
     args = parse_args()
 
+    if not os.path.isdir(args.directory):
+        os.mkdir(args.directory)
+
+    logging.basicConfig(filename=os.path.join(args.directory, 'powerfit.log'), 
+            level=logging.INFO, format='%(asctime)s %(message)s')
+
     time0 = time()
 
     vol = Volume.fromfile(args.map)
@@ -194,7 +207,11 @@ def main():
             write('Shape of density data reduced to: {:}'.format(str(vol.shape)))
 
     if not args.no_trimming:
-        vol = volume.trim(vol, 0.1*vol.array.max())
+        if args.trimming_cutoff is None:
+            trimming_cutoff = 0.1*vol.array.max()
+        else:
+            trimming_cutoff = args.trimming_cutoff
+        vol = volume.trim(vol, trimming_cutoff)
 
     vol = volume.resize_radix235(vol)
     write('Final shape of density data after trimming and resizing: {:}'.format(str(vol.shape)))
@@ -229,10 +246,12 @@ def main():
     sol.generate_local_solutions()
     write('Found {:d} non-redundant solutions.'.format(len(sol._local_solutions)))
     write('Saving raw results.')
-    sol.save()
+    sol.save(lcc_fname=os.path.join(args.directory, 'lcc.mrc'), 
+            rotmat_fname=os.path.join(args.directory, 'rotmat.npy'),
+            rotmat_ind_fname=os.path.join(args.directory, 'rotmat_ind.npy'))
     write('Writing top {:d} models to file.'.format(args.num))
-    sol.write_pdb(model, num=args.num)
-    sol.write_local_solutions()
+    sol.write_pdb(model, num=args.num, fbase=os.path.join(args.directory, 'fit'))
+    sol.write_local_solutions(os.path.join(args.directory, 'solutions.out'))
 
     tot_time = time() - time0
     m, s = divmod(int(round(tot_time)), 60)
