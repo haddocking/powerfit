@@ -67,6 +67,11 @@ class PDB(object):
         self.data['x'], self.data['y'], self.data['z'] =\
              np.mat(rotmat) * np.mat(self.coor).T
 
+    def translate(self, vector):
+        self.data['x'] += vector[0]
+        self.data['y'] += vector[1]
+        self.data['z'] += vector[2]
+
     def select(self, identifier, value, loperator='=='):
         """A simple and probably pretty inefficient way of selection atoms"""
         if loperator == '==':
