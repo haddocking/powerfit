@@ -95,7 +95,7 @@ def run_powerfit_instance(model, vol, rotmat, args, n):
             os.path.join(args.directory, 'rotmat_ind_{:d}.npy'.format(n)))
 
 
-def cpu_powerfit(model, vol, rotmat, args):
+def mp_cpu_powerfit(model, vol, rotmat, args):
 
         # determine the number of jobs that should be created
         nrot = rotmat.shape[0]
@@ -161,6 +161,22 @@ def cpu_powerfit(model, vol, rotmat, args):
             os.remove(f_rotmat)
 
         return sol
+
+
+def cpu_powerfit(model, vol, rotmat, args):
+
+    pf = PowerFitter()
+    pf.map = vol
+    pf.model = model
+    pf.rotations = rotmat
+
+    pf.resolution = args.resolution
+    pf.laplace = args.laplace
+    pf.core_weighted = args.core_weighted
+
+    sol = pf.search()
+
+    return sol
 
 
 def gpu_powerfit(queue, model, vol, rotmat, args):
@@ -249,7 +265,10 @@ def main():
             write('GPU-queue not found. Falling back on CPU-implementation.')
         write('Using CPU-version.')
 
-        sol = cpu_powerfit(model, vol, rotmat, args)
+        if args.nproc > 1:
+            sol = mp_cpu_powerfit(model, vol, rotmat, args)
+        else:
+            sol = cpu_powerfit(model, vol, rotmat, args)
     else:
         write('Using GPU-accelerated search.')
         sol = gpu_powerfit(queue, model, vol, rotmat, args)
