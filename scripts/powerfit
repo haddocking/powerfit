@@ -218,7 +218,7 @@ def main():
         vol = volume.trim(vol, trimming_cutoff)
 
         write('Trimming cutoff set to: {:.3f}'.format(trimming_cutoff))
-        write('Shape of density data after trimming: {:s}'.format(str.vol.shape))
+        write('Shape of density data after trimming: {:s}'.format(str(vol.shape)))
 
     vol = volume.resize_radix235(vol)
     write('Final shape of density data: {:}'.format(str(vol.shape)))
