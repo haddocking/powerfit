@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division, absolute_import
 
-import os
+import os, errno
 from sys import stdout
 from time import time
 from argparse import ArgumentParser, FileType
@@ -200,12 +200,22 @@ def write(line):
         print(line)
     logging.info(line)
 
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc: # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else: 
+            raise
+
 def main():
 
     args = parse_args()
 
-    if not os.path.isdir(args.directory):
-        os.mkdir(args.directory)
+    mkdir_p(args.directory)
+    #if not os.path.isdir(args.directory):
+    #    os.mkdir(args.directory)
 
     logging.basicConfig(filename=os.path.join(args.directory, 'powerfit.log'), 
             level=logging.INFO, format='%(asctime)s %(message)s')
