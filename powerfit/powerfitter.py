@@ -229,6 +229,7 @@ class PowerFitter(object):
                 c['map_ave'] = irfftn(c['ft_mask'] * c['ft_map'])
                 c['map2_ave'] = irfftn(c['ft_mask'] * c['ft_map2'])
 
+
             c['lcc'] = c['gcc']/np.sqrt((c['map2_ave']*c['norm_factor'] -\
                     c['map_ave']**2).clip(c['varlimit']))
 
@@ -314,13 +315,13 @@ class PowerFitter(object):
 
         for n in xrange(g['nrot']):
             
-            k.rotate_image3d(q, g['sampler'], g['im_modelmap'], 
-                    g['rotations'][n], g['modelmap'], g['map_center'])
-            k.rotate_image3d(q, g['sampler'], g['im_mask'], 
-                    g['rotations'][n], g['mask'], g['map_center'])
+            k.rotate_model_and_mask(q, g['sampler'], g['im_modelmap'], g['im_mask'],
+                    g['rotations'][n], g['modelmap'], g['mask'], g['map_center'])
 
             k.rfftn(q, g['modelmap'], g['ft_modelmap'])
+
             k.c_conj_multiply(q, g['ft_modelmap'], g['ft_map'], g['ft_gcc'])
+
             k.irfftn(q, g['ft_gcc'], g['gcc'])
 
             k.rfftn(q, g['mask'], g['ft_mask'])

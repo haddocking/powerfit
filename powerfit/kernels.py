@@ -63,6 +63,7 @@ class Kernels():
 
         return status
 
+
     def multiply(self, queue, array1, array2, out):
         if array1.dtype == array2.dtype == out.dtype == np.float32:
             status = self.kernels.multiply_f32(array1, array2, out)
@@ -72,27 +73,6 @@ class Kernels():
             raise TypeError("Array type is not supported")
         return status
 
-    def blur_points(self, queue, points, weights, sigma, out):
-
-        kernel = self.kernels.blur_points
-
-        shape = np.zeros(4, dtype=np.int32)
-        shape[:3] = out.shape
-
-        kernel.set_args(points.data, weights.data, np.float32(sigma),
-                out.data, shape, np.int32(points.shape[0]))
-
-        compute_units = queue.device.max_compute_units
-        max_wg = compute_units*16*8*8
-        zwg = int(max(1, min(max_wg, out.shape[0])))
-        ywg = int(max(1, min(max_wg - zwg, out.shape[1])))
-        xwg = int(max(1, min(max_wg - zwg - ywg, out.shape[2])))
-        wg = (zwg, ywg, xwg)
-        print(wg)
-
-        status = cl.enqueue_nd_range_kernel(queue, kernel, wg, None)
-
-        return status
 
     def rotate_image3d(self, queue, sampler, image3d,
             rotmat, array_buffer, center):
@@ -100,7 +80,7 @@ class Kernels():
         kernel = self.kernels.rotate_image3d
         compute_units = queue.device.max_compute_units
 
-        work_groups = (compute_units*16*8*4, 1, 1)
+        gws = (array_buffer.size, )
 
         shape = np.asarray(list(array_buffer.shape) + [np.product(array_buffer.shape)], dtype=np.int32)
 
@@ -112,9 +92,34 @@ class Kernels():
         _center[:3] = center[:]
 
         kernel.set_args(sampler, image3d, inv_rotmat16, array_buffer.data, _center, shape)
-        status = cl.enqueue_nd_range_kernel(queue, kernel, work_groups, None)
+        status = cl.enqueue_nd_range_kernel(queue, kernel, gws, None)
 
         return status
+
+
+    def rotate_model_and_mask(self, queue, sampler, im_modelmap, im_mask,
+            rotmat, modelmap, mask, center):
+
+        kernel = self.kernels.rotate_model_and_mask
+        compute_units = queue.device.max_compute_units
+
+        gws = (modelmap.size, )
+
+        shape = np.asarray(list(modelmap.shape) + [np.product(modelmap.shape)], dtype=np.int32)
+
+        inv_rotmat = np.linalg.inv(rotmat)
+        inv_rotmat16 = np.zeros(16, dtype=np.float32)
+        inv_rotmat16[:9] = inv_rotmat.flatten()[:]
+
+        _center = np.zeros(4, dtype=np.float32)
+        _center[:3] = center[:]
+
+        kernel.set_args(sampler, im_modelmap, im_mask, inv_rotmat16, 
+                modelmap.data, mask.data, _center, shape)
+        status = cl.enqueue_nd_range_kernel(queue, kernel, gws, None)
+
+        return status
+
 
     def lcc(self, queue, gcc, map_ave, map2_ave, norm_factor, lcc, varlimit):
 
@@ -123,9 +128,11 @@ class Kernels():
 
         return status
         
+
     def take_best(self, queue, lcc, best_lcc, rotmat_ind, n):
         status = self.kernels.take_best(lcc, best_lcc, rotmat_ind, np.int32(n))
         return status
+
 
     def fill(self, queue, array, value):
         if array.dtype == np.float32:
