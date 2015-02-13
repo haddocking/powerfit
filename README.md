@@ -1,5 +1,6 @@
 # PowerFit
 
+
 ## About PowerFit
 
 PowerFit is a Python package and simple command-line program to automatically fit high-resolution atomic structures in cryo-EM densities.
@@ -10,6 +11,7 @@ PowerFit uses the Local Cross-Correlation functions as its base score.
 The score can optionally be enhanced by a Laplace pre-filter and/or a core-weighted version to minimize overlapping densities from neighboring subunits.
 It can further be hardware-accelerated by leveraging multi-core CPU machines out of the box or by GPU via the OpenCL framework.
 PowerFit is Free Software and has been succesfully installed and used on Linux, MacOSX and Windows machines.
+
 
 ## Requirements
 
@@ -32,6 +34,7 @@ To offload computations to the GPU the following is also required
 * clFFT
 * gpyfft
 
+
 ## Installation
 
 If you already have fulfilled the requirements, 
@@ -49,8 +52,10 @@ open up a shell, go to the location where you downloaded *powerfit-master.zip* a
     cd powerfit-master/
     (sudo) python setup.py install
 
-If you are starting from a clean system, follow the instructions for your particular operating system as described below, 
+If you are starting from a clean system, follow the instructions for 
+your particular operating system as described below, 
 they should get you up and running in no time.
+
 
 ### Linux 
 
@@ -71,10 +76,12 @@ Sit back and wait till the compilation and installation is finished.
 You system is now prepared to install PowerFit. 
 Follow the general instructions above to see how.
 
+
 ### MacOSX (10.7+)
 
-First install [*pip*](https://pip.pypa.io/en/latest/installing.html), the Python package manager, by following the installation instructions on the website. 
-Next, install NumPy, Cython and Scipy by typing
+First install [*pip*](https://pip.pypa.io/en/latest/installing.html), the Python package manager, 
+by following the installation instructions on the website. 
+Next, install NumPy, Cython and SciPy by typing
 
     (sudo) pip install numpy cython scipy
 
@@ -88,6 +95,7 @@ First install git for Windows, as it comes in addition to git itself with a mini
 Go to [git-scm](https://git-scm.com/download/), download *git* and install it.
 Next, install a Python distribution with NumPy, Cython and Scipy included such as [Anaconda](http://continuum.io/downloads).
 After installation, open up the bash shell shipped with *git* and follow the general instructions written above.
+
 
 ## Usage
 
@@ -107,6 +115,7 @@ When the search is finished, several output files are created
 * A Cross-correlation map, showing at each voxel the highest LCC-value found (*lcc.mrc*)
 * All the non-redundant solutions found ordered by the LCC-score together with their xyz-postions and rotation matrix (*solutions.out*)
 * A log file, showing the input parameters and what was happening when (*powerfit.log*)
+
 
 ### Options
 
@@ -138,9 +147,10 @@ If both are given, *powerfit* will first try to run on the GPU.
 
 If this software was useful to your research, please cite us
 
-**G.C.P. van Zundert and A.M.J.J. Bonvin**. *Fast and sensitive rigid body fitting in cryo-EM densities with PowerFit.* AIMS Biophysics (submitted).
+**G.C.P. van Zundert and A.M.J.J. Bonvin**. Fast and sensitive rigid body fitting in cryo-EM densities with PowerFit. *AIMS Biophysics* (submitted).
 
 MIT licence
+
 
 ## Tested platforms
 
@@ -151,4 +161,4 @@ MIT licence
 |Windows          | Yes        | Fail      | No  |
 
 The GPU version has been tested on:
-NVIDIA GeForce GTX680 and AMD Radeon 7730M for Linux
+NVIDIA GeForce GTX 680 and AMD Radeon HD 7730M for Linux
