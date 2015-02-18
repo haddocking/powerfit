@@ -24,6 +24,7 @@ def parse_args():
     p.add_argument('model', type=file,
             help='Atomic model to be fitted in the density. '
                  'Format should either be PDB or mmCIF')
+
     p.add_argument('map', type=FileType('rb'),
             help='Target density map to fit the model in. '
                  'Data should either be in CCP4 or MRC format')
@@ -53,7 +54,7 @@ def parse_args():
 
     p.add_argument('-tc', '--trimming-cutoff', dest='trimming_cutoff', type=float, default=None,
             help='Intensity cutoff to which the map will be trimmed. '
-                 'Default is 10% of maximum intensity.')
+                 'Default is 10 percent of maximum intensity.')
 
     p.add_argument('-c', '--chain', dest='chain', type=str, default=None,
             help='The chain ID of the structure to be fitted. '
@@ -214,8 +215,6 @@ def main():
     args = parse_args()
 
     mkdir_p(args.directory)
-    #if not os.path.isdir(args.directory):
-    #    os.mkdir(args.directory)
 
     logging.basicConfig(filename=os.path.join(args.directory, 'powerfit.log'), 
             level=logging.INFO, format='%(asctime)s %(message)s')
