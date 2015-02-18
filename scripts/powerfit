@@ -210,6 +210,11 @@ def mkdir_p(path):
         else: 
             raise
 
+
+class SizeError(Exception):
+    pass
+
+
 def main():
 
     args = parse_args()
@@ -255,6 +260,13 @@ def main():
         if model.data.size == 0:
             raise ValueError('Chain is not available in structure.')
         write('Selected chain: {:s}'.format(args.chain))
+
+    # check if the model size fits in the density box
+    max_modeldim = max(model.coor.ptp(axis=0))
+    if any([max_modeldim > vd for vd in vol.dimensions]):
+        raise SizeError("Model structure has bigger "
+                    "dimensions than the density.")
+
 
     q, w, a = proportional_orientations(args.angle)
     rotmat = quat_to_rotmat(q)
