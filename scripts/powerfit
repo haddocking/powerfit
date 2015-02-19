@@ -236,7 +236,7 @@ def main():
         if resampling_factor < 0.9:
             write('Old voxel spacing: {:.2f}'.format(vol.voxelspacing))
             vol = volume.resample(vol, factor=resampling_factor)
-            write('Resamped density to 1/4 of resolution voxel spacing')
+            write('Resampled density to 1/4th of resolution voxel spacing')
             write('New voxel spacing: {:.2f}'.format(vol.voxelspacing))
             write('Shape of density data reduced to: {:}'.format(str(vol.shape)))
 
