@@ -2,13 +2,13 @@ from __future__ import division, print_function
 import numpy as np
 from scipy.ndimage import zoom
 from .libpowerfit import binary_erosion
-from .IO.mrc import to_mrc, parse_mrc
+from .IO import parse_vol, to_vol
 
 class Volume(object):
 
     @classmethod
     def fromfile(cls, fid):
-        array, voxelspacing, origin = parse_mrc(fid)
+        array, voxelspacing, origin = parse_vol(fid)
         return cls(array, voxelspacing, origin)
 
     def __init__(self, array, voxelspacing=1.0, origin=(0, 0, 0)):
@@ -50,7 +50,7 @@ class Volume(object):
         return Volume(self.array.copy(), voxelspacing=self.voxelspacing,
                       origin=self.origin)
     def tofile(self, fid):
-        to_mrc(fid, self)
+        to_vol(fid, self)
 
 # builders
 def zeros(shape, voxelspacing, origin):
@@ -134,3 +134,16 @@ def trim(volume, threshold, margin=4):
     origin.append(volume.origin[2] + volume.voxelspacing*zmin)
 
     return Volume(sub_array, volume.voxelspacing, origin)
+
+def zone(volume, pdb, radius):
+
+    from powerfit.points import dilate_points
+
+    mask = zeros_like(volume)
+    
+    dilate_points(pdb.coor, radius, mask)
+
+    zone = zeros_like(volume)
+    zone.array = mask.array * volume.array
+
+    return zone

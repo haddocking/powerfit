@@ -1,0 +1,20 @@
+#! env/bin/python
+import sys
+from powerfit import Volume, PDB
+from powerfit.volume import zone, trim, resize_radix235
+import numpy as np
+
+f_vol = sys.argv[1]
+f_pdb = sys.argv[2]
+radius = float(sys.argv[3])
+f_out = sys.argv[4]
+
+vol = Volume.fromfile(f_vol)
+vol.array = vol.array.astype(np.float64)
+model = PDB.fromfile(f_pdb)
+
+vol_zone = zone(vol, model, radius)
+vol_zone = trim(vol_zone, 0)
+vol_zone = resize_radix235(vol_zone)
+
+vol_zone.tofile(f_out)
