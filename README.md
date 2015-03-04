@@ -136,7 +136,7 @@ When the search is finished, several output files are created
 
 * *fit_n.pdb*: the top *n* best fits.
 * *solutions.out*: all the non-redundant solutions found, ordered by their correlation score.
-* *lcc.mrc*: a cross-correlation map, showing at each grid postion the highest correlation score found.
+* *lcc.mrc*: a cross-correlation map, showing at each grid position the highest correlation score found.
 * *powerfit.log*: a log file, including the input parameters with date and timing information.
 
 
