@@ -34,6 +34,11 @@ To offload computations to the GPU the following is also required
 * clFFT
 * gpyfft
 
+Recommended for installation
+
+* git
+* pip
+
 
 ## Installation
 
@@ -42,15 +47,7 @@ the installation should be as easy as opening up a shell and typing
 
     git clone https://github.com/haddocking/powerfit.git
     cd powerfit
-    (sudo) python setup.py install
-
-or if *git* is not available to you, 
-download *powerfit-master.zip* from the right side of the page, 
-open up a shell, go to the location where you downloaded *powerfit-master.zip* and type
-
-    unzip powerfit-master.zip
-    cd powerfit-master/
-    (sudo) python setup.py install
+    sudo python setup.py install
 
 If you are starting from a clean system, follow the instructions for 
 your particular operating system as described below, 
@@ -60,21 +57,17 @@ they should get you up and running in no time.
 ### Linux 
 
 Linux systems usually already include a Python2.7 distribution.
-First make sure the Python header files and *git* are available 
+First make sure the Python header files, *git*  and *pip* are available 
 
-    (sudo) apt-get install python-dev git
+    sudo apt-get install python-dev git python-pip
 
-To easily install the required Python packages, 
-first install the Python package manager [*pip*](https://pip.pypa.io/en/latest/installing.html).
-Download *get-pip.py* and install *pip* as explained at their website.
-
+If you are working on Fedora, replace `apt-get` by `yum`.
 To install NumPy, Cython and SciPy type
 
-    (sudo) pip install numpy cython scipy
+    sudo pip install numpy cython scipy
 
 Sit back and wait till the compilation and installation is finished.
-You system is now prepared to install PowerFit. 
-Follow the general instructions above to see how.
+You system is now prepared, follow the general instructions above to install **PowerFit**.
 
 
 ### MacOSX (10.7+)
@@ -83,15 +76,15 @@ First install [*pip*](https://pip.pypa.io/en/latest/installing.html), the Python
 by following the installation instructions on the website. 
 Next, install NumPy, Cython and SciPy by typing
 
-    (sudo) pip install numpy cython scipy
+    sudo pip install numpy cython scipy
 
 Wait for the installation to finish (this might take awhile).
-Follow the general instructions above to install PowerFit.
+Follow the general instructions above to install **PowerFit**.
 
 
 ### Windows
 
-First install git for Windows, as it comes in addition to git itself with a minimal bash shell.
+First install *git* for Windows, as it comes with a handy bash shell.
 Go to [git-scm](https://git-scm.com/download/), download *git* and install it.
 Next, install a Python distribution with NumPy, Cython and Scipy included such as [Anaconda](http://continuum.io/downloads).
 After installation, open up the bash shell shipped with *git* and follow the general instructions written above.
@@ -111,10 +104,10 @@ This performs a 10&deg; rotational search using the Local Cross-Correlation scor
 During the search, *powerfit* will update you about the progress of the search if you are using it interactively in the shell.
 When the search is finished, several output files are created
 
-* 10 best scoring structures (fit\_*n*.pdb)
-* A Cross-correlation map, showing at each voxel the highest LCC-value found (*lcc.mrc*)
-* All the non-redundant solutions found ordered by the LCC-score together with their xyz-postions and rotation matrix (*solutions.out*)
-* A log file, showing the input parameters and what was happening when (*powerfit.log*)
+* *fit_n.pdb*: the top *n* best fits.
+* *solutions.out*: all the non-redundant solutions found, ordered by their correlation score.
+* *lcc.mrc*: a cross-correlation map, showing at each grid postion the highest correlation score found.
+* *powerfit.log*: a log file, including the input parameters with date and timing information.
 
 
 ### Options
