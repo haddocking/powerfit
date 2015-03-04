@@ -102,12 +102,6 @@ where \<pdb\> is an atomic model in the PDB-format,
 and \<resolution\> is the resolution of the map in &aring;ngstrom.
 This performs a 10&deg; rotational search using the Local Cross-Correlation score on a single CPU-core.
 During the search, *powerfit* will update you about the progress of the search if you are using it interactively in the shell.
-When the search is finished, several output files are created
-
-* *fit_n.pdb*: the top *n* best fits.
-* *solutions.out*: all the non-redundant solutions found, ordered by their correlation score.
-* *lcc.mrc*: a cross-correlation map, showing at each grid postion the highest correlation score found.
-* *powerfit.log*: a log file, including the input parameters with date and timing information.
 
 
 ### Options
@@ -134,6 +128,16 @@ To off-load computations to the GPU and use the core-weighted scoring function a
 Note that all options can be combined except for the `-g` and `-p` flag:
 calculations are either performed on the CPU or GPU.
 If both are given, *powerfit* will first try to run on the GPU.
+
+
+### Output
+
+When the search is finished, several output files are created
+
+* *fit_n.pdb*: the top *n* best fits.
+* *solutions.out*: all the non-redundant solutions found, ordered by their correlation score.
+* *lcc.mrc*: a cross-correlation map, showing at each grid postion the highest correlation score found.
+* *powerfit.log*: a log file, including the input parameters with date and timing information.
 
 
 ## Licensing
