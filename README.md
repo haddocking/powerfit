@@ -70,16 +70,26 @@ Sit back and wait till the compilation and installation is finished.
 You system is now prepared, follow the general instructions above to install **PowerFit**.
 
 
-### MacOSX (10.7+)
+### MacOSX
 
 First install [*pip*](https://pip.pypa.io/en/latest/installing.html), the Python package manager, 
-by following the installation instructions on the website. 
+by following the installation instructions on the website or type 
+
+    sudo easy_install pip
+
 Next, install NumPy, Cython and SciPy by typing
 
     sudo pip install numpy cython scipy
 
 Wait for the installation to finish (this might take awhile).
+
 Follow the general instructions above to install **PowerFit**.
+
+Installing pyFFTW for faster CPU version can be done as follows using *brew*
+
+    brew install fftw
+    sudo pip install pyfftw
+
 
 
 ### Windows
@@ -154,8 +164,9 @@ MIT licence
 | Operating System| CPU single | CPU multi | GPU |
 | --------------- | ---------- | --------- | --- |
 |Linux            | Yes        | Yes       | Yes |
-|MacOSX           | Yes        | Yes       | No  |
+|MacOSX           | Yes        | Yes       | Yes |
 |Windows          | Yes        | Fail      | No  |
 
 The GPU version has been tested on:
-NVIDIA GeForce GTX 680 and AMD Radeon HD 7730M for Linux
+* NVIDIA GeForce GTX 680 and AMD Radeon HD 7730M for Linux
+* NVIDIA GeForce GTX 775M for MacOSX 10.10
