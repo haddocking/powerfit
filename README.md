@@ -91,7 +91,6 @@ Installing pyFFTW for faster CPU version can be done as follows using *brew*
     sudo pip install pyfftw
 
 
-
 ### Windows
 
 First install *git* for Windows, as it comes with a handy bash shell.

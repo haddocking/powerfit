@@ -22,7 +22,7 @@ def dilate_points(points, radius, volume):
 
     gridradius = radius/volume.voxelspacing
 
-    lpf.dilate_points(gridcoor(points, volume.voxelspacing), gridradius, volume)
+    lpf.dilate_points(gridcoor(points, volume.voxelspacing), gridradius, volume.array)
 
 def gridcoor(points, voxelspacing):
     return (points - points.mean(axis=0))/voxelspacing
