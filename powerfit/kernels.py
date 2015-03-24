@@ -80,7 +80,7 @@ class Kernels():
         kernel = self.kernels.rotate_image3d
         compute_units = queue.device.max_compute_units
 
-        gws = (array_buffer.size, )
+        gws = (compute_units*32*8,)
 
         shape = np.asarray(list(array_buffer.shape) + [np.product(array_buffer.shape)], dtype=np.int32)
 
@@ -103,7 +103,7 @@ class Kernels():
         kernel = self.kernels.rotate_model_and_mask
         compute_units = queue.device.max_compute_units
 
-        gws = (modelmap.size, )
+        gws = (compute_units * 32 * 8,)
 
         shape = np.asarray(list(modelmap.shape) + [np.product(modelmap.shape)], dtype=np.int32)
 
