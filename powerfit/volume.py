@@ -56,8 +56,10 @@ class Volume(object):
 def zeros(shape, voxelspacing, origin):
     return Volume(np.zeros(shape, dtype=np.float64), voxelspacing, origin)
 
+
 def zeros_like(volume):
     return Volume(np.zeros_like(volume.array), volume.voxelspacing, volume.origin)
+
 
 # functions
 def erode(volume, iterations, out=None):
@@ -71,6 +73,7 @@ def erode(volume, iterations, out=None):
         tmp[:] = out.array[:]
 
     return out
+
 
 def radix235(ninit):
     while True:
@@ -88,6 +91,14 @@ def radix235(ninit):
         else:
             return ninit
 
+
+def resize(volume, shape):
+
+    resized_volume = zeros(shape, volume.voxelspacing, volume.origin)
+    resized_volume.array[:volume.shape[0], :volume.shape[1], :volume.shape[2]] = volume.array
+
+    return resized_volume
+
 def resize_radix235(volume):
     
     radix235_shape = [radix235(x) for x in volume.shape]
@@ -96,12 +107,14 @@ def resize_radix235(volume):
 
     return Volume(array, volume.voxelspacing, volume.origin)
 
+
 def resample(volume, factor, order=1):
     
     resampled_array = zoom(volume.array, factor, order=order)
     resampled_voxelspacing = volume.voxelspacing / factor
 
     return Volume(resampled_array, resampled_voxelspacing, volume.origin)
+
 
 def trim(volume, threshold, margin=4):
     
@@ -134,6 +147,7 @@ def trim(volume, threshold, margin=4):
     origin.append(volume.origin[2] + volume.voxelspacing*zmin)
 
     return Volume(sub_array, volume.voxelspacing, origin)
+
 
 def zone(volume, pdb, radius):
 
