@@ -152,7 +152,7 @@ class PowerFitter(object):
             modelmap *= d['mask']
 
         d['modelmap'] = modelmap
-        d['varlimit'] = 0.001 * modelmap[modelmap != 0].var() *\
+        d['varlimit'] = 0.1 * modelmap[modelmap != 0].var() *\
                 (d['map'].max()/d['modelmap'].max())**2 * d['norm_factor']**2
 
     def search(self):
