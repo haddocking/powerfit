@@ -189,6 +189,7 @@ class PowerFitter(object):
         c['mask'] = np.zeros_like(d['mask'])
         c['norm_factor'] = d['norm_factor']
         c['varlimit'] = d['varlimit']
+        c['shape'] = d['shape']
 
         c['rotations'] = d['rotations']
         c['nrot'] = d['nrot']
@@ -218,16 +219,16 @@ class PowerFitter(object):
                     np.linalg.inv(c['rotations'][n]), 
                     c['map_center'], c['vlength'], c['mask'])
 
-            c['gcc'] = irfftn(rfftn(c['modelmap']).conj() * c['ft_map'])
+            c['gcc'] = irfftn(rfftn(c['modelmap']).conj() * c['ft_map'], s=c['shape'])
 
             if self.core_weighted:
-                c['map_ave'] = irfftn(rfftn(c['mask']).conj() * c['ft_map'])
-                c['map2_ave'] = irfftn(rfftn(c['mask']**2).conj() * c['ft_map2'])
+                c['map_ave'] = irfftn(rfftn(c['mask']).conj() * c['ft_map'], s=c['shape'])
+                c['map2_ave'] = irfftn(rfftn(c['mask']**2).conj() * c['ft_map2'], s=c['shape'])
             else:
                 # saves a FFT calculation
                 c['ft_mask'] = rfftn(c['mask']).conj()
-                c['map_ave'] = irfftn(c['ft_mask'] * c['ft_map'])
-                c['map2_ave'] = irfftn(c['ft_mask'] * c['ft_map2'])
+                c['map_ave'] = irfftn(c['ft_mask'] * c['ft_map'], s=c['shape'])
+                c['map2_ave'] = irfftn(c['ft_mask'] * c['ft_map2'], s=c['shape'])
 
 
             c['lcc'] = c['gcc']/np.sqrt((c['map2_ave']*c['norm_factor'] -\
