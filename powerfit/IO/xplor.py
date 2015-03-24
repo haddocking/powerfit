@@ -85,14 +85,14 @@ class XPLORFile(object):
             ny = self.header['ny']
             nz = self.header['nz']
 
-            array = np.zeros( (nz, ny, nx), dtype=np.float64)
+            array = np.zeros((nz, ny, nx), dtype=np.float64)
 
             xextend = self.header['nxend'] - self.header['nxstart'] + 1
             yextend = self.header['nyend'] - self.header['nystart'] + 1
             zextend = self.header['nzend'] - self.header['nzstart'] + 1
 
             nslicelines = int(ceil(xextend*yextend/6.0))
-            for n in range(zextend):
+            for i in range(zextend):
                 values = []
                 nslice = int(volumefile.readline()[0:8])
                 for m in range(nslicelines):
@@ -100,7 +100,7 @@ class XPLORFile(object):
 		    for n in range(len(line)//12):
 			value = float(line[n*12: (n+1)*12])
 		        values.append(value)
-                array[n,:yextend,:xextend] = np.float64(values).reshape(yextend, xextend)
+                array[i, :yextend, :xextend] = np.float64(values).reshape(yextend, xextend)
 
         return array 
 
