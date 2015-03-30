@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function, division, absolute_import
 
-import os, errno
+import os
+import errno
+from os.path import join, abspath
 from sys import stdout
 from time import time
 from argparse import ArgumentParser, FileType
@@ -91,9 +93,9 @@ def run_powerfit_instance(model, vol, rotmat, args, n):
     pf.core_weighted = args.core_weighted
 
     sol = pf.search()
-    sol.save(os.path.join(args.directory, 'lcc_{:d}.mrc'.format(n)),
-            os.path.join(args.directory, 'rotmat_{:d}.npy'.format(n)),
-            os.path.join(args.directory, 'rotmat_ind_{:d}.npy'.format(n)))
+    sol.save(join(args.directory, 'lcc_{:d}.mrc'.format(n)),
+            join(args.directory, 'rotmat_{:d}.npy'.format(n)),
+            join(args.directory, 'rotmat_ind_{:d}.npy'.format(n)))
 
 
 def mp_cpu_powerfit(model, vol, rotmat, args):
@@ -137,11 +139,11 @@ def mp_cpu_powerfit(model, vol, rotmat, args):
         # combine results
         write('All jobs done.')
         write('Combining results.')
-        best_lcc = Volume.fromfile(os.path.join(args.directory, 'lcc_0.mrc'))
-        best_rotmat_ind = np.load(os.path.join(args.directory, 'rotmat_ind_0.npy'))
+        best_lcc = Volume.fromfile(join(args.directory, 'lcc_0.mrc'))
+        best_rotmat_ind = np.load(join(args.directory, 'rotmat_ind_0.npy'))
         for n in range(1, jobs):
-            f_lcc = os.path.join(args.directory, 'lcc_{:d}.mrc'.format(n))
-            f_rotmat_ind = os.path.join(args.directory, 'rotmat_ind_{:d}.npy'.format(n))
+            f_lcc = join(args.directory, 'lcc_{:d}.mrc'.format(n))
+            f_rotmat_ind = join(args.directory, 'rotmat_ind_{:d}.npy'.format(n))
 
             lcc = Volume.fromfile(f_lcc)
             rotmat_ind = np.load(f_rotmat_ind) + nrot_per_job*n
@@ -153,9 +155,9 @@ def mp_cpu_powerfit(model, vol, rotmat, args):
 
         write('Removing intermediate files')
         for n in range(jobs):
-            f_lcc = os.path.join(args.directory, 'lcc_{:d}.mrc'.format(n))
-            f_rotmat_ind = os.path.join(args.directory, 'rotmat_ind_{:d}.npy'.format(n))
-            f_rotmat = os.path.join(args.directory, 'rotmat_{:d}.npy'.format(n))
+            f_lcc = join(args.directory, 'lcc_{:d}.mrc'.format(n))
+            f_rotmat_ind = join(args.directory, 'rotmat_ind_{:d}.npy'.format(n))
+            f_rotmat = join(args.directory, 'rotmat_{:d}.npy'.format(n))
 
             os.remove(f_lcc)
             os.remove(f_rotmat_ind)
@@ -221,13 +223,13 @@ def main():
 
     mkdir_p(args.directory)
 
-    logging.basicConfig(filename=os.path.join(args.directory, 'powerfit.log'), 
+    logging.basicConfig(filename=join(args.directory, 'powerfit.log'), 
             level=logging.INFO, format='%(asctime)s %(message)s')
 
     time0 = time()
 
     vol = Volume.fromfile(args.map)
-    write('Density data read from: {:s}'.format(args.map.name))
+    write('Density data read from: {:s}'.format(abspath(args.map.name)))
     write('Resolution of data: {:.2f}'.format(args.resolution))
     write('Initial shape of density data: {:}'.format(str(vol.shape)))
 
@@ -254,7 +256,7 @@ def main():
     write('Final shape of density data: {:}'.format(str(vol.shape)))
 
     model = PDB.fromfile(args.model)
-    write('High-resolution model read from: {:s}'.format(args.model.name))
+    write('High-resolution model read from: {:s}'.format(abspath(args.model.name)))
     if args.chain is not None:
         model = model.select('chain', args.chain)
         if model.data.size == 0:
@@ -298,12 +300,12 @@ def main():
     sol.generate_local_solutions()
     write('Found {:d} non-redundant solutions.'.format(len(sol._local_solutions)))
     write('Saving raw results.')
-    sol.save(lcc_fname=os.path.join(args.directory, 'lcc.mrc'), 
-            rotmat_fname=os.path.join(args.directory, 'rotmat.npy'),
-            rotmat_ind_fname=os.path.join(args.directory, 'rotmat_ind.npy'))
+    sol.save(lcc_fname=join(args.directory, 'lcc.mrc'), 
+            rotmat_fname=join(args.directory, 'rotmat.npy'),
+            rotmat_ind_fname=join(args.directory, 'rotmat_ind.npy'))
     write('Writing top {:d} models to file.'.format(args.num))
-    sol.write_pdb(model, num=args.num, fbase=os.path.join(args.directory, 'fit'))
-    sol.write_local_solutions(os.path.join(args.directory, 'solutions.out'))
+    sol.write_pdb(model, num=args.num, fbase=join(args.directory, 'fit'))
+    sol.write_local_solutions(join(args.directory, 'solutions.out'))
 
     tot_time = time() - time0
     m, s = divmod(int(round(tot_time)), 60)
