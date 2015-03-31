@@ -266,7 +266,8 @@ def main():
     # check if the model size fits in the density box
     max_modeldim = max(model.coor.ptp(axis=0)) + 2*args.resolution
     if any([max_modeldim > vd for vd in vol.dimensions]):
-        newshape = [volume.radix235(int(np.ceil(max_modeldim/vol.voxelspacing)))]*3
+        lenght = max(volume.radix235(int(np.ceil(max_modeldim/vol.voxelspacing))), max(vol.shape))
+        newshape = [lenght]*3
         vol = volume.resize(vol, newshape)
         write('Model is bigger than data in at least one dimension. Expanding cryo-EM data size to {:}'.format(str(newshape)))
 
