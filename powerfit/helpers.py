@@ -1,14 +1,14 @@
-import numpy as np
+from math import sqrt, pi
 try:
     import pyopencl as cl
 except ImportError:
     pass
 
 def resolution2sigma(resolution):
-    return resolution/(np.sqrt(2.0) * np.pi)
+    return resolution/(sqrt(2.0) * pi)
 
 def sigma2resolution(sigma):
-    return sigma * (np.sqrt(2.0) * np.pi)
+    return sigma * (sqrt(2.0) * pi)
 
 def get_queue(platformid=0, deviceid=0):
     try:
