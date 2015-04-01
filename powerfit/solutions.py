@@ -17,7 +17,7 @@ class Solutions(object):
         self.rotmat = rotmat
         self._local_solutions = []
 
-    def generate_local_solutions(self, steps=10):
+    def generate_local_solutions(self, steps=20):
         
         max_lcc = self.best_lcc.array.max()
         min_lcc = 0.2 * max_lcc
