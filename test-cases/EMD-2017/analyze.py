@@ -9,11 +9,14 @@ subdirs = ['lcc', 'cw-lcc', 'l-lcc', 'l-cw-lcc']
 
 for subdir in subdirs:
 
-    fits = glob(join(ROOT, subdir, 'fit') + '*.pdb')
+    fits = [join(ROOT, subdir, 'fit_{:d}.pdb'.format(n)) for n in range(1, 11)]
 
+    rmsds = []
     for fit in fits:
         mob = PDB.fromfile(fit)
         rmsd = ref.rmsd(mob)
+        rmsds.append(rmsd)
 
-        if rmsd < 8:
-            print(subdir, fit, rmsd)
+    min_rmsd = min(rmsds)
+    rank = rmsds.index(min_rmsd) + 1
+    print(subdir, min_rmsd, rank)
