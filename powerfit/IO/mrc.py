@@ -23,7 +23,7 @@ class MRCFile(object):
 
     def __init__(self, fid, fmt=None):
 
-    
+
         if isinstance(fid, file):
             pass
         elif isinstance(fid, str):
@@ -89,7 +89,7 @@ class MRCFile(object):
         self._header['rms'] = raw_header[60]
         self._header['nlabel'] = raw_header[61]
         self._header['label'] = "".join(raw_header[62:862]).strip()
-    
+
     @property
     def fid(self):
         return self._fid
@@ -114,32 +114,35 @@ class MRCFile(object):
 
     @property
     def origin(self):
-        if self.fmt == 'mrc':
-            origin = (self.header['xstart'], 
-                    self.header['ystart'], self.header['zstart'])
-        elif self.fmt in ('map', 'ccp4'):
-            order = (self.header['mapc'], 
-                    self.header['mapr'], self.header['maps'])
-            if order == (1, 2, 3):
-                start = (self.header['ncstart'], 
-                        self.header['nrstart'], self.header['nsstart'])
-            elif order == (1,3,2):
-                start = (self.header['ncstart'], 
-                        self.header['nsstart'], self.header['nrstart'])
-            elif order == (2,1,3):
-                start = (self.header['nrstart'], 
-                        self.header['ncstart'], self.header['nsstart'])
-            elif order == (2,3,1):
-                start = (self.header['nrstart'], 
-                        self.header['nsstart'], self.header['ncstart'])
-            elif order == (3,1,2):
-                start = (self.header['nsstart'], 
-                        self.header['ncstart'], self.header['nrstart'])
-            elif order == (3,2,1):
-                start = (self.header['nsstart'], 
-                        self.header['nrstart'], self.header['ncstart'])
 
-            origin = [x * self.voxelspacing for x in start]
+        order = (self.header['mapc'],
+                self.header['mapr'], self.header['maps'])
+        if order == (1, 2, 3):
+            start = (self.header['ncstart'],
+                    self.header['nrstart'], self.header['nsstart'])
+        elif order == (1,3,2):
+            start = (self.header['ncstart'],
+                    self.header['nsstart'], self.header['nrstart'])
+        elif order == (2,1,3):
+            start = (self.header['nrstart'],
+                    self.header['ncstart'], self.header['nsstart'])
+        elif order == (2,3,1):
+            start = (self.header['nrstart'],
+                    self.header['nsstart'], self.header['ncstart'])
+        elif order == (3,1,2):
+            start = (self.header['nsstart'],
+                    self.header['ncstart'], self.header['nrstart'])
+        elif order == (3,2,1):
+            start = (self.header['nsstart'],
+                    self.header['nrstart'], self.header['ncstart'])
+
+        origin = [x * self.voxelspacing for x in start]
+
+        if self.fmt == 'mrc':
+            origin = (self.header['xstart'] + origin[0],
+                    self.header['ystart'] + origin[1],
+		    self.header['zstart'] + origin[2])
+
         return origin
 
 
@@ -276,7 +279,7 @@ def to_mrc(fid, volume, labels=[]):
         #     list_label = [c for c in label]
         #     llabel = len(list_label)
         #     if llabel < 80:
-        #         
+        #
         #     # max 80 characters
         #     label = min(len(label), 80)
 
