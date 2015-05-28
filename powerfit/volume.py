@@ -1,6 +1,9 @@
 from __future__ import division, print_function
 import numpy as np
 from scipy.ndimage import zoom
+# zoom gives an annoying userwarning, so turn it off
+import warnings
+warnings.simplefilter("ignore", UserWarning)
 from .libpowerfit import binary_erosion
 from .IO import parse_vol, to_vol
 
