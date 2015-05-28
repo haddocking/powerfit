@@ -26,7 +26,7 @@ def main():
                ]
 
     setup(name="powerfit",
-          version='1.0.0',
+          version='1.0.1',
           description='PDB fitting in cryoEM maps',
           author='Gydo C.P. van Zundert',
           author_email='g.c.p.vanzundert@uu.nl',
