@@ -257,6 +257,11 @@ def main():
 
     model = PDB.fromfile(args.model)
     write('High-resolution model read from: {:s}'.format(abspath(args.model.name)))
+    # if no atoms are available, give error
+    if model.data.size == 0:
+        raise IOError('No atoms were found in the model. '
+	              'Check the model-file for ATOM entries.')
+
     if args.chain is not None:
         model = model.select('chain', args.chain)
         if model.data.size == 0:
