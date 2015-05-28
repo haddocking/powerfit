@@ -72,7 +72,7 @@ If you are working on Fedora, this should be replaced by
 
 To install Cython, type
 
-    sudo pip install numpy cython scipy
+    sudo pip install cython
 
 Sit back and wait till the compilation and installation is finished. You
 system is now prepared, follow the general instructions above to install
