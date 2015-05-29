@@ -206,7 +206,7 @@ def to_mrc(fid, volume, labels=[]):
             raise TypeError("Data type ({:})is not supported.".format(dtype))
         out.write(pack('i', mode))
 
-        nxstart, nystart, nzstart = [int(round(x)) for x in volume.start]
+        nxstart, nystart, nzstart = [0, 0, 0]
         out.write(pack('i', nxstart))
         out.write(pack('i', nystart))
         out.write(pack('i', nzstart))
