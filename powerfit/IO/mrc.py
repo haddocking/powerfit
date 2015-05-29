@@ -185,7 +185,13 @@ class MRCFile(object):
         return density
 
 
-def to_mrc(fid, volume, labels=[]):
+def to_mrc(fid, volume, labels=[], fmt=None):
+
+    if fmt is None:
+        fmt = os.path.splitext(fid)[-1][1:]
+
+    if fmt not in ('ccp4', 'mrc', 'map'):
+        raise IOError('Format is not recognized. Use ccp4, mrc, or map.')
 
     voxelspacing = volume.voxelspacing
     with open(fid, 'wb') as out:
@@ -206,7 +212,11 @@ def to_mrc(fid, volume, labels=[]):
             raise TypeError("Data type ({:})is not supported.".format(dtype))
         out.write(pack('i', mode))
 
-        nxstart, nystart, nzstart = [0, 0, 0]
+        if fmt in ('ccp4', 'map'):
+            nxstart, nystart, nzstart = [int(round(x)) for x in volume.start]
+        else:
+            nxstart, nystart, nzstart = [0, 0, 0]
+
         out.write(pack('i', nxstart))
         out.write(pack('i', nystart))
         out.write(pack('i', nzstart))
@@ -252,7 +262,12 @@ def to_mrc(fid, volume, labels=[]):
         for f in fut_use:
             out.write(pack('f', f))
 
-        for f in volume.origin:
+        if fmt == 'mrc':
+            origin = volume.origin
+        else:
+            origin = [0, 0, 0]
+
+        for f in origin:
             out.write(pack('f', f))
 
         str_map = ['M', 'A', 'P', ' ']
