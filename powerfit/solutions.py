@@ -53,6 +53,10 @@ class Solutions(object):
             self.generate_local_solutions()
         
         num = min(num, len(self._local_solutions))
+        # if num is smaller than 0, take all solutions
+        if num < 0:
+            num = len(self._local_solutions)
+
         models = []
         for n in range(0, num):
             lcc, xyzcoor, rotmat = self._local_solutions[n]
@@ -70,11 +74,16 @@ class Solutions(object):
         np.save(rotmat_fname, self.rotmat)
         np.save(rotmat_ind_fname, self.rotmat_ind)
 
+
     def write_pdb(self, model, num=10, fbase='fit'):
         if not self._local_solutions:
             self.generate_local_solutions()
         
         num = min(num, len(self._local_solutions))
+        # if num is smaller than 0, take all solutions
+        if num < 0:
+            num = len(self._local_solutions)
+
         for n in range(0, num):
             lcc, xyzcoor, rotmat = self._local_solutions[n]
             outmodel = model.duplicate()
@@ -82,6 +91,7 @@ class Solutions(object):
             outmodel.rotate(rotmat)
             outmodel.coor += np.asarray(xyzcoor, dtype=np.float64)[::-1]
             outmodel.tofile(fbase + '_{:d}.pdb'.format(n+1))
+
 
     def write_local_solutions(self, fname='solutions.out'):
         
