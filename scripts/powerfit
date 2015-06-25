@@ -278,8 +278,8 @@ def main():
 
     q, w, a = proportional_orientations(args.angle)
     rotmat = quat_to_rotmat(q)
-    write(u'Requested rotational sampling density: {:.2f}\N{DEGREE SIGN}'.format(args.angle))
-    write(u'Real rotational sampling density: {:.2f}\N{DEGREE SIGN}.'.format(a))
+    write(u'Requested rotational sampling density: {:.2f} degree'.format(args.angle))
+    write(u'Real rotational sampling density: {:.2f} degree.'.format(a))
     write('Total number of rotations sampled: {:d}'.format(len(rotmat)))
 
     write('Laplace pre-filter: {:}'.format(args.laplace))
