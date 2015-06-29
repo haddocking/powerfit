@@ -74,7 +74,7 @@ To install Cython, type
 
     sudo pip install cython
 
-Sit back and wait till the compilation and installation is finished. You
+Sit back and wait till the compilation and installation is finished. Your
 system is now prepared, follow the general instructions above to install
 **PowerFit**.
 
@@ -82,7 +82,7 @@ system is now prepared, follow the general instructions above to install
 ### MacOSX
 
 First install [*git*](https://git-scm.com/download) by following the
-instructions on their website, or using a package manager, e.g. *brew*
+instructions on their website, or using a package manager such as *brew*
 
     brew install git
 
@@ -96,9 +96,8 @@ Next, install NumPy, Cython and SciPy by typing
 
     sudo pip install numpy cython scipy
 
-Wait for the installation to finish (this might take awhile).
-
-Follow the general instructions above to install **PowerFit**.
+Wait for the installation to finish (this might take awhile). Follow the
+general instructions above to install **PowerFit**.
 
 Installing pyFFTW for faster CPU version can be done as follows using *brew*
 
@@ -163,11 +162,13 @@ calculations are either performed on the CPU or GPU. If both are given,
 
 When the search is finished, several output files are created
 
-* *fit_n.pdb*: the top *n* best fits.
+* *fit_N.pdb*: the top *N* best fits.
 * *solutions.out*: all the non-redundant solutions found, ordered by their
-correlation score.
+correlation score. The first column shows the correlation score; column 2 to 4
+are the z, y and x coordinate of the center of the chain; column 5 to 14 are
+the rotation matrix values.
 * *lcc.mrc*: a cross-correlation map, showing at each grid position the highest
-correlation score found.
+correlation score found during the rotational search.
 * *powerfit.log*: a log file, including the input parameters with date and timing information.
 
 
