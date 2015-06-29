@@ -22,7 +22,7 @@ been succesfully installed and used on Linux, MacOSX and Windows machines.
 Minimal requirements for the CPU version:
 
 * Python2.7
-* NumPy
+* NumPy 1.8+
 * Cython
 * SciPy
 
