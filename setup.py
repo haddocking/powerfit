@@ -4,9 +4,17 @@ from distutils.core import setup
 from distutils.extension import Extension
 from Cython.Distutils import build_ext
 from Cython.Build import cythonize
+
+# test for numpy version
 import numpy
+np_major, np_minor, np_release = [int(x) for x in numpy.version.short_version.split('.')]
+if np_major < 1 or (np_major == 1 and np_minor < 8):
+    raise ImportError('PowerFit requires NumPy version 1.8 or '
+        'higher. You have version {:s}'.format(numpy.version.short_version))
+
 
 def main():
+
     packages = ['powerfit', 'powerfit.IO']
 
     ext_modules = [Extension("powerfit.libpowerfit",
