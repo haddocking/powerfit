@@ -31,10 +31,11 @@ def main():
     scripts = [os.path.join('scripts', 'powerfit'),
                os.path.join('scripts', 'atom2dens'),
                os.path.join('scripts', 'generate_fits'),
+               os.path.join('scripts', 'image-pyramid'),
                ]
 
     setup(name="powerfit",
-          version='1.0.1',
+          version='1.1.0',
           description='PDB fitting in cryoEM maps',
           author='Gydo C.P. van Zundert',
           author_email='g.c.p.vanzundert@uu.nl',
