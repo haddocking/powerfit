@@ -169,7 +169,24 @@ are the z, y and x coordinate of the center of the chain; column 5 to 14 are
 the rotation matrix values.
 * *lcc.mrc*: a cross-correlation map, showing at each grid position the highest
 correlation score found during the rotational search.
-* *powerfit.log*: a log file, including the input parameters with date and timing information.
+* *powerfit.log*: a log file, including the input parameters with date and
+timing information.
+
+## Creating an image-pyramid
+
+The use of multi-scale image pyramids can signicantly increase the speed of
+fitting. PowerFit comes with script to quickly build a pyramid called
+`image-pyramid`. The calling signature of the script is
+
+    image-pyramid <map> <resolution> <target-resolutions ...>
+
+The following example with create an image-pyramid with resolutions of 12, 13 and 20 angstrom
+
+    image-pyramid EMD-1884/1884.map 9.8 12 13 20
+
+To see the other options type
+
+    image-pyramid --help
 
 
 ## Licensing
