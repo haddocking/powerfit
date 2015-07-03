@@ -48,7 +48,7 @@ class Solutions(object):
 
         self._local_solutions = local_solutions
 
-    def get_models(self, num=10):
+    def get_models(self, model, num=10):
         if not self._local_solutions:
             self.generate_local_solutions()
         
