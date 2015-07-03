@@ -180,7 +180,7 @@ fitting. PowerFit comes with script to quickly build a pyramid called
 
     image-pyramid <map> <resolution> <target-resolutions ...>
 
-The following example with create an image-pyramid with resolutions of 12, 13 and 20 angstrom
+The following example will create an image-pyramid with resolutions of 12, 13 and 20 angstrom
 
     image-pyramid EMD-1884/1884.map 9.8 12 13 20
 
