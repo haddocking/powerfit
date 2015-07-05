@@ -122,7 +122,7 @@ def write_pdb(outfile, pdbdata):
         fhandle.write(MODEL_LINE.format(current_model))
 
     # TER record
-    TER_LINE = 'TER   ' + '{:4d}' + ' '*6 + '{:>3s}' + ' ' + '{:s}' + '{:>4d}\n'
+    TER_LINE = 'TER   ' + '{:5d}' + ' '*6 + '{:>3s}' + ' ' + '{:s}' + '{:>4d}\n'
     previous_chain = pdbdata['chain'][0]
 
     for n in range(pdbdata.shape[0]):
