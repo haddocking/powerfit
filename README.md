@@ -23,8 +23,8 @@ Minimal requirements for the CPU version:
 
 * Python2.7
 * NumPy 1.8+
-* Cython
 * SciPy
+* GCC (or another C-compiler)
 
 Optional requirement for faster CPU version:
 
@@ -61,18 +61,14 @@ running in no time.
 ### Linux 
 
 Linux systems usually already include a Python2.7 distribution. First make
-sure the Python header files, NumPy, SciPy, *git*  and *pip* are available by
+sure the Python header files, NumPy, SciPy, and *git* are available by
 opening up a terminal and typing for Debian and Ubuntu systems
 
-    sudo apt-get install python-dev python-pip python-numpy python-scipy git
+    sudo apt-get install python-dev python-numpy python-scipy git
 
 If you are working on Fedora, this should be replaced by 
 
-    sudo yum install python-devel python-pip numpy scipy git
-
-To install Cython, type
-
-    sudo pip install cython
+    sudo yum install python-devel numpy scipy git
 
 Sit back and wait till the compilation and installation is finished. Your
 system is now prepared, follow the general instructions above to install
@@ -92,11 +88,11 @@ website or open a terminal and type
 
     sudo easy_install pip
 
-Next, install NumPy, Cython and SciPy by typing
+Next, install NumPy and SciPy by typing
 
-    sudo pip install numpy cython scipy
+    sudo pip install numpy scipy
 
-Wait for the installation to finish (this might take awhile). Follow the
+Wait for the installation to finish. Follow the
 general instructions above to install **PowerFit**.
 
 Installing pyFFTW for faster CPU version can be done as follows using *brew*
@@ -109,7 +105,7 @@ Installing pyFFTW for faster CPU version can be done as follows using *brew*
 
 First install *git* for Windows, as it comes with a handy bash shell. Go to
 [git-scm](https://git-scm.com/download/), download *git* and install it. Next,
-install a Python distribution with NumPy, Cython and Scipy included such as
+install a Python distribution with NumPy and Scipy included such as
 [Anaconda](http://continuum.io/downloads). After installation, open up the
 bash shell shipped with *git* and follow the general instructions written
 above.

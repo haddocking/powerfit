@@ -2,8 +2,12 @@
 import os.path
 from distutils.core import setup
 from distutils.extension import Extension
-from Cython.Distutils import build_ext
-from Cython.Build import cythonize
+try:
+    from Cython.Distutils import build_ext
+    from Cython.Build import cythonize
+    CYTHON = True
+except ImportError:
+    CYTHON = False
 
 # test for numpy version
 import numpy
@@ -17,11 +21,13 @@ def main():
 
     packages = ['powerfit', 'powerfit.IO']
 
+    # the C or Cython extension
+    ext = '.pyx' if CYTHON else '.c'
     ext_modules = [Extension("powerfit.libpowerfit",
-                             [os.path.join("src", "libpowerfit.pyx")],
-                             include_dirs=[numpy.get_include()],
-                             )
-                  ]
+                             [os.path.join("src", "libpowerfit" + ext)],
+                             include_dirs=[numpy.get_include()])]
+    if CYTHON:
+        ext_modules = cythonize(ext_modules)
 
     package_data = {'powerfit': [os.path.join('data', '*.npy'), 
                                  os.path.join('kernels', '*.cl'), 
@@ -35,19 +41,18 @@ def main():
                ]
 
     setup(name="powerfit",
-          version='1.1.0',
+          version='1.1.1',
           description='PDB fitting in cryoEM maps',
           author='Gydo C.P. van Zundert',
           author_email='g.c.p.vanzundert@uu.nl',
           packages=packages,
           cmdclass = {'build_ext': build_ext},
-          ext_modules = cythonize(ext_modules),
+          ext_modules = ext_modules,
           package_data = package_data,
           scripts=scripts,
-          requires=['numpy', 'scipy', 'cython'],
+          requires=['numpy', 'scipy'],
           include_dirs=[numpy.get_include()],
         )
 
 if __name__=='__main__':
-
     main()
