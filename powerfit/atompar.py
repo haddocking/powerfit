@@ -58,6 +58,11 @@ parameters = {
         'rvdW': 1.50,
         'Z' : 8,
         },
+    # Magnesium
+    'MG': {
+        'rvdW': 1.73,
+        'Z': 12,
+        },
     # Phosphorus
     'P': {
         'a1': 6.64345,
