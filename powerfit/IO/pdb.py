@@ -11,6 +11,7 @@ def parse_pdb(pdbfile):
 
     ATOM = "ATOM "
     MODEL = "MODEL "
+    ATOM_ELEMENTS = ('H', 'C', 'N', 'O', 'P', 'S')
 
     model = []
     serial = []
@@ -50,15 +51,17 @@ def parse_pdb(pdbfile):
             z.append(float(line[46:54]))
             occupancy.append(float(line[54:60]))
             temp_factor.append(float(line[60:66]))
+
             e = line[76:78].strip()
             if not e:
                 e = line[12:16].strip()[0]
             element.append(e)
-            charge.append(line[78:80].strip())
+            if e not in ATOM_ELEMENTS:
+                msg = 'Invalid element detected for an ATOM record in the ' \
+                       'following line:\n {:s}'
+                raise ValueError(msg.format(line))
 
-            tmp = line[76:78].strip()
-            if not tmp:
-                tmp = line[12:16].strip()[0]
+            charge.append(line[78:80].strip())
 
     natoms = len(name)
     dtype = [('atom_id', np.int64), ('name', np.str_, 4),
