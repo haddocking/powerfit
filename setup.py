@@ -20,19 +20,22 @@ if np_major < 1 or (np_major == 1 and np_minor < 8):
 def main():
 
     packages = ['powerfit', 'powerfit.IO']
+    requires = ['numpy', 'scipy']
 
     # the C or Cython extension
     ext = '.pyx' if CYTHON else '.c'
     ext_modules = [Extension("powerfit.libpowerfit",
                              [os.path.join("src", "libpowerfit" + ext)],
                              include_dirs=[numpy.get_include()])]
+
+    cmdclass = {}
     if CYTHON:
         ext_modules = cythonize(ext_modules)
+        cmdclass = {'build_ext' : build_ext}
 
     package_data = {'powerfit': [os.path.join('data', '*.npy'), 
                                  os.path.join('kernels', '*.cl'), 
-                                 ]
-                   }
+                                 ]}
 
     scripts = [os.path.join('scripts', 'powerfit'),
                os.path.join('scripts', 'atom2dens'),
@@ -41,16 +44,16 @@ def main():
                ]
 
     setup(name="powerfit",
-          version='1.1.1',
+          version='1.1.2',
           description='PDB fitting in cryoEM maps',
           author='Gydo C.P. van Zundert',
           author_email='g.c.p.vanzundert@uu.nl',
           packages=packages,
-          cmdclass = {'build_ext': build_ext},
+          cmdclass=cmdclass,
           ext_modules = ext_modules,
           package_data = package_data,
           scripts=scripts,
-          requires=['numpy', 'scipy'],
+          requires=requires,
           include_dirs=[numpy.get_include()],
         )
 
