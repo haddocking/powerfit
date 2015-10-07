@@ -144,7 +144,7 @@ class PowerFitter(object):
             core_indices(mask, out=mask)
 
         d['mask'] = mask
-        d['norm_factor'] = d['mask'].sum()
+        d['norm_factor'] = (d['mask'] > 0).sum()
 
         normalize(modelmap, mask)
 
@@ -230,8 +230,7 @@ class PowerFitter(object):
                 c['map_ave'] = irfftn(c['ft_mask'] * c['ft_map'], s=c['shape'])
                 c['map2_ave'] = irfftn(c['ft_mask'] * c['ft_map2'], s=c['shape'])
 
-
-            c['lcc'] = c['gcc']/np.sqrt((c['map2_ave']*c['norm_factor'] -\
+            c['lcc'] = c['gcc'] / np.sqrt((c['map2_ave'] * c['norm_factor'] -\
                     c['map_ave']**2).clip(c['varlimit']))
 
             ind = c['lcc'] > c['best_lcc']
