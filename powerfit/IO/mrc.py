@@ -81,9 +81,9 @@ class MRCFile(object):
         self._header['skwmat'] = raw_header[25:34]
         self._header['skwtrn'] = raw_header[34:37]
         self._header['extra'] = raw_header[37:49]
-	self._header['xstart'] = raw_header[49]
-	self._header['ystart'] = raw_header[50]
-	self._header['zstart'] = raw_header[51]
+        self._header['xstart'] = raw_header[49]
+        self._header['ystart'] = raw_header[50]
+        self._header['zstart'] = raw_header[51]
         self._header['map'] = "".join(raw_header[52:56])
         self._header['machst'] = " ".join(map(hex,map(ord,raw_header[56:60])))
         self._header['rms'] = raw_header[60]
