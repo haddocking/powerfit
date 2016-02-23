@@ -64,9 +64,9 @@ def parse_pdb(pdbfile):
             charge.append(line[78:80].strip())
 
     natoms = len(name)
-    dtype = [('atom_id', np.int64), ('name', np.str_, 4),
+    dtype = [('atom_id', np.int64), ('name', np.str_, 4), ('alt_loc', np.str_, 1),
              ('resn', np.str_, 4), ('chain', np.str_, 1),
-             ('resi', np.int64), ('x', np.float64),
+             ('resi', np.int64), ('i_code', np.str_, 1), ('x', np.float64),
              ('y', np.float64), ('z', np.float64),
              ('occupancy', np.float64), ('bfactor', np.float64),
              ('element', np.str_, 2), ('charge', np.str_, 2),
@@ -76,9 +76,11 @@ def parse_pdb(pdbfile):
     pdbdata = np.zeros(natoms, dtype=dtype)
     pdbdata['atom_id'] = np.asarray(serial, dtype=np.int64)
     pdbdata['name'] = name
+    pdbdata['alt_loc'] = alt_loc
     pdbdata['resn'] = res_name
     pdbdata['chain'] = chain_id
     pdbdata['resi'] = res_seq
+    pdbdata['i_code'] = i_code
     pdbdata['x'] = x
     pdbdata['y'] = y
     pdbdata['z'] = z
@@ -128,6 +130,7 @@ def write_pdb(outfile, pdbdata):
     TER_LINE = 'TER   ' + '{:5d}' + ' '*6 + '{:>3s}' + ' ' + '{:s}' + '{:>4d}\n'
     previous_chain = pdbdata['chain'][0]
 
+    order = 'atom_id name alt_loc resn chain resi i_code x y z occupancy bfactor element charge'.split()
     for n in range(pdbdata.shape[0]):
 
         # MODEL statement
@@ -142,21 +145,7 @@ def write_pdb(outfile, pdbdata):
         else:
             atom_line = ATOM_LINE_1
 
-        fhandle.write(atom_line.format(pdbdata['atom_id'][n],
-                                       pdbdata['name'][n],
-                                       '',
-                                       pdbdata['resn'][n],
-                                       pdbdata['chain'][n],
-                                       pdbdata['resi'][n],
-                                       '',
-                                       pdbdata['x'][n],
-                                       pdbdata['y'][n],
-                                       pdbdata['z'][n],
-                                       pdbdata['occupancy'][n],
-                                       pdbdata['bfactor'][n],
-                                       pdbdata['element'][n],
-                                       pdbdata['charge'][n],
-                                       ))
+        fhandle.write(atom_line.format(*pdbdata[order][n]))
 
         # TER record
         current_chain = pdbdata['chain'][n]
