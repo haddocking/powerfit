@@ -1,9 +1,0 @@
-#! env/bin/python
-
-import sys
-from powerfit import Volume
-
-fvol = sys.argv[1]
-fout = sys.argv[2]
-
-Volume.fromfile(fvol).tofile(fout)

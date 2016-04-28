@@ -9,12 +9,12 @@ performs a full-exhaustive 6-dimensional cross-correlation search between the
 atomic structure and the density. It takes as input an atomic structure in
 PDB-format and a cryo-EM density with its resolution; and outputs positions and
 rotations of the atomic structure corresponding to high correlation values.
-PowerFit uses the Local Cross-Correlation functions as its base score. The
+PowerFit uses the local cross-correlation function as its base score. The
 score can optionally be enhanced by a Laplace pre-filter and/or a core-weighted
 version to minimize overlapping densities from neighboring subunits. It can
 further be hardware-accelerated by leveraging multi-core CPU machines out of
 the box or by GPU via the OpenCL framework. PowerFit is Free Software and has
-been succesfully installed and used on Linux, MacOSX and Windows machines.
+been succesfully installed and used on Linux and MacOSX machines.
 
 
 ## Requirements
@@ -116,12 +116,12 @@ above.
 After installing PowerFit the command line tool *powerfit* should be at your
 disposal. The general pattern to invoke *powerfit* is
 
-    powerfit <pdb> <map> <resolution>
+    powerfit <map> <resolution> <pdb>
 
-where \<pdb\> is an atomic model in the PDB-format, \<map\> is a density map in
-CCP4 or MRC-format, and \<resolution\> is the resolution of the map in
-&aring;ngstrom. This performs a 10&deg; rotational search using the Local
-Cross-Correlation score on a single CPU-core. During the search, *powerfit*
+where `<map>` is a density map in CCP4 or MRC-format, `<resolution>`  is the
+resolution of the map in &aring;ngstrom, and `<pdb>` is an atomic model in the
+PDB-format. This performs a 10&deg; rotational search using the local
+cross-correlation score on a single CPU-core. During the search, *powerfit*
 will update you about the progress of the search if you are using it
 interactively in the shell.
 
@@ -132,26 +132,25 @@ First, to see all options and their descriptions type
 
     powerfit --help
 
-The information should explain all options decently. 
-In addtion, here are some examples for common operations.
+The information should explain all options decently. In addtion, here are some
+examples for common operations.
 
 To perform a search with an approximate 24&deg; rotational sampling interval
 
-    powerfit <pdb> <map> <resolution> -a 24
+    powerfit <map> <resolution> <pdb> -a 24
 
 To use multiple CPU cores with laplace pre-filter and 5&deg; rotational
 interval
 
-    powerfit <pdb> <map> <resolution> -p 4 -l -a 5
+    powerfit <map> <resolution> <pdb> -p 4 -l -a 5
 
 To off-load computations to the GPU and use the core-weighted scoring function
 and write out the top 15 solutions
 
-    powerfit <pdb> <map> <resolution> -g -cw -n 15
+    powerfit <map> <resolution> <pdb> -g -cw -n 15
 
 Note that all options can be combined except for the `-g` and `-p` flag:
-calculations are either performed on the CPU or GPU. If both are given,
-*powerfit* will first try to run on the GPU.
+calculations are either performed on the CPU or GPU.
 
 
 ### Output
@@ -160,13 +159,15 @@ When the search is finished, several output files are created
 
 * *fit_N.pdb*: the top *N* best fits.
 * *solutions.out*: all the non-redundant solutions found, ordered by their
-correlation score. The first column shows the correlation score; column 2 to 4
-are the z, y and x coordinate of the center of the chain; column 5 to 14 are
-the rotation matrix values.
+correlation score. The first column shows the rank, column 2 the correlation
+score, column 3 and 4 the Fisher z-score and the number of standard deviations
+(see N. Volkmann 2009); column 5 to 7 are the x, y and z coordinate of the
+center of the chain; column 8 to 17 are the rotation matrix values.
 * *lcc.mrc*: a cross-correlation map, showing at each grid position the highest
 correlation score found during the rotational search.
 * *powerfit.log*: a log file, including the input parameters with date and
 timing information.
+
 
 ## Creating an image-pyramid
 

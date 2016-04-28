@@ -1,7 +1,9 @@
 #! env/bin/python
 import os.path
-from distutils.core import setup
-from distutils.extension import Extension
+
+import numpy
+from setuptools import setup
+from setuptools.extension import Extension
 try:
     from Cython.Distutils import build_ext
     from Cython.Build import cythonize
@@ -9,23 +11,15 @@ try:
 except ImportError:
     CYTHON = False
 
-# test for numpy version
-import numpy
-np_major, np_minor, np_release = [int(x) for x in numpy.version.short_version.split('.')]
-if np_major < 1 or (np_major == 1 and np_minor < 8):
-    raise ImportError('PowerFit requires NumPy version 1.8 or '
-        'higher. You have version {:s}'.format(numpy.version.short_version))
-
 
 def main():
 
-    packages = ['powerfit', 'powerfit.IO']
-    requires = ['numpy', 'scipy']
+    packages = ['powerfit']
 
     # the C or Cython extension
     ext = '.pyx' if CYTHON else '.c'
-    ext_modules = [Extension("powerfit.libpowerfit",
-                             [os.path.join("src", "libpowerfit" + ext)],
+    ext_modules = [Extension("powerfit._powerfit",
+                             [os.path.join("src", "_powerfit" + ext)],
                              include_dirs=[numpy.get_include()])]
 
     cmdclass = {}
@@ -33,29 +27,38 @@ def main():
         ext_modules = cythonize(ext_modules)
         cmdclass = {'build_ext' : build_ext}
 
-    package_data = {'powerfit': [os.path.join('data', '*.npy'), 
-                                 os.path.join('kernels', '*.cl'), 
-                                 ]}
+    package_data = {'powerfit': [os.path.join('data', '*.npy'), 'kernels.cl']}
 
-    scripts = [os.path.join('scripts', 'powerfit'),
-               os.path.join('scripts', 'atom2dens'),
-               os.path.join('scripts', 'generate_fits'),
-               os.path.join('scripts', 'image-pyramid'),
-               ]
+    description = ("Rigid body fitting of high-resolution structures in "
+        "low-resolution cryo-electron microscopy density maps")
 
     setup(name="powerfit",
-          version='1.1.4',
-          description='PDB fitting in cryoEM maps',
+          version='2.0.0',
+          description=description,
+          url="https://github.com/haddocking/powerfit",
           author='Gydo C.P. van Zundert',
           author_email='g.c.p.vanzundert@uu.nl',
+          license="Apache",
+          classifiers=[
+              'Development Status :: 3 - Alpha',
+              'Programming Language :: Python :: 2.7',
+              'Intended Audience :: Science/Research',
+              'Topic :: Scientific/Engineering :: Bio-Informatics',
+              ],
           packages=packages,
-          cmdclass=cmdclass,
-          ext_modules = ext_modules,
           package_data = package_data,
-          scripts=scripts,
-          requires=requires,
+          install_requires=['numpy>=1.8', 'scipy'],
+          entry_points={
+              'console_scripts': [
+                  'powerfit = powerfit.powerfit:main',
+                  'image-pyramid = powerfit.image_pyramid:main',
+                  ]
+              },
+          ext_modules=ext_modules,
           include_dirs=[numpy.get_include()],
-        )
+          cmdclass=cmdclass,
+         )
+
 
 if __name__=='__main__':
     main()
