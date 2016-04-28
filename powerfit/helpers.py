@@ -54,7 +54,7 @@ def write_fits_to_pdb(structure, solutions, basename='fit'):
     translated_structure = structure.duplicate()
     center = translated_structure.coor.mean(axis=1)
     translated_structure.translate(-center)
-    for n, sol in enumerate(solutions):
+    for n, sol in enumerate(solutions, start=1):
         out = translated_structure.duplicate()
         rot = np.asarray([float(x) for x in sol[6:]]).reshape(3, 3)
         trans = sol[3:6]
