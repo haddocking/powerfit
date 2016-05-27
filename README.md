@@ -29,7 +29,7 @@ Minimal requirements for the CPU version:
 Optional requirement for faster CPU version:
 
 * FFTW3
-* pyFFTW
+* pyFFTW 0.10.1+
 
 To offload computations to the GPU the following is also required
 
