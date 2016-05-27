@@ -71,7 +71,7 @@ class Analyzer(object):
             solution.append(rel_z)
             z, y, x = [coor * self._voxelspacing  + shift for coor, shift in
                     zip(pos, self._origin[::-1])]
-            rotmat = self._rotmat[self._rotmat_ind[pos]]
+            rotmat = self._rotmat[int(self._rotmat_ind[pos])]
             solution += [x, y, z] + list(rotmat.ravel())
             solutions.append(solution)
         self._solutions = sorted(solutions, key=lambda cc: cc[0], reverse=True)
