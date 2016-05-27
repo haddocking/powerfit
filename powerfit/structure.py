@@ -175,6 +175,10 @@ class Structure(object):
         elements, ind = np.unique(self.data[column], return_inverse=True)
         return np.asarray([PARAMETERS[e][ptype] for e in elements], dtype=np.float64)[ind]
 
+    @property
+    def mass(self):
+        return self._get_property('e', 'mass')
+
     def rmsd(self, structure):
         return np.sqrt(((self.coor - structure.coor) ** 2).mean() * 3)
 
@@ -262,6 +266,12 @@ PARAMETERS = {
         'rvdW': 1.50,
         'Z' : 8,
         },
+    # Magnesium
+    'MG': {
+        'mass': 24.305,
+        'rvdW': 1.73,
+        'Z': 12,
+        },
     # Phosphorus
     'P': {
         'mass': 30.974,
@@ -273,6 +283,12 @@ PARAMETERS = {
         'mass': 32.06,
         'rvdW': 1.89,
         'Z' : 16,
+        },
+    # Zinc
+    'ZN': {
+        'mass': 65.38,
+        'rvdW': 1.39,
+        'Z': 30,
         },
     }
 
