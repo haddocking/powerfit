@@ -511,6 +511,7 @@ if OPENCL:
 
             self._glcc.fill(0)
             self._grot.fill(0)
+            time0 = time()
             for n in xrange(0, self._rotations.shape[0]):
 
                 args = (self._gtemplate, self._gmask, self._grotations.data,
@@ -534,12 +535,18 @@ if OPENCL:
                         self._norm_factor, np.int32(n), self._glcc, self._grot)
                 self._queue.finish()
 
-                print n
-        #        print n, self._rotations.shape[0]
-        #        if hasattr(self, '_counter'):
-        #            self._counter.increment()
+                self._print_progress(n, self._rotations.shape[0], time0)
             self._glcc.get(ary=self._lcc)
             self._queue.finish()
+
+        @staticmethod
+        def _print_progress(n, nrot, time0):
+            p_done = (n + 1) / float(nrot) * 100
+            now = time()
+            eta = ((now - time0) / p_done) * (100 - p_done)
+            total = (now - time0) / p_done * (100)
+            stdout.write('{:7.2%} {:.0f}s {:.0f}s       \r'.format(n / float(nrot), eta, total))
+            stdout.flush()
 
         def _generate_kernels(self):
             self._k = CLKernels(self._ctx)
