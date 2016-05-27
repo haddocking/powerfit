@@ -285,8 +285,13 @@ class CPUCorrelator(BaseCorrelator):
         if self._laplace:
             target = self._laplace_filter(self._target)
         # pre-calculate the FFTs of the target
-        self._rfftn(target, self._ft_target)
-        self._rfftn(target**2, self._ft_target2)
+        if self._fftw:
+            self._rfftn(target, self._ft_target)
+            self._rfftn(target**2, self._ft_target2)
+        else:
+            self._ft_target = self._rfftn(target)
+            self._ft_target2 = self._rfftn(target**2)
+
 
     def _allocate_arrays(self, shape):
         # allocate all the required arrays
@@ -321,10 +326,8 @@ class CPUCorrelator(BaseCorrelator):
             self._irfftn = irfftn_builder(self._ft_gcc, s=self._target.shape)
         else:
             # monkey patch the numpy fft interface
-            self._rfftn = lambda in_array, out_array: np_rfftn(in_array)
-            self._irfftn = (lambda in_array, out_array:
-                                np_irfftn(in_array, s=self._target.shape)
-                            )
+            self._rfftn = np_rfftn
+            self._irfftn = np_irfftn
 
     def scan(self):
         super(CPUCorrelator, self).scan()
@@ -385,14 +388,24 @@ class CPUCorrelator(BaseCorrelator):
               )
 
     def _forward_ffts(self):
-        self._rfftn(self._rot_template, self._ft_template)
-        self._rfftn(self._rot_mask, self._ft_mask)
-        self._rfftn(self._rot_mask2, self._ft_mask2)
+        if self._fftw:
+            self._rfftn(self._rot_template, self._ft_template)
+            self._rfftn(self._rot_mask, self._ft_mask)
+            self._rfftn(self._rot_mask2, self._ft_mask2)
+        else:
+            self._ft_template = self._rfftn(self._rot_template)
+            self._ft_mask = self._rfftn(self._rot_mask)
+            self._ft_mask2 = self._rfftn(self._rot_mask2)
 
     def _backward_ffts(self):
-        self._irfftn(self._ft_gcc, self._gcc)
-        self._irfftn(self._ft_ave, self._ave)
-        self._irfftn(self._ft_ave2, self._ave2)
+        if self._fftw:
+            self._irfftn(self._ft_gcc, self._gcc)
+            self._irfftn(self._ft_ave, self._ave)
+            self._irfftn(self._ft_ave2, self._ave2)
+        else:
+            self._gcc = self._irfftn(self._ft_gcc, s=self.target.shape)
+            self._ave = self._irfftn(self._ft_ave, s=self.target.shape)
+            self._ave2 = self._irfftn(self._ft_ave2, s=self.target.shape)
 
 
 if OPENCL:
