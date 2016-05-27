@@ -188,6 +188,7 @@ def main():
     pf._template = template
     pf._mask = mask
     pf._nproc = args.nproc
+    pf.directory = args.directory
     pf._queues = queues
     write('Starting search')
     time1 = time()

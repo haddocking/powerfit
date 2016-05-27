@@ -2,6 +2,7 @@ from __future__ import absolute_import, division
 
 from sys import stdout
 from os import remove
+from os.path import join, abspath, isdir
 import os.path
 from time import time, sleep
 from multiprocessing import RawValue, Lock, Process, cpu_count
@@ -56,7 +57,19 @@ class PowerFitter(object):
         self._rotations = None
         self._queues = None
         self._nproc = 1
+        self._directory = abspath('./')
         self._laplace = laplace
+
+    @property
+    def directory(self):
+        return self._directory
+
+    @directory.setter
+    def directory(self, directory):
+        if isdir(directory):
+            self._directory = abspath(directory)
+        else:
+            raise ValueError("Directory does not exist.")
 
     def scan(self):
         if self._queues is None:
@@ -93,7 +106,8 @@ class PowerFitter(object):
             processes.append(Process(
                   target=self._run_correlator_instance,
                   args=(self._target, self._template, self._mask,
-                        sub_rotations, self._laplace, self._counter, n, self._queues)
+                        sub_rotations, self._laplace, self._counter, n,
+                        self._queues, self._directory)
                   ))
 
         time0 = time()
@@ -116,15 +130,15 @@ class PowerFitter(object):
 
     @staticmethod
     def _run_correlator_instance(target, template, mask, rotations, laplace,
-            counter, jobid, queues):
+            counter, jobid, queues, directory):
         correlator = CPUCorrelator(target.array, laplace=laplace)
         correlator.template = template.array
         correlator.mask = mask.array
         correlator.rotations = rotations
         correlator._counter = counter
         correlator.scan()
-        np.save('_lcc_part_{:d}.npy'.format(jobid), correlator._lcc)
-        np.save('_rot_part_{:d}.npy'.format(jobid), correlator._rot)
+        np.save(join(directory, '_lcc_part_{:d}.npy').format(jobid), correlator._lcc)
+        np.save(join(directory, '_rot_part_{:d}.npy').format(jobid), correlator._rot)
 
     def _combine(self):
         # Combine all the intermediate results
@@ -132,14 +146,16 @@ class PowerFitter(object):
         rot = np.zeros(self._target.shape)
         ind = np.zeros(lcc.shape, dtype=np.bool)
         for n in range(self._njobs):
-            part_lcc = np.load('_lcc_part_{:d}.npy'.format(n))
-            part_rot = np.load('_rot_part_{:d}.npy'.format(n))
+            lcc_file = join(self._directory, '_lcc_part_{:d}.npy').format(n)
+            rot_file = join(self._directory, '_rot_part_{:d}.npy').format(n)
+            part_lcc = np.load(lcc_file)
+            part_rot = np.load(rot_file)
             np.greater(part_lcc, lcc, ind)
             lcc[ind] = part_lcc[ind]
             # take care of the rotation index offset for each independent job
             rot[ind] = part_rot[ind] + self._nrot_per_job * n
-            remove('_lcc_part_{:d}.npy'.format(n))
-            remove('_rot_part_{:d}.npy'.format(n))
+            remove(lcc_file)
+            remove(rot_file)
         self._lcc = lcc
         self._rot = rot
 
