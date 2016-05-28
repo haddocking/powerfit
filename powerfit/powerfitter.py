@@ -537,6 +537,7 @@ if OPENCL:
 
                 self._print_progress(n, self._rotations.shape[0], time0)
             self._glcc.get(ary=self._lcc)
+            self._grot.get(ary=self._rot)
             self._queue.finish()
 
         @staticmethod
