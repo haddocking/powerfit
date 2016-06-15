@@ -81,7 +81,8 @@ def trim(volume, cutoff, margin=2):
                 break
         extent.append(slice(low, high))
     sub_array = volume.array[extent]
-    origin = [volume.origin[0] + volume.voxelspacing * ext.start for ext in extent[::-1]]
+    origin = [coor_origin + volume.voxelspacing * ext.start
+            for coor_origin, ext in zip(volume.origin, extent[::-1])]
     return Volume(sub_array, volume.voxelspacing, origin)
 
 
@@ -98,7 +99,7 @@ def nearest_multiple2357(num):
         nearest += 1
     return nearest
 
-    
+
 def is_multiple2357(num):
     """Returns the nearest larger number that is a multiple of 2, 3, and 5"""
 
@@ -285,7 +286,7 @@ class CCP4Parser(object):
         self.fhandle.seek(0)
 
     def _get_header(self):
-        header = _unpack(self._endian + self.HEADER_TYPE, 
+        header = _unpack(self._endian + self.HEADER_TYPE,
                          self.fhandle.read(self.HEADER_SIZE))
         self.header = {}
         index = 0
@@ -305,7 +306,7 @@ class CCP4Parser(object):
         return np.asarray([x * self.voxelspacing for x in start])
 
     def _get_density(self):
-        self.density = np.fromfile(self.fhandle, 
+        self.density = np.fromfile(self.fhandle,
                                    dtype=self._endian + 'f').reshape(self.shape)
         if self.order == (1, 3, 2):
             self.density = np.swapaxes(self.density, 0, 1)
