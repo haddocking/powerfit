@@ -3,7 +3,7 @@ from __future__ import absolute_import, division
 
 from os.path import splitext, join, abspath
 from os import makedirs
-from sys import stdout
+from sys import stdout, argv
 from time import time
 from argparse import ArgumentParser, FileType
 import logging
@@ -67,10 +67,13 @@ def parse_args():
     # Selection parameter
     p.add_argument('-c', '--chain', dest='chain', type=str, default=None,
             metavar='<char>',
-            help='The chain ID of the structure to be fitted. '
-                 'Default is the whole structure.')
+            help=('The chain IDs of the structure to be fitted. '
+                  'Multiple chains can be selected using a comma separated list, i.e. -c A,B,C. '
+                  'Default is the whole structure.'),
+                 )
     # Output parameters
     p.add_argument('-d', '--directory', dest='directory', type=str, default='.',
+            metavar='<dir>',
             help='Directory where the results are stored.')
     p.add_argument('-n', '--num', dest='num', type=int, default=10,
             metavar='<int>',
@@ -91,6 +94,8 @@ def parse_args():
     args = p.parse_args()
     if args.ft_template is None:
         args.ft_template = get_filetype_template(args.template.name)
+    args.directory = abspath(args.directory)
+
     return args
 
 
@@ -110,7 +115,7 @@ def get_filetype_template(fname):
 def write(line):
     """Write line to stdout and logfile."""
     if stdout.isatty():
-        print(line)
+        print line
     logging.info(line)
 
 
@@ -122,6 +127,7 @@ def main():
     # Configure logging file
     logging.basicConfig(filename=join(args.directory, 'powerfit.log'), 
             level=logging.INFO, format='%(asctime)s %(message)s')
+    logging.info(' '.join(argv))
 
     # Get GPU queue if requested
     queues = None
@@ -160,6 +166,12 @@ def main():
     if args.ft_template == 'pdb':
         write('Template file read from: {:s}'.format(abspath(args.template.name)))
         structure = Structure.fromfile(args.template)
+        if args.chain is not None:
+            write('Selecting chains: ' + args.chain)
+            structure = structure.select('chain', args.chain.split(','))
+        if structure.data.size == 0:
+            raise ValueError("No atoms were selected.")
+
         template = structure_to_shape_like(
               target, structure.coor, resolution=resolution,
               weights=structure.atomnumber, shape='vol'
@@ -190,6 +202,10 @@ def main():
     pf._nproc = args.nproc
     pf.directory = args.directory
     pf._queues = queues
+    if args.gpu:
+        write('Using GPU-accelerated search.')
+    else:
+        write('Requested number of processors: {:d}'.format(args.nproc))
     write('Starting search')
     time1 = time()
     pf.scan()
@@ -210,8 +226,8 @@ def main():
     Volume(pf._lcc, target.voxelspacing, target.origin).tofile(join(args.directory, 'lcc.mrc'))
     analyzer.tofile(join(args.directory, 'solutions.out'))
 
-    write('Writing PDBs to file.')
     if args.ft_template == 'pdb':
+        write('Writing PDBs to file.')
         n = min(args.num, len(analyzer.solutions))
         write_fits_to_pdb(structure, analyzer.solutions[:n],
                 basename=join(args.directory, 'fit'))
