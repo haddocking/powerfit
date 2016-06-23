@@ -12,8 +12,8 @@ from ._powerfit import blur_points, dilate_points
 class Volume(object):
 
     @classmethod
-    def fromfile(cls, fid):
-        array, voxelspacing, origin = parse_volume(fid)
+    def fromfile(cls, fid, fmt=None):
+        array, voxelspacing, origin = parse_volume(fid, fmt)
         return cls(array, voxelspacing, origin)
 
     def __init__(self, array, voxelspacing=1.0, origin=(0, 0, 0)):
@@ -225,18 +225,19 @@ def structure_to_shape_like(vol, xyz, resolution=None, weights=None,
 
 
 # Volume parsers
-def parse_volume(fid):
+def parse_volume(fid, fmt=None):
     try:
         fname = fid.name
     except AttributeError:
         fname = fid
 
-    ext = os.path.splitext(fname)[-1][1:]
-    if ext in ('ccp4', 'map'):
+    if fmt is None:
+        fmt = os.path.splitext(fname)[-1][1:]
+    if fmt in ('ccp4', 'map'):
         p = CCP4Parser(fname)
-    elif ext == 'mrc':
+    elif fmt == 'mrc':
         p = MRCParser(fname)
-    elif ext in ('xplor', 'cns'):
+    elif fmt in ('xplor', 'cns'):
         p = XPLORParser(fname)
     else:
         raise ValueError('Extension of file is not supported.')

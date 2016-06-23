@@ -51,7 +51,8 @@ def main():
           entry_points={
               'console_scripts': [
                   'powerfit = powerfit.powerfit:main',
-                  'image-pyramid = powerfit.image_pyramid:main',
+                  'image-pyramid = powerfit.scripts:image_pyramid',
+                  'em2em = powerfit.scripts:em2em',
                   ]
               },
           ext_modules=ext_modules,
