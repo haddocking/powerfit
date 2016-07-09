@@ -60,16 +60,18 @@ def parse_image_pyramid():
             help='Initial density data.')
     p.add_argument('resolution', type=float, 
             help='Resolution of initial data.')
-    p.add_argument('-rr', '--resampling-rate', dest='resampling_rate',
-        type=float, default=2, 
-        help=('Nyquist resampling rate. Default is 2 x '
-        'Nyquist, i.e. resulting voxelspacing is '
-        '1/4th of the resolution.'),
-        )
-    p.add_argument('-b', '--base-name', dest='base_name', type=str, default=None,
-            help='Base name of the resulting maps. Default is original mapfile name.')
-    p.add_argument('target_resolutions', nargs='+', type=float, 
+    p.add_argument('target_resolutions', nargs='+', type=float,
             help='The target resolutions of the resulting image-pyramid.')
+
+    p.add_argument('-rr', '--resampling-rate', dest='resampling_rate',
+            type=float, default=2, metavar='<float>',
+            help=('Nyquist resampling rate. Default is 2 x '
+            'Nyquist, i.e. resulting voxelspacing is '
+            '1/4th of the resolution.'),
+            )
+    p.add_argument('-b', '--base-name', dest='base_name', type=str, default=None,
+            metavar='<string>',
+            help='Base name of the resulting maps. Default is original mapfile name.')
     args = p.parse_args()
 
     # some error checking
