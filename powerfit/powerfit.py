@@ -4,7 +4,7 @@ from __future__ import absolute_import, division
 from os.path import splitext, join, abspath
 from os import makedirs
 from sys import stdout, argv
-from time import time
+from time import clock
 from argparse import ArgumentParser, FileType
 import logging
 
@@ -72,7 +72,7 @@ def parse_args():
                   'Default is the whole structure.'),
                  )
     # Output parameters
-    p.add_argument('-d', '--directory', dest='directory', type=str, default='.',
+    p.add_argument('-d', '--directory', dest='directory', type=abspath, default='.',
             metavar='<dir>',
             help='Directory where the results are stored.')
     p.add_argument('-n', '--num', dest='num', type=int, default=10,
@@ -94,7 +94,6 @@ def parse_args():
     args = p.parse_args()
     if args.ft_template is None:
         args.ft_template = get_filetype_template(args.template.name)
-    args.directory = abspath(args.directory)
 
     return args
 
@@ -121,7 +120,7 @@ def write(line):
 
 def main():
 
-    time0 = time()
+    time0 = clock()
     args = parse_args()
     mkdir_p(args.directory)
     # Configure logging file
@@ -207,9 +206,9 @@ def main():
     else:
         write('Requested number of processors: {:d}'.format(args.nproc))
     write('Starting search')
-    time1 = time()
+    time1 = clock()
     pf.scan()
-    write('Time for search: {:.0f}m {:.0f}s'.format(*divmod(time() - time1, 60)))
+    write('Time for search: {:.0f}m {:.0f}s'.format(*divmod(clock() - time1, 60)))
 
     write('Analyzing results')
     # calculate the molecular volume of the structure
@@ -232,7 +231,7 @@ def main():
         write_fits_to_pdb(structure, analyzer.solutions[:n],
                 basename=join(args.directory, 'fit'))
 
-    write('Total time: {:.0f}m {:.0f}s'.format(*divmod(time() - time0, 60)))
+    write('Total time: {:.0f}m {:.0f}s'.format(*divmod(clock() - time0, 60)))
 
 
 if __name__ == '__main__':
