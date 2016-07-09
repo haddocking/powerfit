@@ -29,7 +29,7 @@ Minimal requirements for the CPU version:
 Optional requirement for faster CPU version:
 
 * FFTW3
-* pyFFTW 0.10.1+
+* pyFFTW 0.10+
 
 To offload computations to the GPU the following is also required
 
@@ -92,8 +92,8 @@ Next, install NumPy and SciPy by typing
 
     sudo pip install numpy scipy
 
-Wait for the installation to finish. Follow the
-general instructions above to install **PowerFit**.
+Wait for the installation to finish. Follow the general instructions above to
+install **PowerFit**.
 
 Installing pyFFTW for faster CPU version can be done as follows using *brew*
 
@@ -161,8 +161,9 @@ When the search is finished, several output files are created
 * *solutions.out*: all the non-redundant solutions found, ordered by their
 correlation score. The first column shows the rank, column 2 the correlation
 score, column 3 and 4 the Fisher z-score and the number of standard deviations
-(see N. Volkmann 2009); column 5 to 7 are the x, y and z coordinate of the
-center of the chain; column 8 to 17 are the rotation matrix values.
+(see N. Volkmann 2009, and Van Zundert and Bonvin 2016); column 5 to 7 are the
+x, y and z coordinate of the center of the chain; column 8 to 17 are the
+rotation matrix values.
 * *lcc.mrc*: a cross-correlation map, showing at each grid position the highest
 correlation score found during the rotational search.
 * *powerfit.log*: a log file, including the input parameters with date and
@@ -172,12 +173,15 @@ timing information.
 ## Creating an image-pyramid
 
 The use of multi-scale image pyramids can signicantly increase the speed of
-fitting. PowerFit comes with script to quickly build a pyramid called
+fitting. PowerFit comes with a script to quickly build a pyramid called
 `image-pyramid`. The calling signature of the script is
 
     image-pyramid <map> <resolution> <target-resolutions ...>
 
-The following example will create an image-pyramid with resolutions of 12, 13 and 20 angstrom
+where `<map` is the original cryo-EM data, `<resolution` is the original
+resolution, and `<target-resolutions>` is a sequence of resolutions for the
+resulting maps. The following example will create an image-pyramid with
+resolutions of 12, 13 and 20 angstrom
 
     image-pyramid EMD-1884/1884.map 9.8 12 13 20
 
@@ -190,11 +194,19 @@ To see the other options type
 
 If this software was useful to your research, please cite us
 
-**G.C.P. van Zundert and A.M.J.J. Bonvin**. Fast and sensitive rigid-body
-fitting into cryo-EM density maps with PowerFit. *AIMS Biophysics*, 2, 73-87
-(2015).
+**G.C.P. van Zundert and A.M.J.J. Bonvin**. 
+Fast and sensitive rigid-body fitting into cryo-EM density maps with PowerFit.
+*AIMS Biophysics* 2, 73-87 (2015).
 
-MIT licence
+
+For the use of image-pyramids and reliability measures for fitting, please cite
+
+**G.C.P van Zundert and A.M.J.J. Bonvin**. 
+Defining the limits and reliability of rigid-body fitting in cryo-EM maps using
+multi-scale image pyramids. 
+*J. Struct. Biol.* 195, 252-258 (2016).
+
+MIT licence (see LICENSE)
 
 
 ## Tested platforms
