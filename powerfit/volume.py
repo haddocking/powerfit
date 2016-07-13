@@ -309,15 +309,26 @@ class CCP4Parser(object):
             index = end
         self.header['label'] = ''.join(self.header['label'])
 
-    #FIXME take care of axis order
     def _get_origin(self):
         start_fields = 'nsstart nrstart ncstart'.split()
         start = [self.header[field] for field in start_fields]
+        # Take care of axis order
+        start = [start[x - 1] for x in self.order]
         return np.asarray([x * self.voxelspacing for x in start])
 
     def _get_density(self):
+
+        # Determine the dtype of the file based on the mode
+        mode = self.header['mode']
+        if mode == 0:
+            dtype = 'i1'
+        elif mode == 1:
+            dtype = 'i2'
+        elif mode == 2:
+            dtype = 'f4'
+
         self.density = np.fromfile(self.fhandle,
-                                   dtype=self._endian + 'f').reshape(self.shape)
+                                   dtype=self._endian + dtype).reshape(self.shape)
         if self.order == (1, 3, 2):
             self.density = np.swapaxes(self.density, 0, 1)
         elif self.order == (2, 1, 3):
