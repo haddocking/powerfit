@@ -18,7 +18,7 @@ class Volume(object):
 
     def __init__(self, array, voxelspacing=1.0, origin=(0, 0, 0)):
 
-        self.array = array.astype(np.float64)
+        self.array = array
         self.voxelspacing = voxelspacing
         self.origin = origin
 
@@ -327,8 +327,8 @@ class CCP4Parser(object):
         elif mode == 2:
             dtype = 'f4'
 
-        self.density = np.fromfile(self.fhandle,
-                                   dtype=self._endian + dtype).reshape(self.shape)
+        density = np.fromfile(self.fhandle,
+                              dtype=self._endian + dtype).reshape(self.shape)
         if self.order == (1, 3, 2):
             self.density = np.swapaxes(self.density, 0, 1)
         elif self.order == (2, 1, 3):
@@ -342,6 +342,13 @@ class CCP4Parser(object):
         elif self.order == (3, 2, 1):
             self.density = np.swapaxes(self.density, 0, 2)
 
+        # Upgrade precision to double if float, and to int32 if int16
+        if mode == 1:
+            density = density.astype(np.int32)
+        elif mode == 2:
+            density = density.astype(np.float64)
+        self.density =density
+
     def _get_order(self):
         self.order = tuple(self.header[axis] for axis in ('mapc', 'mapr',
             'maps'))
@@ -350,10 +357,9 @@ class CCP4Parser(object):
 class MRCParser(CCP4Parser):
 
     def _get_origin(self):
-        origin = super(MRCParser, self)._get_origin()
-        shift_fields = 'xstart ystart zstart'.split()
-        shift = [self.header[field] for field in shift_fields]
-        return [o + s for o, s in zip(origin, shift)]
+        origin_fields = 'xstart ystart zstart'.split()
+        origin = [self.header[field] for field in origin_fields]
+        return origin
 
 
 def to_mrc(fid, volume, labels=[], fmt=None):
