@@ -359,16 +359,16 @@ def rotate_grid(
     zcoor = center[2]
     for z in range(zmin, zmax):
         z_f = z - center[2]
-        xcoor_z = rotmat[2, 0] * z_f + xcoor
-        ycoor_z = rotmat[2, 1] * z_f + ycoor
+        xcoor_z = rotmat[0, 2] * z_f + xcoor
+        ycoor_z = rotmat[1, 2] * z_f + ycoor
         zcoor_z = rotmat[2, 2] * z_f + zcoor
         z2 = z_f ** 2
 
         for y in range(ymin, ymax):
             y_f = y - center[1]
-            xcoor_yz = rotmat[1, 0] * y_f + xcoor_z
+            xcoor_yz = rotmat[0, 1] * y_f + xcoor_z
             ycoor_yz = rotmat[1, 1] * y_f + ycoor_z
-            zcoor_yz = rotmat[1, 2] * y_f + zcoor_z
+            zcoor_yz = rotmat[2, 1] * y_f + zcoor_z
             z2y2 = z2 + y_f ** 2
 
             for x in range(xmin, xmax):
@@ -377,8 +377,8 @@ def rotate_grid(
                 if z2y2x2 >= radius2:
                     continue
                 xcoor_xyz = rotmat[0, 0] * x_f + xcoor_yz
-                ycoor_xyz = rotmat[0, 1] * x_f + ycoor_yz
-                zcoor_xyz = rotmat[0, 2] * x_f + zcoor_yz
+                ycoor_xyz = rotmat[1, 0] * x_f + ycoor_yz
+                zcoor_xyz = rotmat[2, 0] * x_f + zcoor_yz
 
                 if near:
                     x0 = <int> round(xcoor_xyz)
