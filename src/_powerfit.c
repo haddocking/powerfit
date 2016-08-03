@@ -5412,7 +5412,7 @@ static PyObject *__pyx_pf_9_powerfit_12rotate_grid(CYTHON_UNUSED PyObject *__pyx
  *     zcoor = center[2]
  *     for z in range(zmin, zmax):             # <<<<<<<<<<<<<<
  *         z_f = z - center[2]
- *         xcoor_z = rotmat[2, 0] * z_f + xcoor
+ *         xcoor_z = rotmat[0, 2] * z_f + xcoor
  */
   __pyx_t_4 = __pyx_v_zmax;
   for (__pyx_t_16 = __pyx_v_zmin; __pyx_t_16 < __pyx_t_4; __pyx_t_16+=1) {
@@ -5422,8 +5422,8 @@ static PyObject *__pyx_pf_9_powerfit_12rotate_grid(CYTHON_UNUSED PyObject *__pyx
  *     zcoor = center[2]
  *     for z in range(zmin, zmax):
  *         z_f = z - center[2]             # <<<<<<<<<<<<<<
- *         xcoor_z = rotmat[2, 0] * z_f + xcoor
- *         ycoor_z = rotmat[2, 1] * z_f + ycoor
+ *         xcoor_z = rotmat[0, 2] * z_f + xcoor
+ *         ycoor_z = rotmat[1, 2] * z_f + ycoor
  */
     __pyx_t_17 = 2;
     __pyx_t_18 = -1;
@@ -5440,12 +5440,12 @@ static PyObject *__pyx_pf_9_powerfit_12rotate_grid(CYTHON_UNUSED PyObject *__pyx
     /* "_powerfit.pyx":362
  *     for z in range(zmin, zmax):
  *         z_f = z - center[2]
- *         xcoor_z = rotmat[2, 0] * z_f + xcoor             # <<<<<<<<<<<<<<
- *         ycoor_z = rotmat[2, 1] * z_f + ycoor
+ *         xcoor_z = rotmat[0, 2] * z_f + xcoor             # <<<<<<<<<<<<<<
+ *         ycoor_z = rotmat[1, 2] * z_f + ycoor
  *         zcoor_z = rotmat[2, 2] * z_f + zcoor
  */
-    __pyx_t_19 = 2;
-    __pyx_t_20 = 0;
+    __pyx_t_19 = 0;
+    __pyx_t_20 = 2;
     __pyx_t_18 = -1;
     if (__pyx_t_19 < 0) {
       __pyx_t_19 += __pyx_pybuffernd_rotmat.diminfo[0].shape;
@@ -5463,13 +5463,13 @@ static PyObject *__pyx_pf_9_powerfit_12rotate_grid(CYTHON_UNUSED PyObject *__pyx
 
     /* "_powerfit.pyx":363
  *         z_f = z - center[2]
- *         xcoor_z = rotmat[2, 0] * z_f + xcoor
- *         ycoor_z = rotmat[2, 1] * z_f + ycoor             # <<<<<<<<<<<<<<
+ *         xcoor_z = rotmat[0, 2] * z_f + xcoor
+ *         ycoor_z = rotmat[1, 2] * z_f + ycoor             # <<<<<<<<<<<<<<
  *         zcoor_z = rotmat[2, 2] * z_f + zcoor
  *         z2 = z_f ** 2
  */
-    __pyx_t_21 = 2;
-    __pyx_t_22 = 1;
+    __pyx_t_21 = 1;
+    __pyx_t_22 = 2;
     __pyx_t_18 = -1;
     if (__pyx_t_21 < 0) {
       __pyx_t_21 += __pyx_pybuffernd_rotmat.diminfo[0].shape;
@@ -5486,8 +5486,8 @@ static PyObject *__pyx_pf_9_powerfit_12rotate_grid(CYTHON_UNUSED PyObject *__pyx
     __pyx_v_ycoor_z = (((*__Pyx_BufPtrStrided2d(__pyx_t_5numpy_float64_t *, __pyx_pybuffernd_rotmat.rcbuffer->pybuffer.buf, __pyx_t_21, __pyx_pybuffernd_rotmat.diminfo[0].strides, __pyx_t_22, __pyx_pybuffernd_rotmat.diminfo[1].strides)) * __pyx_v_z_f) + __pyx_v_ycoor);
 
     /* "_powerfit.pyx":364
- *         xcoor_z = rotmat[2, 0] * z_f + xcoor
- *         ycoor_z = rotmat[2, 1] * z_f + ycoor
+ *         xcoor_z = rotmat[0, 2] * z_f + xcoor
+ *         ycoor_z = rotmat[1, 2] * z_f + ycoor
  *         zcoor_z = rotmat[2, 2] * z_f + zcoor             # <<<<<<<<<<<<<<
  *         z2 = z_f ** 2
  * 
@@ -5510,7 +5510,7 @@ static PyObject *__pyx_pf_9_powerfit_12rotate_grid(CYTHON_UNUSED PyObject *__pyx
     __pyx_v_zcoor_z = (((*__Pyx_BufPtrStrided2d(__pyx_t_5numpy_float64_t *, __pyx_pybuffernd_rotmat.rcbuffer->pybuffer.buf, __pyx_t_23, __pyx_pybuffernd_rotmat.diminfo[0].strides, __pyx_t_24, __pyx_pybuffernd_rotmat.diminfo[1].strides)) * __pyx_v_z_f) + __pyx_v_zcoor);
 
     /* "_powerfit.pyx":365
- *         ycoor_z = rotmat[2, 1] * z_f + ycoor
+ *         ycoor_z = rotmat[1, 2] * z_f + ycoor
  *         zcoor_z = rotmat[2, 2] * z_f + zcoor
  *         z2 = z_f ** 2             # <<<<<<<<<<<<<<
  * 
@@ -5523,7 +5523,7 @@ static PyObject *__pyx_pf_9_powerfit_12rotate_grid(CYTHON_UNUSED PyObject *__pyx
  * 
  *         for y in range(ymin, ymax):             # <<<<<<<<<<<<<<
  *             y_f = y - center[1]
- *             xcoor_yz = rotmat[1, 0] * y_f + xcoor_z
+ *             xcoor_yz = rotmat[0, 1] * y_f + xcoor_z
  */
     __pyx_t_18 = __pyx_v_ymax;
     for (__pyx_t_25 = __pyx_v_ymin; __pyx_t_25 < __pyx_t_18; __pyx_t_25+=1) {
@@ -5533,7 +5533,7 @@ static PyObject *__pyx_pf_9_powerfit_12rotate_grid(CYTHON_UNUSED PyObject *__pyx
  * 
  *         for y in range(ymin, ymax):
  *             y_f = y - center[1]             # <<<<<<<<<<<<<<
- *             xcoor_yz = rotmat[1, 0] * y_f + xcoor_z
+ *             xcoor_yz = rotmat[0, 1] * y_f + xcoor_z
  *             ycoor_yz = rotmat[1, 1] * y_f + ycoor_z
  */
       __pyx_t_26 = 1;
@@ -5551,12 +5551,12 @@ static PyObject *__pyx_pf_9_powerfit_12rotate_grid(CYTHON_UNUSED PyObject *__pyx
       /* "_powerfit.pyx":369
  *         for y in range(ymin, ymax):
  *             y_f = y - center[1]
- *             xcoor_yz = rotmat[1, 0] * y_f + xcoor_z             # <<<<<<<<<<<<<<
+ *             xcoor_yz = rotmat[0, 1] * y_f + xcoor_z             # <<<<<<<<<<<<<<
  *             ycoor_yz = rotmat[1, 1] * y_f + ycoor_z
- *             zcoor_yz = rotmat[1, 2] * y_f + zcoor_z
+ *             zcoor_yz = rotmat[2, 1] * y_f + zcoor_z
  */
-      __pyx_t_28 = 1;
-      __pyx_t_29 = 0;
+      __pyx_t_28 = 0;
+      __pyx_t_29 = 1;
       __pyx_t_27 = -1;
       if (__pyx_t_28 < 0) {
         __pyx_t_28 += __pyx_pybuffernd_rotmat.diminfo[0].shape;
@@ -5574,9 +5574,9 @@ static PyObject *__pyx_pf_9_powerfit_12rotate_grid(CYTHON_UNUSED PyObject *__pyx
 
       /* "_powerfit.pyx":370
  *             y_f = y - center[1]
- *             xcoor_yz = rotmat[1, 0] * y_f + xcoor_z
+ *             xcoor_yz = rotmat[0, 1] * y_f + xcoor_z
  *             ycoor_yz = rotmat[1, 1] * y_f + ycoor_z             # <<<<<<<<<<<<<<
- *             zcoor_yz = rotmat[1, 2] * y_f + zcoor_z
+ *             zcoor_yz = rotmat[2, 1] * y_f + zcoor_z
  *             z2y2 = z2 + y_f ** 2
  */
       __pyx_t_30 = 1;
@@ -5597,14 +5597,14 @@ static PyObject *__pyx_pf_9_powerfit_12rotate_grid(CYTHON_UNUSED PyObject *__pyx
       __pyx_v_ycoor_yz = (((*__Pyx_BufPtrStrided2d(__pyx_t_5numpy_float64_t *, __pyx_pybuffernd_rotmat.rcbuffer->pybuffer.buf, __pyx_t_30, __pyx_pybuffernd_rotmat.diminfo[0].strides, __pyx_t_31, __pyx_pybuffernd_rotmat.diminfo[1].strides)) * __pyx_v_y_f) + __pyx_v_ycoor_z);
 
       /* "_powerfit.pyx":371
- *             xcoor_yz = rotmat[1, 0] * y_f + xcoor_z
+ *             xcoor_yz = rotmat[0, 1] * y_f + xcoor_z
  *             ycoor_yz = rotmat[1, 1] * y_f + ycoor_z
- *             zcoor_yz = rotmat[1, 2] * y_f + zcoor_z             # <<<<<<<<<<<<<<
+ *             zcoor_yz = rotmat[2, 1] * y_f + zcoor_z             # <<<<<<<<<<<<<<
  *             z2y2 = z2 + y_f ** 2
  * 
  */
-      __pyx_t_32 = 1;
-      __pyx_t_33 = 2;
+      __pyx_t_32 = 2;
+      __pyx_t_33 = 1;
       __pyx_t_27 = -1;
       if (__pyx_t_32 < 0) {
         __pyx_t_32 += __pyx_pybuffernd_rotmat.diminfo[0].shape;
@@ -5622,7 +5622,7 @@ static PyObject *__pyx_pf_9_powerfit_12rotate_grid(CYTHON_UNUSED PyObject *__pyx
 
       /* "_powerfit.pyx":372
  *             ycoor_yz = rotmat[1, 1] * y_f + ycoor_z
- *             zcoor_yz = rotmat[1, 2] * y_f + zcoor_z
+ *             zcoor_yz = rotmat[2, 1] * y_f + zcoor_z
  *             z2y2 = z2 + y_f ** 2             # <<<<<<<<<<<<<<
  * 
  *             for x in range(xmin, xmax):
@@ -5683,7 +5683,7 @@ static PyObject *__pyx_pf_9_powerfit_12rotate_grid(CYTHON_UNUSED PyObject *__pyx
  *                 if z2y2x2 >= radius2:
  *                     continue             # <<<<<<<<<<<<<<
  *                 xcoor_xyz = rotmat[0, 0] * x_f + xcoor_yz
- *                 ycoor_xyz = rotmat[0, 1] * x_f + ycoor_yz
+ *                 ycoor_xyz = rotmat[1, 0] * x_f + ycoor_yz
  */
           goto __pyx_L7_continue;
 
@@ -5700,8 +5700,8 @@ static PyObject *__pyx_pf_9_powerfit_12rotate_grid(CYTHON_UNUSED PyObject *__pyx
  *                 if z2y2x2 >= radius2:
  *                     continue
  *                 xcoor_xyz = rotmat[0, 0] * x_f + xcoor_yz             # <<<<<<<<<<<<<<
- *                 ycoor_xyz = rotmat[0, 1] * x_f + ycoor_yz
- *                 zcoor_xyz = rotmat[0, 2] * x_f + zcoor_yz
+ *                 ycoor_xyz = rotmat[1, 0] * x_f + ycoor_yz
+ *                 zcoor_xyz = rotmat[2, 0] * x_f + zcoor_yz
  */
         __pyx_t_38 = 0;
         __pyx_t_39 = 0;
@@ -5723,12 +5723,12 @@ static PyObject *__pyx_pf_9_powerfit_12rotate_grid(CYTHON_UNUSED PyObject *__pyx
         /* "_powerfit.pyx":380
  *                     continue
  *                 xcoor_xyz = rotmat[0, 0] * x_f + xcoor_yz
- *                 ycoor_xyz = rotmat[0, 1] * x_f + ycoor_yz             # <<<<<<<<<<<<<<
- *                 zcoor_xyz = rotmat[0, 2] * x_f + zcoor_yz
+ *                 ycoor_xyz = rotmat[1, 0] * x_f + ycoor_yz             # <<<<<<<<<<<<<<
+ *                 zcoor_xyz = rotmat[2, 0] * x_f + zcoor_yz
  * 
  */
-        __pyx_t_40 = 0;
-        __pyx_t_41 = 1;
+        __pyx_t_40 = 1;
+        __pyx_t_41 = 0;
         __pyx_t_36 = -1;
         if (__pyx_t_40 < 0) {
           __pyx_t_40 += __pyx_pybuffernd_rotmat.diminfo[0].shape;
@@ -5746,13 +5746,13 @@ static PyObject *__pyx_pf_9_powerfit_12rotate_grid(CYTHON_UNUSED PyObject *__pyx
 
         /* "_powerfit.pyx":381
  *                 xcoor_xyz = rotmat[0, 0] * x_f + xcoor_yz
- *                 ycoor_xyz = rotmat[0, 1] * x_f + ycoor_yz
- *                 zcoor_xyz = rotmat[0, 2] * x_f + zcoor_yz             # <<<<<<<<<<<<<<
+ *                 ycoor_xyz = rotmat[1, 0] * x_f + ycoor_yz
+ *                 zcoor_xyz = rotmat[2, 0] * x_f + zcoor_yz             # <<<<<<<<<<<<<<
  * 
  *                 if near:
  */
-        __pyx_t_42 = 0;
-        __pyx_t_43 = 2;
+        __pyx_t_42 = 2;
+        __pyx_t_43 = 0;
         __pyx_t_36 = -1;
         if (__pyx_t_42 < 0) {
           __pyx_t_42 += __pyx_pybuffernd_rotmat.diminfo[0].shape;
@@ -5769,7 +5769,7 @@ static PyObject *__pyx_pf_9_powerfit_12rotate_grid(CYTHON_UNUSED PyObject *__pyx
         __pyx_v_zcoor_xyz = (((*__Pyx_BufPtrStrided2d(__pyx_t_5numpy_float64_t *, __pyx_pybuffernd_rotmat.rcbuffer->pybuffer.buf, __pyx_t_42, __pyx_pybuffernd_rotmat.diminfo[0].strides, __pyx_t_43, __pyx_pybuffernd_rotmat.diminfo[1].strides)) * __pyx_v_x_f) + __pyx_v_zcoor_yz);
 
         /* "_powerfit.pyx":383
- *                 zcoor_xyz = rotmat[0, 2] * x_f + zcoor_yz
+ *                 zcoor_xyz = rotmat[2, 0] * x_f + zcoor_yz
  * 
  *                 if near:             # <<<<<<<<<<<<<<
  *                     x0 = <int> round(xcoor_xyz)
@@ -5835,7 +5835,7 @@ static PyObject *__pyx_pf_9_powerfit_12rotate_grid(CYTHON_UNUSED PyObject *__pyx
           __pyx_v_c = (*__Pyx_BufPtrStrided3d(__pyx_t_5numpy_float64_t *, __pyx_pybuffernd_grid.rcbuffer->pybuffer.buf, __pyx_t_44, __pyx_pybuffernd_grid.diminfo[0].strides, __pyx_t_45, __pyx_pybuffernd_grid.diminfo[1].strides, __pyx_t_46, __pyx_pybuffernd_grid.diminfo[2].strides));
 
           /* "_powerfit.pyx":383
- *                 zcoor_xyz = rotmat[0, 2] * x_f + zcoor_yz
+ *                 zcoor_xyz = rotmat[2, 0] * x_f + zcoor_yz
  * 
  *                 if near:             # <<<<<<<<<<<<<<
  *                     x0 = <int> round(xcoor_xyz)
