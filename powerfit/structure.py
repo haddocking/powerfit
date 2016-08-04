@@ -1,7 +1,10 @@
+from __future__ import absolute_import
 from collections import defaultdict, Sequence, OrderedDict
 import operator
 
 import numpy as np
+
+from .elements import ELEMENTS
 
 # records
 MODEL = 'MODEL '
@@ -40,7 +43,8 @@ def parse_pdb(infile):
             pdb['model'].append(model_number)
             pdb['record'].append(record)
             pdb['id'].append(int(line[6:11]))
-            pdb['name'].append(line[12:16].strip())
+            name = line[12:16].strip()
+            pdb['name'].append(name)
             pdb['alt'].append(line[16])
             pdb['resn'].append(line[17:20].strip())
             pdb['chain'].append(line[21])
@@ -51,7 +55,15 @@ def parse_pdb(infile):
             pdb['z'].append(float(line[46:54]))
             pdb['q'].append(float(line[54:60]))
             pdb['b'].append(float(line[60:66]))
-            pdb['e'].append(line[76:78].strip())
+            # Be forgiving when determining the element
+            e = line[76:78].strip()
+            if not e:
+                # If element is not given, take the first non-numeric letter of
+                # the name as element.
+                for e in name:
+                    if e.isalpha():
+                        break
+            pdb['e'].append(e)
             pdb['charge'].append(line[78: 80].strip())
         elif record == MODEL:
             model_number = int(line[10: 14])
@@ -153,7 +165,7 @@ class Structure(object):
     @property
     def atomnumber(self):
         """Return array of atom numbers"""
-        return self._get_property('e', 'Z')
+        return self._get_property('number')
 
     @property
     def chain_list(self):
@@ -171,13 +183,13 @@ class Structure(object):
         """Duplicate the object"""
         return Structure(self.data.copy())
 
-    def _get_property(self, column, ptype):
-        elements, ind = np.unique(self.data[column], return_inverse=True)
-        return np.asarray([PARAMETERS[e][ptype] for e in elements], dtype=np.float64)[ind]
+    def _get_property(self, ptype):
+        elements, ind = np.unique(self.data['e'], return_inverse=True)
+        return np.asarray([getattr(ELEMENTS[e], ptype) for e in elements], dtype=np.float64)[ind]
 
     @property
     def mass(self):
-        return self._get_property('e', 'mass')
+        return self._get_property('mass')
 
     def rmsd(self, structure):
         return np.sqrt(((self.coor - structure.coor) ** 2).mean() * 3)
@@ -238,59 +250,7 @@ class Structure(object):
 
     @property
     def rvdw(self):
-        return self._get_property('e', 'rvdW')
-
-
-PARAMETERS = {
-    # Hydrogen
-    'H': {
-        'mass': 1.008,
-        'rvdW': 1.20,
-        'Z' : 1,
-        },
-    # Carbon
-    'C': {
-        'mass': 12.011,
-        'rvdW': 1.77,
-        'Z' : 6,
-        },
-    # Nitrogen
-    'N': {
-        'mass': 14.007,
-        'rvdW': 1.66,
-        'Z' : 7,
-        },
-    #Oxygen
-    'O': {
-        'mass': 15.999,
-        'rvdW': 1.50,
-        'Z' : 8,
-        },
-    # Magnesium
-    'MG': {
-        'mass': 24.305,
-        'rvdW': 1.73,
-        'Z': 12,
-        },
-    # Phosphorus
-    'P': {
-        'mass': 30.974,
-        'rvdW': 1.90,
-        'Z' : 15,
-        },
-    # Sulphur
-    'S': {
-        'mass': 32.06,
-        'rvdW': 1.89,
-        'Z' : 16,
-        },
-    # Zinc
-    'ZN': {
-        'mass': 65.38,
-        'rvdW': 1.39,
-        'Z': 30,
-        },
-    }
+        return self._get_property('vdwrad')
 
 
 def parse_mmcif(infile):

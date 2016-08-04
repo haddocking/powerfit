@@ -208,6 +208,10 @@ multi-scale image pyramids.
 
 MIT licence (see LICENSE)
 
+The elements.py module is licenced under MIT Licence (see header).
+Copyright (c) 2005-2015, Christoph Gohlke
+
+
 
 ## Tested platforms
 
