@@ -4,7 +4,7 @@ from __future__ import absolute_import, division
 from os.path import splitext, join, abspath
 from os import makedirs
 from sys import stdout, argv
-from time import clock
+from time import time
 from argparse import ArgumentParser, FileType
 import logging
 
@@ -111,7 +111,7 @@ def write(line):
 
 def main():
 
-    time0 = clock()
+    time0 = time()
     args = parse_args()
     mkdir_p(args.directory)
     # Configure logging file
@@ -193,9 +193,9 @@ def main():
     else:
         write('Requested number of processors: {:d}'.format(args.nproc))
     write('Starting search')
-    time1 = clock()
+    time1 = time()
     pf.scan()
-    write('Time for search: {:.0f}m {:.0f}s'.format(*divmod(clock() - time1, 60)))
+    write('Time for search: {:.0f}m {:.0f}s'.format(*divmod(time() - time1, 60)))
 
     write('Analyzing results')
     # calculate the molecular volume of the structure
@@ -217,7 +217,7 @@ def main():
     write_fits_to_pdb(structure, analyzer.solutions[:n],
             basename=join(args.directory, 'fit'))
 
-    write('Total time: {:.0f}m {:.0f}s'.format(*divmod(clock() - time0, 60)))
+    write('Total time: {:.0f}m {:.0f}s'.format(*divmod(time() - time0, 60)))
 
 
 if __name__ == '__main__':
