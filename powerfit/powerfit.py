@@ -8,8 +8,6 @@ from time import clock
 from argparse import ArgumentParser, FileType
 import logging
 
-from scipy.ndimage import laplace
-
 from powerfit import (
       Volume, Structure, structure_to_shape_like, proportional_orientations,
       quat_to_rotmat, determine_core_indices
@@ -34,8 +32,6 @@ def parse_args():
     p.add_argument('template', type=file,
             help='Atomic model to be fitted in the density. '
                  'Format should either be PDB or mmCIF')
-    p.add_argument('high_res', type=float, nargs='?',
-            help='Resolution of high-resolution map in map.')
 
     # Optional arguments and flags
     p.add_argument('-a', '--angle', dest='angle', type=float, default=10,
@@ -87,13 +83,8 @@ def parse_args():
             help='Number of processors used during search. '
                  'The number will be capped at the total number '
                  'of available processors on your machine.')
-    # Input parameters
-    p.add_argument('-ft', '--filetype-template', dest='ft_template', type=str,
-            choices=['map', 'pdb'], default=None,
-            help='Filetype of template file.')
+
     args = p.parse_args()
-    if args.ft_template is None:
-        args.ft_template = get_filetype_template(args.template.name)
 
     return args
 
@@ -162,25 +153,21 @@ def main():
     write(('Shape after extending:' + ' {:d}'*3).format(*target.shape))
 
     # Read in structure or high-resolution map
-    if args.ft_template == 'pdb':
-        write('Template file read from: {:s}'.format(abspath(args.template.name)))
-        structure = Structure.fromfile(args.template)
-        if args.chain is not None:
-            write('Selecting chains: ' + args.chain)
-            structure = structure.select('chain', args.chain.split(','))
-        if structure.data.size == 0:
-            raise ValueError("No atoms were selected.")
+    write('Template file read from: {:s}'.format(abspath(args.template.name)))
+    structure = Structure.fromfile(args.template)
+    if args.chain is not None:
+        write('Selecting chains: ' + args.chain)
+        structure = structure.select('chain', args.chain.split(','))
+    if structure.data.size == 0:
+        raise ValueError("No atoms were selected.")
 
-        template = structure_to_shape_like(
-              target, structure.coor, resolution=resolution,
-              weights=structure.atomnumber, shape='vol'
-              )
-        mask = structure_to_shape_like(
-              target, structure.coor, resolution=resolution, shape='mask'
-              )
-    elif args.ft_template == 'map':
-        template_high_res = Volume.fromfile(args.template)
-        #TODO handle correctly
+    template = structure_to_shape_like(
+          target, structure.coor, resolution=resolution,
+          weights=structure.atomnumber, shape='vol'
+          )
+    mask = structure_to_shape_like(
+          target, structure.coor, resolution=resolution, shape='mask'
+          )
 
     # Read in the rotations to sample
     write('Reading in rotations.')
@@ -225,11 +212,10 @@ def main():
     Volume(pf._lcc, target.voxelspacing, target.origin).tofile(join(args.directory, 'lcc.mrc'))
     analyzer.tofile(join(args.directory, 'solutions.out'))
 
-    if args.ft_template == 'pdb':
-        write('Writing PDBs to file.')
-        n = min(args.num, len(analyzer.solutions))
-        write_fits_to_pdb(structure, analyzer.solutions[:n],
-                basename=join(args.directory, 'fit'))
+    write('Writing PDBs to file.')
+    n = min(args.num, len(analyzer.solutions))
+    write_fits_to_pdb(structure, analyzer.solutions[:n],
+            basename=join(args.directory, 'fit'))
 
     write('Total time: {:.0f}m {:.0f}s'.format(*divmod(clock() - time0, 60)))
 
