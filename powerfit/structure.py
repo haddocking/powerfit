@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from collections import defaultdict, Sequence, OrderedDict
 import operator
+from string import capwords
 
 import numpy as np
 
@@ -185,7 +186,8 @@ class Structure(object):
 
     def _get_property(self, ptype):
         elements, ind = np.unique(self.data['e'], return_inverse=True)
-        return np.asarray([getattr(ELEMENTS[e], ptype) for e in elements], dtype=np.float64)[ind]
+        return np.asarray([getattr(ELEMENTS[capwords(e)], ptype) 
+            for e in elements], dtype=np.float64)[ind]
 
     @property
     def mass(self):
