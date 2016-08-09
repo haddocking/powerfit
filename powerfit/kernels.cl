@@ -1,114 +1,150 @@
-__kernel
-void rotate_grids_and_multiply(
-        read_only image3d_t template, read_only image3d_t mask, 
-        global float* rotmat, sampler_t s_linear, sampler_t s_nearest, 
-        float4 center, int4 shape, int radius, 
-        global float* rot_template, global float* rot_mask,
-        global float* rot_mask2, int nrot
+#define SQUARE(a) ((a) * (a))
+
+// To be defined on compile time
+#define SHAPE_X $shape_x
+#define SHAPE_Y $shape_y
+#define SHAPE_Z $shape_z
+#define LLENGTH $llength
+
+#define LLENGTH2 (LLENGTH * LLENGTH)
+#define SLICE ((SHAPE_X * SHAPE_Y))
+#define SIZE ((SHAPE_Z * SLICE))
+
+
+kernel
+void rotate_grid3d(
+        global float *grid, float16 rotmat, global float *out, int nearest
         )
 {
-    /*Rotate the template and mask grid, and also calculate the mask2 grid
-     *
-     * Parameters
-     * ----------
-     * template
-     *
-     * mask
-     *
-     * rotmat
-     *     Array that holds all the rotations.
-     *
-     * s_linear : sampler_t
-     *     Sampler with LINEAR property.
-     *
-     * s_nearest : sampler_t
-     *     Sampler with NEAREST property.
-     *
-     * center : float4
-     *     Center around which the images are rotated.
-     *
-     *
-     * shape : int4
-     *    Contains the shape of output arrays, with the fourth element the size.
-     *
-     * radius : int
-     *    Largest radius of image from center. All voxels within this radius
-     *    will be rotated
-     *
-     * nrot : uint
-     *     Index of the initial rotation that is sampled.
-     *
-     * Notes
-     * -----
-     */
+    // Rotate grid around the origin. Only grid points within LLENGTH of the
+    // origin are rotated. Nearest neighbour interpolation.
 
-    /* there is an offset of a half when sampling images properly */
-    const float OFFSET = 0.5f;
-    int radius2 = radius * radius;
+    int zid = get_global_id(0);
+    int yid = get_global_id(1);
+    int xid = get_global_id(2);
+    int zstride = get_global_size(0);
+    int ystride = get_global_size(1);
+    int xstride = get_global_size(2);
 
-    int slice, rotmat_offset;
-    float4 weight, dist2;
-    float4 coor, coor_z, coor_zy, coor_zyx;
-    int4 index;
-    int z, y, x;
+    int z, y, x, x0, y0, z0, x1, y1, z1, offset0, offset1, grid_ind;
+    float dx, dy, dz, dx1, dy1, dz1, c00, c10, c01, c11, c0, c1, c;
+    float3 dist2, coor_z, coor_zy, coor_zyx;
+    int3 out_ind;
 
-    size_t zid = get_global_id(0);
-    size_t yid = get_global_id(1);
-    size_t xid = get_global_id(2);
-    size_t zstride = get_global_size(0);
-    size_t ystride = get_global_size(1);
-    size_t xstride = get_global_size(2);
 
-    /* Some precalculations */
-    slice = shape.s2 * shape.s1;
-    coor_zyx.s3 = 0;
+    for (z = zid - LLENGTH; z <= LLENGTH; z += zstride) {
+        dist2.s2 = SQUARE(z);
+        if (dist2.s2 > LLENGTH2)
+            continue;
 
-    rotmat_offset = nrot * 9;
-    coor.s0 = center.s0 + OFFSET;
-    coor.s1 = center.s1 + OFFSET;
-    coor.s2 = center.s2 + OFFSET;
+        coor_z.s0 = rotmat.s2 * z;
+        coor_z.s1 = rotmat.s5 * z;
+        coor_z.s2 = rotmat.s8 * z;
 
-    /* Loop over the grids */
-    for (z = zid - radius; z <= radius; z += zstride) {
-        dist2.s2 = z * z;
-        coor_z.s0 = rotmat[rotmat_offset + 2] * z + coor.s0;
-        coor_z.s1 = rotmat[rotmat_offset + 5] * z + coor.s1;
-        coor_z.s2 = rotmat[rotmat_offset + 8] * z + coor.s2;
-
-        index.s0 = z * slice;
-        /* Wraparound the z-coordinate */
+        out_ind.s0 = z * SLICE;
         if (z < 0)
-            index.s0 += shape.s3;
+            out_ind.s0 += SIZE;
 
-        for (y = yid - radius; y <= radius; y += ystride) {
-            dist2.s1 = y * y + dist2.s2;
-            coor_zy.s0 = rotmat[rotmat_offset + 1] * y + coor_z.s0;
-            coor_zy.s1 = rotmat[rotmat_offset + 4] * y + coor_z.s1;
-            coor_zy.s2 = rotmat[rotmat_offset + 7] * y + coor_z.s2;
+        for (y = yid - LLENGTH; y <= LLENGTH; y += ystride) {
+            dist2.s1 = SQUARE(y) + dist2.s2;
+            if (dist2.s1 > LLENGTH2)
+                continue;
 
-            index.s1 = index.s0 + y * shape.s2;
-            /* Wraparound the y-coordinate */
+            coor_zy.s0 = rotmat.s1 * y + coor_z.s0;
+            coor_zy.s1 = rotmat.s4 * y + coor_z.s1;
+            coor_zy.s2 = rotmat.s7 * y + coor_z.s2;
+
+            out_ind.s1 = out_ind.s0 + y * SHAPE_X;
             if (y < 0)
-                index.s1 += slice;
+                out_ind.s1 += SLICE;
 
-            for (x = xid - radius; x <= radius; x += xstride) {
-                dist2.s0 = x * x + dist2.s1;
-                if (dist2.s0 > radius2)
+            for (x = xid - LLENGTH; x <= LLENGTH; x += xstride) {
+                dist2.s0 = SQUARE(x) + dist2.s1;
+                if (dist2.s0 > LLENGTH2)
                     continue;
+                coor_zyx.s0 = rotmat.s0 * x + coor_zy.s0;
+                coor_zyx.s1 = rotmat.s3 * x + coor_zy.s1;
+                coor_zyx.s2 = rotmat.s6 * x + coor_zy.s2;
 
-                coor_zyx.s0 = rotmat[rotmat_offset + 0] * x + coor_zy.s0;
-                coor_zyx.s1 = rotmat[rotmat_offset + 3] * x + coor_zy.s1;
-                coor_zyx.s2 = rotmat[rotmat_offset + 6] * x + coor_zy.s2;
-
-                index.s2 = index.s1 + x;
+                out_ind.s2 = out_ind.s1 + x;
                 if (x < 0)
-                    index.s2 += shape.s2;
+                    out_ind.s2 += SHAPE_X;
 
-                weight = read_imagef(template, s_linear, coor_zyx);
-                rot_template[index.s2] = weight.s0;
-                weight = read_imagef(mask, s_nearest, coor_zyx);
-                rot_mask[index.s2] = weight.s0;
-                rot_mask2[index.s2] = weight.s0 * weight.s0;
+                if (nearest > 0) {
+
+                    x0 = (int) round(coor_zyx.s0);
+                    y0 = (int) round(coor_zyx.s1);
+                    z0 = (int) round(coor_zyx.s2);
+
+                    grid_ind = z0 * SLICE + y0 * SHAPE_X + x0;
+                    if (x0 < 0)
+                        grid_ind += SHAPE_X;
+                    if (y0 < 0)
+                        grid_ind += SLICE;
+                    if (z0 < 0)
+                        grid_ind += SIZE;
+
+                    out[out_ind.s2] = grid[grid_ind];
+
+                } else {
+                    x0 = (int) floor(coor_zyx.s0);
+                    y0 = (int) floor(coor_zyx.s1);
+                    z0 = (int) floor(coor_zyx.s2);
+                    x1 = x0 + 1;
+                    y1 = y0 + 1;
+                    z1 = z0 + 1;
+
+                    // Grid index
+                    grid_ind = z0 * SLICE + y0 * SHAPE_X + x0;
+                    if (x0 < 0)
+                        grid_ind += SHAPE_X;
+                    if (y0 < 0)
+                        grid_ind += SLICE;
+                    if (z0 < 0)
+                        grid_ind += SIZE;
+
+                    offset1 = 1;
+                    if (x1 == 0)
+                        offset1 -= SHAPE_X;
+                    c00 = grid[grid_ind] * dx1 +
+                          grid[grid_ind + offset1] * dx;
+
+                    offset0 = SHAPE_X;
+                    if (y1 == 0)
+                        offset0 -= SLICE;
+                    offset1 = offset0 + 1;
+                    if (x1 == 0)
+                        offset1 -= SHAPE_X;
+                    c10 = grid[grid_ind + offset0] * dx1 +
+                          grid[grid_ind + offset1] * dx;
+
+                    offset0 = SLICE;
+                    if (z1 == 0)
+                        offset0 -= SIZE;
+                    offset1 = offset0 + 1;
+                    if (x1 == 0)
+                        offset1 -= SHAPE_X;
+                    c01 = grid[grid_ind + offset0] * dx1 +
+                          grid[grid_ind + offset1] * dx;
+
+                    offset0 = SLICE + SHAPE_X;
+                    if (z1 == 0)
+                        offset0 -= SIZE;
+                    if (y1 == 0)
+                        offset0 -= SLICE;
+                    offset1 = offset0 + 1;
+                    if (x1 == 0)
+                        offset1 -= SHAPE_X;
+                    c01 = grid[grid_ind + offset0] * dx1 +
+                          grid[grid_ind + offset1] * dx;
+
+                    c0 = c00 * dy1 + c10 * dy;
+                    c1 = c01 * dy1 + c11 * dy;
+
+                    c = c0 * dz1 + c1 * dz;
+
+                    out[out_ind.s2] = c;
+                }
             }
         }
     }

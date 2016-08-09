@@ -6,6 +6,7 @@ from os.path import join, abspath, isdir
 import os.path
 from time import time, sleep
 from multiprocessing import RawValue, Lock, Process, cpu_count
+from string import Template
 
 import numpy as np
 from numpy.fft import irfftn as np_irfftn, rfftn as np_rfftn
@@ -170,15 +171,8 @@ class BaseCorrelator(object):
         self._template = None
         self._mask = None
         self._laplace = laplace
-        # get center of grid
-        self._center = self._get_center(self._target.shape)
         self._lcc_mask = self._get_lcc_mask(self._target)
-
-    @staticmethod
-    def _get_center(shape):
-        """Get the center of the grid to rotate around"""
-        #self._center = (np.asarray(template.shape, dtype=np.float64)[::-1] - 1)/ 2
-        return (np.asarray(shape, dtype=np.float64) / 2)[::-1]
+        self._rmax = min(target.shape) // 2
 
     @staticmethod
     def _get_lcc_mask(target):
@@ -214,7 +208,6 @@ class BaseCorrelator(object):
         # multiply again for core-weighted correlation score
         self._template *= self._mask
         # calculate the maximum radius
-        self._rmax = min(self._mask.shape) // 2
 
     @staticmethod
     def _laplace_filter(array):
@@ -424,7 +417,6 @@ if OPENCL:
             self._k.multiply(self._gtarget, self._gtarget, self._target2)
             self._rfftn(self._target2, self._ft_target2)
 
-            self._gcenter = np.asarray(list(self._center) + [0], dtype=np.float32)
             self._gshape = np.asarray(
                     list(self._target.shape) + [np.product(self._target.shape)],
                     dtype=np.int32)
@@ -474,18 +466,12 @@ if OPENCL:
             BaseCorrelator.mask.fset(self, mask)
             self._norm_factor = np.float32(self._norm_factor)
             self._rmax = np.int32(self._rmax)
-            self._gtemplate = cl.image_from_array(
-                    self._ctx, self._template.astype(np.float32)
+            self._gtemplate = cl_array.to_device(
+                    self._queue, self._template.astype(np.float32)
                     )
-            self._gmask = cl.image_from_array(
-                    self._ctx, self._mask.astype(np.float32)
+            self._gmask = cl_array.to_device(
+                    self._queue, self._mask.astype(np.float32)
                     )
-            max_items = self._queue.device.max_compute_units * 32 * 16
-            gws = [0] * 3
-            gws[0] = min(2 * self._rmax, max_items)
-            gws[1] = min(max_items // gws[0], 2 * self._rmax)
-            gws[2] = min(max(max_items // (gws[0] * gws[0]), 1), 2 * self._rmax)
-            self._gws = tuple(gws)
 
         @property
         def rotations(self):
@@ -494,8 +480,8 @@ if OPENCL:
         @rotations.setter
         def rotations(self, rotations):
             BaseCorrelator.rotations.fset(self, rotations)
-            self._grotations = cl_array.to_device(self._queue,
-                    rotations.ravel().astype(np.float32))
+            self._cl_rotations = np.zeros((self._rotations.shape[0], 16), dtype=np.float32)
+            self._cl_rotations[:, :9] = self._rotations.reshape(-1, 9)
 
         def scan(self):
             super(GPUCorrelator, self).scan()
@@ -505,12 +491,13 @@ if OPENCL:
             time0 = time()
             for n in xrange(0, self._rotations.shape[0]):
 
-                args = (self._gtemplate, self._gmask, self._grotations.data,
-                        self._k._sampler_linear, self._k._sampler_nearest,
-                        self._gcenter, self._gshape, self._rmax,
-                        self._rot_template.data, self._rot_mask.data,
-                        self._rot_mask2.data, np.int32(n))
-                self._k.rotate_grids_and_multiply(self._queue, self._gws, None, *args)
+                rotmat = self._cl_rotations[n]
+
+                self._k.rotate_grid3d(self._queue, self._gtemplate, rotmat, self._rot_template)
+                self._k.rotate_grid3d(self._queue, self._gmask, rotmat,
+                        self._rot_mask, nearest=True)
+                self._k.multiply(self._rot_mask, self._rot_mask, self._rot_mask2)
+
                 self._rfftn(self._rot_template, self._ft_template)
                 self._rfftn(self._rot_mask, self._ft_mask)
                 self._rfftn(self._rot_mask2, self._ft_mask2)
@@ -541,11 +528,16 @@ if OPENCL:
             stdout.flush()
 
         def _generate_kernels(self):
-            self._k = CLKernels(self._ctx)
+            kernel_values = {'shape_x': self._shape[2],
+                             'shape_y': self._shape[1],
+                             'shape_z': self._shape[0],
+                             'llength': self._rmax,
+                             }
+            self._k = CLKernels(self._ctx, kernel_values)
 
 
     class CLKernels(object):
-        def __init__(self, ctx):
+        def __init__(self, ctx, values):
             self.multiply = ElementwiseKernel(ctx,
                   "float *x, float *y, float *z",
                   "z[i] = x[i] * y[i];"
@@ -573,10 +565,14 @@ if OPENCL:
                 t = Template(f.read()).substitute(**values)
 
             self._program = cl.Program(ctx, t).build()
-            self._gws_rotate_grid3d(96, 64, 1)
+            self._gws_rotate_grid3d = (96, 64, 1)
 
-            self.rotate_grids_and_multiply = self._program.rotate_grids_and_multiply
-
+        def rotate_grid3d(self, queue, grid, rotmat, out, nearest=False):
+            _nearest = np.int32(0)
+            if nearest:
+                _nearest = np.int32(1)
+            args = (grid.data, rotmat, out.data, _nearest)
+            self._program.rotate_grid3d(queue, self._gws_rotate_grid3d, None, *args)
 
 
     class grfftn_builder(object):
