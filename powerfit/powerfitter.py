@@ -25,7 +25,8 @@ try:
 except:
     OPENCL = False
 
-from ._powerfit import rotate_image3d, conj_multiply, calc_lcc, dilate_points
+from ._powerfit import conj_multiply, calc_lcc, dilate_points
+from ._extensions import rotate_grid3d
 
 
 class _Counter(object):
@@ -212,28 +213,18 @@ class BaseCorrelator(object):
         self._normalize_template(ind)
         # multiply again for core-weighted correlation score
         self._template *= self._mask
-        # calculate the maximum radius from the center (in zyx)
-        self._rmax = self._get_rmax(ind, self._center[::-1])
+        # calculate the maximum radius
+        self._rmax = min(self._mask.shape) // 2
 
     @staticmethod
     def _laplace_filter(array):
         """Laplace transform"""
-        return laplace(array, mode='constant')
+        return laplace(array, mode='wrap')
 
     def _normalize_template(self, ind):
         # normalize the template over the mask
         self._template[ind] -= self._template[ind].mean()
         self._template[ind] /= self._template[ind].std()
-
-    @staticmethod
-    def _get_rmax(mask, center):
-        # Calculate the maximum radius of the template. This helps in the
-        # direct rotation during the search.
-        mask = mask != 0
-        surface = mask - binary_erosion(mask)
-        coor = np.asarray((surface > 0).nonzero()).astype(np.float64)
-        coor -= center.reshape(-1, 1)
-        return int(np.ceil(np.linalg.norm(coor, axis=0).max()))
 
     @property
     def rotations(self):
@@ -352,13 +343,13 @@ class CPUCorrelator(BaseCorrelator):
         self._get_lcc()
 
     def _rotate_grids(self, rotmat):
-        rotate_image3d(
-              self._template, rotmat, self._center, self._rmax,
-              self._rot_template
+        rotate_grid3d(
+              self._template, rotmat, self._rmax,
+              self._rot_template, False
               )
-        rotate_image3d(
-              self._mask, rotmat, self._center, self._rmax,
-              self._rot_mask, nearest=True
+        rotate_grid3d(
+              self._mask, rotmat, self._rmax,
+              self._rot_mask, True
               )
 
     def _get_lcc(self):
@@ -578,16 +569,14 @@ if OPENCL:
                     )
 
             kernel_file = os.path.join(os.path.dirname(__file__), 'kernels.cl')
-            self._program = cl.Program(ctx, open(kernel_file).read()).build()
+            with open(kernel_file) as f:
+                t = Template(f.read()).substitute(**values)
+
+            self._program = cl.Program(ctx, t).build()
+            self._gws_rotate_grid3d(96, 64, 1)
+
             self.rotate_grids_and_multiply = self._program.rotate_grids_and_multiply
 
-            # Two samplers
-            self._sampler_linear = cl.Sampler(
-                    ctx, False, cl.addressing_mode.CLAMP, cl.filter_mode.LINEAR
-                    )
-            self._sampler_nearest = cl.Sampler(
-                    ctx, False, cl.addressing_mode.CLAMP, cl.filter_mode.NEAREST
-                    )
 
 
     class grfftn_builder(object):

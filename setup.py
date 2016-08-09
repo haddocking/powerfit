@@ -20,7 +20,13 @@ def main():
     ext = '.pyx' if CYTHON else '.c'
     ext_modules = [Extension("powerfit._powerfit",
                              [os.path.join("src", "_powerfit" + ext)],
-                             include_dirs=[numpy.get_include()])]
+                             include_dirs=[numpy.get_include()]),
+                   Extension("powerfit._extensions",
+                             [os.path.join("src", "_extensions.c")],
+                             include_dirs=[numpy.get_include()],
+                             extra_compile_args=['-ffast-math'],
+                             ),
+                   ]
 
     cmdclass = {}
     if CYTHON:

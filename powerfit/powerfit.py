@@ -161,6 +161,8 @@ def main():
     if structure.data.size == 0:
         raise ValueError("No atoms were selected.")
 
+    # Move structure to origin of density
+    structure.translate(target.origin - structure.coor.mean(axis=1))
     template = structure_to_shape_like(
           target, structure.coor, resolution=resolution,
           weights=structure.atomnumber, shape='vol'

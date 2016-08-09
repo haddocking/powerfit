@@ -182,9 +182,9 @@ def structure_to_shape(
     xyz_grid /= voxelspacing
 
     if shape == 'vol':
-        blur_points(xyz_grid, weights, sigma / voxelspacing, out.array)
+        blur_points(xyz_grid, weights, sigma / voxelspacing, out.array, True)
     elif shape == 'mask':
-        dilate_points(xyz_grid, radii, out.array)
+        dilate_points(xyz_grid, radii, out.array, True)
     return out
 
 
@@ -211,16 +211,15 @@ def structure_to_shape_like(vol, xyz, resolution=None, weights=None,
 
     sigma = (resolution / (np.sqrt(2.0) * np.pi)) / vol.voxelspacing
 
-    # move the coordinates to the center of the grid
-    xyz_center = xyz.mean(axis=1)
-    xyz_grid = xyz + (vol.dimensions / 2.0 - xyz_center).reshape(-1, 1)
+    # move the coordinates to the origin of the grid
+    xyz_grid = xyz - np.asarray(vol.origin, dtype=np.float64).reshape(3, 1)
     xyz_grid /= vol.voxelspacing
 
     out = zeros_like(vol)
     if shape == 'vol':
-        blur_points(xyz_grid, weights, sigma, out.array)
+        blur_points(xyz_grid, weights, sigma, out.array, True)
     elif shape == 'mask':
-        dilate_points(xyz_grid, radii, out.array)
+        dilate_points(xyz_grid, radii, out.array, True)
     return out
 
 
