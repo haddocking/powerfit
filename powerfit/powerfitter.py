@@ -207,7 +207,6 @@ class BaseCorrelator(object):
         self._normalize_template(ind)
         # multiply again for core-weighted correlation score
         self._template *= self._mask
-        # calculate the maximum radius
 
     @staticmethod
     def _laplace_filter(array):
@@ -411,7 +410,8 @@ if OPENCL:
                 target = self._laplace_filter(self._target)
             # move some arrays to the GPU
             self._gtarget = cl_array.to_device(self._queue, target.astype(np.float32))
-            self._lcc_mask = cl_array.to_device(self._queue, self._lcc_mask.astype(np.int32))
+            self._lcc_mask = cl_array.to_device(self._queue,
+                    self._lcc_mask.astype(np.int32))
             # Do some one-time precalculations
             self._rfftn(self._gtarget, self._ft_target)
             self._k.multiply(self._gtarget, self._gtarget, self._target2)
@@ -466,12 +466,10 @@ if OPENCL:
             BaseCorrelator.mask.fset(self, mask)
             self._norm_factor = np.float32(self._norm_factor)
             self._rmax = np.int32(self._rmax)
-            self._gtemplate = cl_array.to_device(
-                    self._queue, self._template.astype(np.float32)
-                    )
-            self._gmask = cl_array.to_device(
-                    self._queue, self._mask.astype(np.float32)
-                    )
+            self._gtemplate = cl.image_from_array(self._queue.context,
+                    self._template.astype(np.float32))
+            self._gmask = cl.image_from_array(self._queue.context,
+                    self._mask.astype(np.float32))
 
         @property
         def rotations(self):
@@ -480,8 +478,35 @@ if OPENCL:
         @rotations.setter
         def rotations(self, rotations):
             BaseCorrelator.rotations.fset(self, rotations)
-            self._cl_rotations = np.zeros((self._rotations.shape[0], 16), dtype=np.float32)
+            self._cl_rotations = np.zeros((self._rotations.shape[0], 16),
+                    dtype=np.float32)
             self._cl_rotations[:, :9] = self._rotations.reshape(-1, 9)
+
+        def _cl_rotate_grids(self, rotmat):
+            self._k.rotate_image3d(self._queue, self._gtemplate, rotmat,
+                    self._rot_template)
+            self._k.rotate_image3d(self._queue, self._gmask, rotmat,
+                    self._rot_mask, nearest=True)
+            self._queue.finish()
+
+        def _cl_get_gcc(self):
+            self._rfftn(self._rot_template, self._ft_template)
+            self._k.conj_multiply(self._ft_template, self._ft_target, self._ft_gcc)
+            self._irfftn(self._ft_gcc, self._gcc)
+            self._queue.finish()
+
+        def _cl_get_ave(self):
+            self._rfftn(self._rot_mask, self._ft_mask)
+            self._k.conj_multiply(self._ft_mask, self._ft_target, self._ft_ave)
+            self._irfftn(self._ft_ave, self._ave)
+            self._queue.finish()
+
+        def _cl_get_ave2(self):
+            self._k.multiply(self._rot_mask, self._rot_mask, self._rot_mask2)
+            self._rfftn(self._rot_mask2, self._ft_mask2)
+            self._k.conj_multiply(self._ft_mask2, self._ft_target2, self._ft_ave2)
+            self._irfftn(self._ft_ave2, self._ave2)
+            self._queue.finish()
 
         def scan(self):
             super(GPUCorrelator, self).scan()
@@ -493,24 +518,16 @@ if OPENCL:
 
                 rotmat = self._cl_rotations[n]
 
-                self._k.rotate_grid3d(self._queue, self._gtemplate, rotmat, self._rot_template)
-                self._k.rotate_grid3d(self._queue, self._gmask, rotmat,
-                        self._rot_mask, nearest=True)
-                self._k.multiply(self._rot_mask, self._rot_mask, self._rot_mask2)
+                self._cl_rotate_grids(rotmat)
 
-                self._rfftn(self._rot_template, self._ft_template)
-                self._rfftn(self._rot_mask, self._ft_mask)
-                self._rfftn(self._rot_mask2, self._ft_mask2)
+                self._cl_get_gcc()
+                self._cl_get_ave()
+                self._cl_get_ave2()
 
-                self._k.conj_multiply(self._ft_template, self._ft_target, self._ft_gcc)
-                self._k.conj_multiply(self._ft_mask, self._ft_target, self._ft_ave)
-                self._k.conj_multiply(self._ft_mask2, self._ft_target2, self._ft_ave2)
+                self._k.calc_lcc_and_take_best(self._gcc, self._ave,
+                        self._ave2, self._lcc_mask, self._norm_factor,
+                        np.int32(n), self._glcc, self._grot)
 
-                self._irfftn(self._ft_gcc, self._gcc)
-                self._irfftn(self._ft_ave, self._ave)
-                self._irfftn(self._ft_ave2, self._ave2)
-                self._k.calc_lcc_and_take_best(self._gcc, self._ave, self._ave2, self._lcc_mask,
-                        self._norm_factor, np.int32(n), self._glcc, self._grot)
                 self._queue.finish()
 
                 self._print_progress(n, self._rotations.shape[0], time0)
@@ -538,6 +555,10 @@ if OPENCL:
 
     class CLKernels(object):
         def __init__(self, ctx, values):
+            self.sampler_nearest = cl.Sampler(ctx, True,
+                    cl.addressing_mode.REPEAT, cl.filter_mode.NEAREST)
+            self.sampler_linear = cl.Sampler(ctx, True,
+                    cl.addressing_mode.REPEAT, cl.filter_mode.LINEAR)
             self.multiply = ElementwiseKernel(ctx,
                   "float *x, float *y, float *z",
                   "z[i] = x[i] * y[i];"
@@ -568,11 +589,15 @@ if OPENCL:
             self._gws_rotate_grid3d = (96, 64, 1)
 
         def rotate_grid3d(self, queue, grid, rotmat, out, nearest=False):
-            _nearest = np.int32(0)
-            if nearest:
-                _nearest = np.int32(1)
-            args = (grid.data, rotmat, out.data, _nearest)
+            args = (grid.data, rotmat, out.data, np.int32(nearest))
             self._program.rotate_grid3d(queue, self._gws_rotate_grid3d, None, *args)
+
+        def rotate_image3d(self, queue, image, rotmat, out, nearest=False):
+            if nearest:
+                args = (image, self.sampler_nearest, rotmat, out.data)
+            else:
+                args = (image, self.sampler_linear, rotmat, out.data)
+            self._program.rotate_image3d(queue, self._gws_rotate_grid3d, None, *args)
 
 
     class grfftn_builder(object):
