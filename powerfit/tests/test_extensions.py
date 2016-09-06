@@ -34,8 +34,6 @@ class TestExtensions(TestCase):
         answer[0, 2, 0] = 1
         answer[0, -1, 0] = 1
         answer[-1, 0, 0] = 1
-        print grid
-        print out
         self.assertTrue(np.allclose(answer, out))
 
 
