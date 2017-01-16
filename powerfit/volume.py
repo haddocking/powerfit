@@ -272,6 +272,14 @@ class CCP4Parser(object):
         self._get_endiannes()
         # get the header
         self._get_header()
+        # Symmetry and non-rectangular boxes are not supported.
+        error = (self.header['ispg'] != 1 or 
+                self.header['alpha'] != self.header['beta'] != 
+                self.header['gamma'] != 90)
+        if error:
+            msg = "Only densities with P1-symmetry in rectangular boxes are supported."
+            raise ValueError(msg)
+
         # check the order of axis in the file
         self._get_order()
         # determine the voxelspacing and origin
@@ -326,8 +334,7 @@ class CCP4Parser(object):
         elif mode == 2:
             dtype = 'f4'
 
-        density = np.fromfile(self.fhandle,
-                              dtype=self._endian + dtype).reshape(self.shape)
+        density = np.fromfile(self.fhandle, dtype=self._endian + dtype).reshape(self.shape)
         if self.order == (1, 3, 2):
             self.density = np.swapaxes(self.density, 0, 1)
         elif self.order == (2, 1, 3):
@@ -512,11 +519,11 @@ class XPLORParser(object):
 
             line = volume.readline()
             header['xlength'] = float(line[0:12])
-            header['ylength']   = float(line[12:24])
+            header['ylength'] = float(line[12:24])
             header['zlength'] = float(line[24:36])
-            header['alpha']    = float(line[36:48])
+            header['alpha'] = float(line[36:48])
             header['beta'] = float(line[48:60])
-            header['gamma']   = float(line[60:72])
+            header['gamma'] = float(line[60:72])
 
             header['order'] = volume.readline()[0:3]
 
