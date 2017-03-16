@@ -125,14 +125,9 @@ def main():
         import pyopencl as cl
         p = cl.get_platforms()[0]
         devs = p.get_devices()
-        ctx = cl.Context(devices=devs)
+        context = cl.Context(devices=devs)
         # For clFFT each queue should have its own Context
-        contexts = []
-        if len(devs) > 1:
-            contexts = [cl.Context(devices=[dev]) for dev in devs]
-        else:
-            contexts.append(ctx)
-        queues = [cl.CommandQueue(ctx, device=dev) for ctx, dev in zip(contexts, devs)]
+        queues = [cl.CommandQueue(context, device=dev) for dev in devs]
 
     write('Target file read from: {:s}'.format(abspath(args.target.name)))
     target = Volume.fromfile(args.target)
