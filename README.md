@@ -206,9 +206,9 @@ Defining the limits and reliability of rigid-body fitting in cryo-EM maps using
 multi-scale image pyramids. 
 *J. Struct. Biol.* 195, 252-258 (2016).
 
-MIT licence (see LICENSE)
+Apache License Version 2.0
 
-The elements.py module is licenced under MIT Licence (see header).
+The elements.py module is licensed under MIT License (see header).
 Copyright (c) 2005-2015, Christoph Gohlke
 
 
