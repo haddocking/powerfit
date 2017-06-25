@@ -99,6 +99,6 @@ def image_pyramid():
         vol2 = lower_resolution(vol, args.resolution, resolution)
         new_voxelspacing = resolution / (2 * args.resampling_rate)
         factor = vol.voxelspacing / new_voxelspacing 
-        vol2 = resample(vol, factor, order=1)
+        vol2 = resample(vol2, factor, order=1)
         vol2.tofile(fname.format(resolution))
 
