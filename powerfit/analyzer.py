@@ -1,4 +1,5 @@
 from __future__ import division
+from itertools import izip
 
 from numpy import zeros, bool, greater_equal, log
 from scipy.ndimage import label, maximum_position
@@ -63,6 +64,9 @@ class Analyzer(object):
         solutions = []
         for pos in self._positions:
             solution = []
+            # To support scipy 0.14.0 cast pos into tuple of ints since
+            # maximum_position returns a list of tuples of floats
+            pos = tuple(int(p) for p in pos)
             lcc = self._corr[pos]
             solution.append(lcc)
             fishers_z = 0.5 * (log(1 + lcc) - log(1 - lcc))
@@ -70,7 +74,7 @@ class Analyzer(object):
             rel_z = fishers_z / self._z_sigma
             solution.append(rel_z)
             z, y, x = [coor * self._voxelspacing  + shift for coor, shift in
-                    zip(pos, self._origin[::-1])]
+                    izip(pos, self._origin[::-1])]
             rotmat = self._rotmat[int(self._rotmat_ind[pos])]
             solution += [x, y, z] + list(rotmat.ravel())
             solutions.append(solution)
@@ -90,7 +94,7 @@ class Analyzer(object):
             cutoff -= stepsize
             greater_equal(self._corr, cutoff, mask)
             labels, nfeatures = label(mask)
-            positions += list(maximum_position(self._corr, labels, range(1, nfeatures + 1)))
+            positions += maximum_position(self._corr, labels, range(1, nfeatures + 1))
         self._positions = set(positions)
 
     def tofile(self, out='solutions.out'):
