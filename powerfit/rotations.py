@@ -28,33 +28,32 @@ def euler_to_rotmat(angles, order='zyz'):
 
 
 def quat_to_rotmat(quaternions):
-
     w = quaternions[:, 0]
     x = quaternions[:, 1]
     y = quaternions[:, 2]
     z = quaternions[:, 3]
 
-    Nq = w**2 + x**2 + y**2 + z**2
+    Nq = w ** 2 + x ** 2 + y ** 2 + z ** 2
     s = np.zeros(Nq.shape, dtype=np.float64)
-    s[Nq >  0.0] = 2.0/Nq[Nq > 0.0]
+    s[Nq > 0.0] = 2.0 / Nq[Nq > 0.0]
     s[Nq <= 0.0] = 0
 
-    X = x*s
-    Y = y*s
-    Z = z*s
+    X = x * s
+    Y = y * s
+    Z = z * s
 
-    rotmat = np.zeros((quaternions.shape[0],3,3), dtype=np.float64)
-    rotmat[:,0,0] = 1.0 - (y*Y + z*Z)
-    rotmat[:,0,1] = x*Y - w*Z
-    rotmat[:,0,2] = x*Z + w*Y
+    rotmat = np.zeros((quaternions.shape[0], 3, 3), dtype=np.float64)
+    rotmat[:, 0, 0] = 1.0 - (y * Y + z * Z)
+    rotmat[:, 0, 1] = x * Y - w * Z
+    rotmat[:, 0, 2] = x * Z + w * Y
 
-    rotmat[:,1,0] = x*Y + w*Z
-    rotmat[:,1,1] = 1.0 - (x*X + z*Z)
-    rotmat[:,1,2] = y*Z - w*X
+    rotmat[:, 1, 0] = x * Y + w * Z
+    rotmat[:, 1, 1] = 1.0 - (x * X + z * Z)
+    rotmat[:, 1, 2] = y * Z - w * X
 
-    rotmat[:,2,0] = x*Z - w*Y
-    rotmat[:,2,1] = y*Z + w*X
-    rotmat[:,2,2] = 1.0 - (x*X + y*Y)
+    rotmat[:, 2, 0] = x * Z - w * Y
+    rotmat[:, 2, 1] = y * Z + w * X
+    rotmat[:, 2, 2] = 1.0 - (x * X + y * Y)
 
     np.around(rotmat, decimals=8, out=rotmat)
 
@@ -68,25 +67,24 @@ def random_rotmat():
     while s1 >= 1.0:
         e1 = random() * 2 - 1
         e2 = random() * 2 - 1
-        s1 = e1**2 + e2**2
-            
+        s1 = e1 ** 2 + e2 ** 2
+
     s2 = 1
     while s2 >= 1.0:
         e3 = random() * 2 - 1
         e4 = random() * 2 - 1
-        s2 = e3**2 + e4**2
-    
+        s2 = e3 ** 2 + e4 ** 2
+
     q0 = e1
     q1 = e2
-    q2 = e3 * sqrt((1 - s1)/s2 )
-    q3 = e4 * sqrt((1 - s1)/s2 )
+    q2 = e3 * sqrt((1 - s1) / s2)
+    q3 = e4 * sqrt((1 - s1) / s2)
 
     quat = [[q0, q1, q2, q3]]
     return quat_to_rotmat(np.asarray(quat))[0]
 
 
 def proportional_orientations(angle):
-    
     # orientation sets available: name of file: (Norientations, degree)
     rot_sets = {'E.npy': (1, 360.0),
                 'c48u1.npy': (24, 62.8),

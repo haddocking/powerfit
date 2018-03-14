@@ -10,24 +10,24 @@ EM2EM_DESCRIPTION = "Convert, trim, and resample cryo-EM data."
 def parse_em2em():
     p = ArgumentParser(description=EM2EM_DESCRIPTION)
     p.add_argument('infile', type=str,
-            help="Input cryo-EM density file.")
+                   help="Input cryo-EM density file.")
     p.add_argument("outfile", type=str,
-            help="Output cryo-EM density file.")
+                   help="Output cryo-EM density file.")
 
     p.add_argument('-f1', '--format-input', default=None,
-            dest='input_format', metavar="<str>",
-            help="Format of input file.")
+                   dest='input_format', metavar="<str>",
+                   help="Format of input file.")
     p.add_argument('-f2', '--format-output', default=None,
-            dest='output_format', metavar="<str>",
-            help="Format of output file.")
+                   dest='output_format', metavar="<str>",
+                   help="Format of output file.")
     p.add_argument("-t", "--trim", action='store_true', dest="trim",
-            help="Trim the density.")
+                   help="Trim the density.")
     p.add_argument('-tc', "--trim-cutoff", type=float, default=None,
-            dest="trim_cutoff",
-            help="Cutoff value for trimming.")
+                   dest="trim_cutoff",
+                   help="Cutoff value for trimming.")
     p.add_argument("-r", "--resample", default=None, type=float,
-            dest="resample", metavar='<float>',
-            help="Resample the density to a specified voxel spacing in angstrom.")
+                   dest="resample", metavar='<float>',
+                   help="Resample the density to a specified voxel spacing in angstrom.")
 
     args = p.parse_args()
     return args
@@ -56,22 +56,22 @@ def em2em():
 def parse_image_pyramid():
     p = ArgumentParser()
 
-    p.add_argument('map', type=file, 
-            help='Initial density data.')
-    p.add_argument('resolution', type=float, 
-            help='Resolution of initial data.')
+    p.add_argument('map', type=file,
+                   help='Initial density data.')
+    p.add_argument('resolution', type=float,
+                   help='Resolution of initial data.')
     p.add_argument('target_resolutions', nargs='+', type=float,
-            help='The target resolutions of the resulting image-pyramid.')
+                   help='The target resolutions of the resulting image-pyramid.')
 
     p.add_argument('-rr', '--resampling-rate', dest='resampling_rate',
-            type=float, default=2, metavar='<float>',
-            help=('Nyquist resampling rate. Default is 2 x '
-            'Nyquist, i.e. resulting voxelspacing is '
-            '1/4th of the resolution.'),
-            )
+                   type=float, default=2, metavar='<float>',
+                   help=('Nyquist resampling rate. Default is 2 x '
+                         'Nyquist, i.e. resulting voxelspacing is '
+                         '1/4th of the resolution.'),
+                   )
     p.add_argument('-b', '--base-name', dest='base_name', type=str, default=None,
-            metavar='<string>',
-            help='Base name of the resulting maps. Default is original mapfile name.')
+                   metavar='<string>',
+                   help='Base name of the resulting maps. Default is original mapfile name.')
     args = p.parse_args()
 
     # some error checking
@@ -82,9 +82,9 @@ def parse_image_pyramid():
     for resolution in args.target_resolutions:
         if resolution < args.resolution:
             raise ValueError('Target resolution of image-pyramid should be '
-                'lower than original data.')
+                             'lower than original data.')
     if args.base_name is None:
-        args.base_name = splitext(args.map.name)[0] 
+        args.base_name = splitext(args.map.name)[0]
 
     return args
 
@@ -98,7 +98,6 @@ def image_pyramid():
     for resolution in args.target_resolutions:
         vol2 = lower_resolution(vol, args.resolution, resolution)
         new_voxelspacing = resolution / (2 * args.resampling_rate)
-        factor = vol.voxelspacing / new_voxelspacing 
+        factor = vol.voxelspacing / new_voxelspacing
         vol2 = resample(vol2, factor, order=1)
         vol2.tofile(fname.format(resolution))
-

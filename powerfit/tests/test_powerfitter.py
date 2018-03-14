@@ -2,14 +2,17 @@ import unittest
 
 import numpy as np
 from scipy.ndimage import laplace
+
 try:
     import pyfftw
+
     PYFFTW = True
 except ImportError:
     PYFFTW = False
 try:
     import pyopencl as cl
     import pyopencl.array as cl_array
+
     PYOPENCL = True
 except ImportError:
     PYOPENCL = False
@@ -124,7 +127,7 @@ class TestBaseCorrelator(unittest.TestCase):
         self.assertAlmostEqual(self.corr._template.mean(), 0)
         self.assertAlmostEqual(self.corr._template.std(), 1)
 
-    #TODO
+    # TODO
     @unittest.skip("Not yet implemented")
     def test_get_rmax(self):
         self.corr.template = np.random.rand(*self.shape)
@@ -161,14 +164,12 @@ class TestBaseCorrelator(unittest.TestCase):
             self.corr.scan()
 
 
-
 @unittest.skipIf(not PYOPENCL, "GPU resources are not available.")
 class TestCLKernels(unittest.TestCase):
-
     """Tests for the OpenCL kernels"""
 
-    #@classmethod
-    #def setUpClass(cls):
+    # @classmethod
+    # def setUpClass(cls):
     #    p = cl.get_platforms()[0]
     #    devs = p.get_devices()
     #    cls.ctx = cl.Context(devices=devs)
@@ -187,9 +188,9 @@ class TestCLKernels(unittest.TestCase):
         self.k = CLKernels(self.ctx)
         self.k = CLKernels(self.ctx)
         self.s_linear = cl.Sampler(self.ctx, False, cl.addressing_mode.CLAMP,
-                cl.filter_mode.LINEAR)
+                                   cl.filter_mode.LINEAR)
         self.s_nearest = cl.Sampler(self.ctx, False, cl.addressing_mode.CLAMP,
-                cl.filter_mode.NEAREST)
+                                    cl.filter_mode.NEAREST)
 
     def test_multiply(self):
         np_in1 = np.arange(10, dtype=np.float32)
@@ -219,9 +220,9 @@ class TestCLKernels(unittest.TestCase):
         self.assertTrue(np.allclose(np_out, cl_out.get()))
 
     # TODO
-    #def test_calc_lcc(self):
+    # def test_calc_lcc(self):
     #    pass
-    #def test_take_best(self):
+    # def test_take_best(self):
     #    pass
 
     def test_rotate_template_mask(self):
@@ -238,7 +239,7 @@ class TestCLKernels(unittest.TestCase):
         shape = np.asarray([5, 5, 5, 125], dtype=np.int32)
 
         self.k.rotate_template(self.queue, (125,), None, self.s_linear,
-                cl_template, rotmat, cl_out.data, center, shape)
+                               cl_template, rotmat, cl_out.data, center, shape)
 
         answer = np.zeros((5, 5, 5), dtype=np.float32)
         answer[0, 0, :2] = 1
@@ -259,9 +260,8 @@ class TestCLKernels(unittest.TestCase):
         np_out_template[0, 0, -1] = 1
         np_out_template[0, :2, 0] = 1
         np_out_template[0, -1, 0] = 1
-        np_out_mask = np_out_template * 2 
+        np_out_mask = np_out_template * 2
         np_out_mask2 = np_out_mask ** 2
-
 
         cl_template = cl.image_from_array(self.ctx, template)
         cl_mask = cl.image_from_array(self.ctx, mask)

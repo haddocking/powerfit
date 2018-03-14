@@ -5,6 +5,7 @@ import numpy as np
 from powerfit import _powerfit
 from powerfit.rotations import euler
 
+
 class Test_Powerfit(unittest.TestCase):
 
     def test_conj_multiply(self):

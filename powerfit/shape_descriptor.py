@@ -3,8 +3,8 @@ from __future__ import division, absolute_import
 import numpy as np
 import numpy.linalg as la
 
-class ShapeDescriptor(object):
 
+class ShapeDescriptor(object):
     """Class that calculates rotation-invariant shape descriptors based on the
     radius of gyration tensor.
     """
@@ -52,4 +52,3 @@ class ShapeDescriptor(object):
     def shape_anisotropy(self):
         ave_moment = self.principal_moments.mean()
         return np.prod(self.principal_moments - ave_moment) / ave_moment ** 3
-

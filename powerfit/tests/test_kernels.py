@@ -13,7 +13,6 @@ class TestCLKernels(TestCase):
 
     @classmethod
     def setUpClass(self):
-
         self.queue = get_queue()
         self.shape = (4, 5, 6)
         self.size = 4 * 5 * 6
@@ -31,15 +30,14 @@ class TestCLKernels(TestCase):
         self.grid[0, 0, -1] = 1
         self.grid[-1, 0, 0] = 1
         self.cl_image = cl.image_from_array(self.queue.context,
-                self.grid.astype(np.float32))
+                                            self.grid.astype(np.float32))
         self.sampler_linear = cl.Sampler(self.queue.context, True,
-                cl.addressing_mode.REPEAT, cl.filter_mode.LINEAR)
+                                         cl.addressing_mode.REPEAT, cl.filter_mode.LINEAR)
         self.sampler_nearest = cl.Sampler(self.queue.context, False,
-                cl.addressing_mode.CLAMP, cl.filter_mode.NEAREST)
+                                          cl.addressing_mode.CLAMP, cl.filter_mode.NEAREST)
         self.out = np.zeros(self.shape, dtype=np.float64)
         self.cl_out = cl_array.zeros(self.queue, self.shape, dtype=np.float32)
 
-    
     def test_rotate_image3d_linear(self):
         k = self.k._program.rotate_image3d
 
@@ -63,9 +61,9 @@ class TestCLKernels(TestCase):
         self.assertTrue(test)
 
         # Non-integer rotation
-        rotmat = np.asarray([[ 0.30901699, -0.5       ,  0.80901699], 
-                  [-0.80901699,  0.30901699,  0.5       ], 
-                  [-0.5       , -0.80901699, -0.30901699]], dtype=np.float64)
+        rotmat = np.asarray([[0.30901699, -0.5, 0.80901699],
+                             [-0.80901699, 0.30901699, 0.5],
+                             [-0.5, -0.80901699, -0.30901699]], dtype=np.float64)
         cl_rotmat = np.asarray(rotmat.ravel().tolist() + [0] * 7, dtype=np.float32)
         args = (self.cl_image, self.sampler_linear, cl_rotmat, self.cl_out.data)
         k(self.queue, (1, 1, 1), None, *args)
@@ -75,7 +73,6 @@ class TestCLKernels(TestCase):
         # be less than 5% different. This is an ad hoc number.
         diff = np.nan_to_num(np.abs((self.cl_out.get() - self.out) / self.out)).max()
         self.assertTrue(diff < 0.05)
-
 
     def test_rotate_grid3d_nearest(self):
         """Test rotate_grid3d kernel using nearest interpolation."""
@@ -154,16 +151,17 @@ class TestCLKernels(TestCase):
         self.assertTrue(np.allclose(answer, self.cl_out.get()))
 
         # Non-integer rotation
-        rotmat = np.asarray([[ 0.30901699, -0.5       ,  0.80901699], 
-                  [-0.80901699,  0.30901699,  0.5       ], 
-                  [-0.5       , -0.80901699, -0.30901699]], dtype=np.float64)
+        rotmat = np.asarray([[0.30901699, -0.5, 0.80901699],
+                             [-0.80901699, 0.30901699, 0.5],
+                             [-0.5, -0.80901699, -0.30901699]], dtype=np.float64)
         cl_rotmat = np.asarray(rotmat.ravel().tolist() + [0] * 7, dtype=np.float32)
         args = (self.cl_grid.data, cl_rotmat, self.cl_out.data, np.int32(False))
         k(self.queue, gws, None, *args)
         rotate_grid3d(self.grid, rotmat, 2, self.out, False)
         test = np.allclose(self.cl_out.get(), self.out)
 
-        #self.assertTrue(test)
+        # self.assertTrue(test)
+
 
 if __name__ == '__main__':
     main()

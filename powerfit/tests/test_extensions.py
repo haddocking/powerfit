@@ -37,6 +37,5 @@ class TestExtensions(TestCase):
         self.assertTrue(np.allclose(answer, out))
 
 
-
 if __name__ == '__main__':
     main()

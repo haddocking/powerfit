@@ -11,6 +11,7 @@ try:
 except:
     OPENCL = False
 
+
 @unittest.skipIf(not OPENCL, "GPU resources not found.")
 class TestGPyFFT(unittest.TestCase):
 

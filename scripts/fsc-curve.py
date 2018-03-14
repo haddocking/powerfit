@@ -21,4 +21,3 @@ print
 print res
 print
 print inv_res
-

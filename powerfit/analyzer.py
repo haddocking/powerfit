@@ -4,8 +4,8 @@ from itertools import izip
 from numpy import zeros, bool, greater_equal, log
 from scipy.ndimage import label, maximum_position
 
-class Analyzer(object):
 
+class Analyzer(object):
 
     def __init__(self, corr, rotmat, rotmat_ind, steps=5, voxelspacing=1,
                  origin=(0, 0, 0), z_sigma=1):
@@ -73,8 +73,8 @@ class Analyzer(object):
             solution.append(fishers_z)
             rel_z = fishers_z / self._z_sigma
             solution.append(rel_z)
-            z, y, x = [coor * self._voxelspacing  + shift for coor, shift in
-                    izip(pos, self._origin[::-1])]
+            z, y, x = [coor * self._voxelspacing + shift for coor, shift in
+                       izip(pos, self._origin[::-1])]
             rotmat = self._rotmat[int(self._rotmat_ind[pos])]
             solution += [x, y, z] + list(rotmat.ravel())
             solutions.append(solution)
@@ -109,5 +109,3 @@ class Analyzer(object):
             line = ' '.join(['{:<6d}'] + ['{:6.3f}'] * 3 + ['{:8.3f}'] * 3 + ['{:6.3f}'] * 9) + '\n'
             for n, sol in enumerate(self._solutions):
                 f.write(line.format(n + 1, *sol))
-            
-

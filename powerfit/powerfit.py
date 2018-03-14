@@ -9,9 +9,9 @@ from argparse import ArgumentParser, FileType
 import logging
 
 from powerfit import (
-      Volume, Structure, structure_to_shape_like, proportional_orientations,
-      quat_to_rotmat, determine_core_indices
-      )
+    Volume, Structure, structure_to_shape_like, proportional_orientations,
+    quat_to_rotmat, determine_core_indices
+)
 from powerfit.powerfitter import PowerFitter
 from powerfit.analyzer import Analyzer
 from powerfit.helpers import mkdir_p, write_fits_to_pdb, fisher_sigma
@@ -25,64 +25,64 @@ def parse_args():
 
     # Positional arguments
     p.add_argument('target', type=FileType('rb'),
-            help='Target density map to fit the model in. '
-                 'Data should either be in CCP4 or MRC format')
+                   help='Target density map to fit the model in. '
+                        'Data should either be in CCP4 or MRC format')
     p.add_argument('resolution', type=float,
-            help='Resolution of map in angstrom')
+                   help='Resolution of map in angstrom')
     p.add_argument('template', type=file,
-            help='Atomic model to be fitted in the density. '
-                 'Format should either be PDB or mmCIF')
+                   help='Atomic model to be fitted in the density. '
+                        'Format should either be PDB or mmCIF')
 
     # Optional arguments and flags
     p.add_argument('-a', '--angle', dest='angle', type=float, default=10,
-            metavar='<float>',
-            help='Rotational sampling density in degree. Increasing '
-                 'this number by a factor of 2 results in approximately '
-                 '8 times more rotations sampled.')
+                   metavar='<float>',
+                   help='Rotational sampling density in degree. Increasing '
+                        'this number by a factor of 2 results in approximately '
+                        '8 times more rotations sampled.')
     # Scoring flags
     p.add_argument('-l', '--laplace', dest='laplace', action='store_true',
-            help='Use the Laplace pre-filter density data. '
-                 'Can be combined '
-                 'with the core-weighted local cross-correlation.')
+                   help='Use the Laplace pre-filter density data. '
+                        'Can be combined '
+                        'with the core-weighted local cross-correlation.')
     p.add_argument('-cw', '--core-weighted', dest='core_weighted', action='store_true',
-            help='Use core-weighted local cross-correlation score. '
-                 'Can be combined with the Laplace pre-filter.')
+                   help='Use core-weighted local cross-correlation score. '
+                        'Can be combined with the Laplace pre-filter.')
     # Resampling
     p.add_argument('-nr', '--no-resampling', dest='no_resampling', action='store_true',
-            help='Do not resample the density map.')
+                   help='Do not resample the density map.')
     p.add_argument('-rr', '--resampling-rate', dest='resampling_rate',
-            type=float, default=2, metavar='<float>',
-            help='Resampling rate compared to Nyquist.')
+                   type=float, default=2, metavar='<float>',
+                   help='Resampling rate compared to Nyquist.')
     # Trimming related
     p.add_argument('-nt', '--no-trimming', dest='no_trimming', action='store_true',
-            help='Do not trim the density map.')
+                   help='Do not trim the density map.')
     p.add_argument('-tc', '--trimming-cutoff', dest='trimming_cutoff',
-            type=float, default=None, metavar='<float>',
-            help='Intensity cutoff to which the map will be trimmed. '
-                 'Default is 10 percent of maximum intensity.')
+                   type=float, default=None, metavar='<float>',
+                   help='Intensity cutoff to which the map will be trimmed. '
+                        'Default is 10 percent of maximum intensity.')
     # Selection parameter
     p.add_argument('-c', '--chain', dest='chain', type=str, default=None,
-            metavar='<char>',
-            help=('The chain IDs of the structure to be fitted. '
-                  'Multiple chains can be selected using a comma separated list, i.e. -c A,B,C. '
-                  'Default is the whole structure.'),
-                 )
+                   metavar='<char>',
+                   help=('The chain IDs of the structure to be fitted. '
+                         'Multiple chains can be selected using a comma separated list, i.e. -c A,B,C. '
+                         'Default is the whole structure.'),
+                   )
     # Output parameters
     p.add_argument('-d', '--directory', dest='directory', type=abspath, default='.',
-            metavar='<dir>',
-            help='Directory where the results are stored.')
+                   metavar='<dir>',
+                   help='Directory where the results are stored.')
     p.add_argument('-n', '--num', dest='num', type=int, default=10,
-            metavar='<int>',
-            help='Number of models written to file. This number '
-                 'will be capped if less solutions are found as requested.')
+                   metavar='<int>',
+                   help='Number of models written to file. This number '
+                        'will be capped if less solutions are found as requested.')
     # Computational resources parameters
     p.add_argument('-g', '--gpu', dest='gpu', action='store_true',
-            help='Off-load the intensive calculations to the GPU. ')
+                   help='Off-load the intensive calculations to the GPU. ')
     p.add_argument('-p', '--nproc', dest='nproc', type=int, default=1,
-            metavar='<int>',
-            help='Number of processors used during search. '
-                 'The number will be capped at the total number '
-                 'of available processors on your machine.')
+                   metavar='<int>',
+                   help='Number of processors used during search. '
+                        'The number will be capped at the total number '
+                        'of available processors on your machine.')
 
     args = p.parse_args()
 
@@ -110,13 +110,12 @@ def write(line):
 
 
 def main():
-
     time0 = time()
     args = parse_args()
     mkdir_p(args.directory)
     # Configure logging file
-    logging.basicConfig(filename=join(args.directory, 'powerfit.log'), 
-            level=logging.INFO, format='%(asctime)s %(message)s')
+    logging.basicConfig(filename=join(args.directory, 'powerfit.log'),
+                        level=logging.INFO, format='%(asctime)s %(message)s')
     logging.info(' '.join(argv))
 
     # Get GPU queue if requested
@@ -133,23 +132,23 @@ def main():
     target = Volume.fromfile(args.target)
     write('Target resolution: {:.2f}'.format(args.resolution))
     resolution = args.resolution
-    write(('Initial shape of density:' + ' {:d}'*3).format(*target.shape))
+    write(('Initial shape of density:' + ' {:d}' * 3).format(*target.shape))
     # Resample target density if requested
     if not args.no_resampling:
         factor = 2 * args.resampling_rate * target.voxelspacing / resolution
         if factor < .9:
             target = resample(target, factor)
-            write(('Shape after resampling:' + ' {:d}'*3).format(*target.shape))
+            write(('Shape after resampling:' + ' {:d}' * 3).format(*target.shape))
     # Trim target density if requested
     if not args.no_trimming:
         if args.trimming_cutoff is None:
             args.trimming_cutoff = target.array.max() / 10
         target = trim(target, args.trimming_cutoff)
-        write(('Shape after trimming:' + ' {:d}'*3).format(*target.shape))
+        write(('Shape after trimming:' + ' {:d}' * 3).format(*target.shape))
     # Extend the density to a multiple of 2, 3, 5, and 7 for clFFT
     extended_shape = [nearest_multiple2357(n) for n in target.shape]
     target = extend(target, extended_shape)
-    write(('Shape after extending:' + ' {:d}'*3).format(*target.shape))
+    write(('Shape after extending:' + ' {:d}' * 3).format(*target.shape))
 
     # Read in structure or high-resolution map
     write('Template file read from: {:s}'.format(abspath(args.template.name)))
@@ -163,12 +162,12 @@ def main():
     # Move structure to origin of density
     structure.translate(target.origin - structure.coor.mean(axis=1))
     template = structure_to_shape_like(
-          target, structure.coor, resolution=resolution,
-          weights=structure.atomnumber, shape='vol'
-          )
+        target, structure.coor, resolution=resolution,
+        weights=structure.atomnumber, shape='vol'
+    )
     mask = structure_to_shape_like(
-          target, structure.coor, resolution=resolution, shape='mask'
-          )
+        target, structure.coor, resolution=resolution, shape='mask'
+    )
 
     # Read in the rotations to sample
     write('Reading in rotations.')
@@ -201,13 +200,13 @@ def main():
     write('Analyzing results')
     # calculate the molecular volume of the structure
     mv = structure_to_shape_like(
-          target, structure.coor, resolution=resolution, radii=structure.rvdw, shape='mask'
-          ).array.sum() * target.voxelspacing ** 3
+        target, structure.coor, resolution=resolution, radii=structure.rvdw, shape='mask'
+    ).array.sum() * target.voxelspacing ** 3
     z_sigma = fisher_sigma(mv, resolution)
     analyzer = Analyzer(
-            pf._lcc, rotmat, pf._rot, voxelspacing=target.voxelspacing,
-            origin=target.origin, z_sigma=z_sigma
-            )
+        pf._lcc, rotmat, pf._rot, voxelspacing=target.voxelspacing,
+        origin=target.origin, z_sigma=z_sigma
+    )
 
     write('Writing solutions to file.')
     Volume(pf._lcc, target.voxelspacing, target.origin).tofile(join(args.directory, 'lcc.mrc'))
@@ -216,7 +215,7 @@ def main():
     write('Writing PDBs to file.')
     n = min(args.num, len(analyzer.solutions))
     write_fits_to_pdb(structure, analyzer.solutions[:n],
-            basename=join(args.directory, 'fit'))
+                      basename=join(args.directory, 'fit'))
 
     write('Total time: {:.0f}m {:.0f}s'.format(*divmod(time() - time0, 60)))
 

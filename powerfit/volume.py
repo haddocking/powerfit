@@ -9,6 +9,7 @@ from scipy.ndimage import zoom, gaussian_filter
 
 from ._powerfit import blur_points, dilate_points
 
+
 class Volume(object):
 
     @classmethod
@@ -32,7 +33,7 @@ class Volume(object):
 
     @property
     def start(self):
-        return np.asarray([x/self.voxelspacing for x in self.origin])
+        return np.asarray([x / self.voxelspacing for x in self.origin])
 
     @start.setter
     def start(self, start):
@@ -89,7 +90,7 @@ def trim(volume, cutoff, margin=2):
         extent.append(slice(low, high))
     sub_array = volume.array[extent]
     origin = [coor_origin + volume.voxelspacing * ext.start
-            for coor_origin, ext in zip(volume.origin, extent[::-1])]
+              for coor_origin, ext in zip(volume.origin, extent[::-1])]
     return Volume(sub_array, volume.voxelspacing, origin)
 
 
@@ -135,15 +136,14 @@ def lower_resolution(vol, res_high, res_low):
     # See http://mathworld.wolfram.com/Convolution.html
     sigma_high = res_to_sigma(res_high)
     sigma_low = res_to_sigma(res_low)
-    sigma_k = np.sqrt(sigma_low**2 - sigma_high**2) / vol.voxelspacing
+    sigma_k = np.sqrt(sigma_low ** 2 - sigma_high ** 2) / vol.voxelspacing
     blurred_array = gaussian_filter(vol.array, sigma_k, mode='constant')
     return Volume(blurred_array, vol.voxelspacing, vol.origin)
 
 
 def structure_to_shape(
-      xyz, resolution, out=None, voxelspacing=None, radii=None, weights=None, shape='vol'
-      ):
-
+        xyz, resolution, out=None, voxelspacing=None, radii=None, weights=None, shape='vol'
+):
     if shape not in ('vol', 'mask'):
         raise ValueError("shape should either be 'vol' or 'mask'")
 
@@ -189,8 +189,7 @@ def structure_to_shape(
 
 
 def structure_to_shape_like(vol, xyz, resolution=None, weights=None,
-        radii=None, shape='vol'):
-
+                            radii=None, shape='vol'):
     if resolution is None:
         resolution = vol.resolution
 
@@ -203,7 +202,7 @@ def structure_to_shape_like(vol, xyz, resolution=None, weights=None,
     if shape == 'mask':
         if radii is None:
             radii = np.empty(xyz.shape[1], dtype=np.float64)
-            #radii.fill(0.5 * resolution)
+            # radii.fill(0.5 * resolution)
             radii.fill(5)
         elif radii.size != xyz.shape[1]:
             raise ValueError("weights array is of incorrect size")
@@ -244,16 +243,15 @@ def parse_volume(fid, fmt=None):
 
 
 class CCP4Parser(object):
-
     HEADER_SIZE = 1024
     HEADER_TYPE = ('i' * 10 + 'f' * 6 + 'i' * 3 + 'f' * 3 + 'i' * 3 +
                    'f' * 27 + 'c' * 8 + 'f' * 1 + 'i' * 1 + 'c' * 800)
     HEADER_FIELDS = (
-          'nc nr ns mode ncstart nrstart nsstart nx ny nz xlength ylength '
-          'zlength alpha beta gamma mapc mapr maps amin amax amean ispg '
-          'nsymbt lskflg skwmat skwtrn extra xstart ystart zstart map '
-          'machst rms nlabel label'
-          ).split()
+        'nc nr ns mode ncstart nrstart nsstart nx ny nz xlength ylength '
+        'zlength alpha beta gamma mapc mapr maps amin amax amean ispg '
+        'nsymbt lskflg skwmat skwtrn extra xstart ystart zstart map '
+        'machst rms nlabel label'
+    ).split()
     HEADER_CHUNKS = [1] * 25 + [9, 3, 12] + [1] * 3 + [4, 4, 1, 1, 800]
 
     def __init__(self, fid):
@@ -273,9 +271,9 @@ class CCP4Parser(object):
         # get the header
         self._get_header()
         # Symmetry and non-rectangular boxes are not supported.
-        error = (self.header['ispg'] != 1 or 
-                self.header['alpha'] != self.header['beta'] != 
-                self.header['gamma'] != 90)
+        error = (self.header['ispg'] != 1 or
+                 self.header['alpha'] != self.header['beta'] !=
+                 self.header['gamma'] != 90)
         if error:
             msg = "Only densities with P1-symmetry in rectangular boxes are supported."
             raise ValueError(msg)
@@ -353,11 +351,11 @@ class CCP4Parser(object):
             density = density.astype(np.int32)
         elif mode == 2:
             density = density.astype(np.float64)
-        self.density =density
+        self.density = density
 
     def _get_order(self):
         self.order = tuple(self.header[axis] for axis in ('mapc', 'mapr',
-            'maps'))
+                                                          'maps'))
 
 
 class MRCParser(CCP4Parser):
@@ -369,7 +367,6 @@ class MRCParser(CCP4Parser):
 
 
 def to_mrc(fid, volume, labels=[], fmt=None):
-
     if fmt is None:
         fmt = os.path.splitext(fid)[-1][1:]
 
@@ -397,9 +394,9 @@ def to_mrc(fid, volume, labels=[], fmt=None):
     ispg = 1
     nsymbt = 0
     lskflg = 0
-    skwmat = [0.0]*9
-    skwtrn = [0.0]*3
-    fut_use = [0.0]*12
+    skwmat = [0.0] * 9
+    skwtrn = [0.0] * 3
+    fut_use = [0.0] * 12
     if fmt == 'mrc':
         origin = volume.origin
     else:
@@ -460,7 +457,7 @@ def to_mrc(fid, volume, labels=[], fmt=None):
         # max 10 labels
         # nlabels = min(len(labels), 10)
         # TODO labels not handled correctly
-        #for label in labels:
+        # for label in labels:
         #     list_label = [c for c in label]
         #     llabel = len(list_label)
         #     if llabel < 80:
@@ -507,15 +504,15 @@ class XPLORParser(object):
             header['label'] = label
 
             line = volume.readline()
-            header['nx']      = int(line[0:8])
+            header['nx'] = int(line[0:8])
             header['nxstart'] = int(line[8:16])
-            header['nxend']   = int(line[16:24])
-            header['ny']      = int(line[24:32])
+            header['nxend'] = int(line[16:24])
+            header['ny'] = int(line[24:32])
             header['nystart'] = int(line[32:40])
-            header['nyend']   = int(line[40:48])
-            header['nz']      = int(line[48:56])
+            header['nyend'] = int(line[40:48])
+            header['nz'] = int(line[48:56])
             header['nzstart'] = int(line[56:64])
-            header['nzend']   = int(line[64:72])
+            header['nzend'] = int(line[64:72])
 
             line = volume.readline()
             header['xlength'] = float(line[0:12])
@@ -531,7 +528,7 @@ class XPLORParser(object):
 
     @property
     def voxelspacing(self):
-        return self.header['xlength']/float(self.header['nx'])
+        return self.header['xlength'] / float(self.header['nx'])
 
     @property
     def origin(self):
@@ -553,22 +550,21 @@ class XPLORParser(object):
             yextend = self.header['nyend'] - self.header['nystart'] + 1
             zextend = self.header['nzend'] - self.header['nzstart'] + 1
 
-            nslicelines = int(np.ceil(xextend*yextend/6.0))
+            nslicelines = int(np.ceil(xextend * yextend / 6.0))
             for i in range(zextend):
                 values = []
                 nslice = int(volumefile.readline()[0:8])
                 for m in range(nslicelines):
-		    line = volumefile.readline()
-		    for n in range(len(line)//12):
-			value = float(line[n*12: (n+1)*12])
-		        values.append(value)
+                    line = volumefile.readline()
+                    for n in range(len(line) // 12):
+                        value = float(line[n * 12: (n + 1) * 12])
+                        values.append(value)
                 array[i, :yextend, :xextend] = np.float64(values).reshape(yextend, xextend)
 
         return array
 
 
 def to_xplor(outfile, volume, label=[]):
-
     nz, ny, nx = volume.shape
     voxelspacing = volume.voxelspacing
     xstart, ystart, zstart = [int(round(x)) for x in volume.start]
@@ -576,31 +572,31 @@ def to_xplor(outfile, volume, label=[]):
     alpha = beta = gamma = 90.0
 
     nlabel = len(label)
-    with open(outfile,'w') as out:
+    with open(outfile, 'w') as out:
         out.write('\n')
-        out.write('{:>8d} !NTITLE\n'.format(nlabel+1))
-	# CNS requires at least one REMARK line
-	out.write('REMARK\n')
+        out.write('{:>8d} !NTITLE\n'.format(nlabel + 1))
+        # CNS requires at least one REMARK line
+        out.write('REMARK\n')
         for n in range(nlabel):
             out.write(''.join(['REMARK ', label[n], '\n']))
 
-        out.write(('{:>8d}'*9 + '\n').format(nx, xstart, xstart + nx - 1,
-                                             ny, ystart, ystart + ny - 1,
-                                             nz, zstart, zstart + nz - 1))
-        out.write( ('{:12.5E}'*6 + '\n').format(xlength, ylength, zlength,
-                                                alpha, beta, gamma))
+        out.write(('{:>8d}' * 9 + '\n').format(nx, xstart, xstart + nx - 1,
+                                               ny, ystart, ystart + ny - 1,
+                                               nz, zstart, zstart + nz - 1))
+        out.write(('{:12.5E}' * 6 + '\n').format(xlength, ylength, zlength,
+                                                 alpha, beta, gamma))
         out.write('ZYX\n')
-        #FIXME very inefficient way of writing out the volume ...
+        # FIXME very inefficient way of writing out the volume ...
         for z in range(nz):
             out.write('{:>8d}\n'.format(z))
             n = 0
             for y in range(ny):
                 for x in range(nx):
-                    out.write('%12.5E'%volume.array[z,y,x])
+                    out.write('%12.5E' % volume.array[z, y, x])
                     n += 1
-                    if (n)%6 is 0:
+                    if (n) % 6 is 0:
                         out.write('\n')
-            if (nx*ny)%6 > 0:
+            if (nx * ny) % 6 > 0:
                 out.write('\n')
         out.write('{:>8d}\n'.format(-9999))
         out.write('{:12.4E} {:12.4E} '.format(volume.array.mean(), volume.array.std()))

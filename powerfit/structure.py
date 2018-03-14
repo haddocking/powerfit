@@ -16,19 +16,18 @@ TER = 'TER   '
 MODEL_LINE = 'MODEL ' + ' ' * 4 + '{:>4d}\n'
 ENDMDL_LINE = 'ENDMDL\n'
 TER_LINE = 'TER   ' + '{:>5d}' + ' ' * 6 + '{:3s}' + ' ' + '{:1s}' + \
-        '{:>4d}' + '{:1s}' + ' ' * 53 + '\n'
+           '{:>4d}' + '{:1s}' + ' ' * 53 + '\n'
 ATOM_LINE = '{:6s}' + '{:>5d}' + ' ' + '{:4s}' + '{:1s}' + '{:3s}' + ' ' + \
-        '{:1s}' + '{:>4d}' + '{:1s}' + ' ' * 3 + '{:8.3f}' * 3 + '{:6.2f}' * 2 + \
-        ' ' * 10 + '{:<2s}' + '{:2s}\n'
+            '{:1s}' + '{:>4d}' + '{:1s}' + ' ' * 3 + '{:8.3f}' * 3 + '{:6.2f}' * 2 + \
+            ' ' * 10 + '{:<2s}' + '{:2s}\n'
 END_LINE = 'END   \n'
 
-ATOM_DATA = ('record id name alt resn chain resi i x y z q b ' \
-        'e charge').split()
+ATOM_DATA = ('record id name alt resn chain resi i x y z q b '
+             'e charge').split()
 TER_DATA = 'id resn chain resi i'.split()
 
 
 def parse_pdb(infile):
-
     if isinstance(infile, file):
         f = infile
     elif isinstance(infile, str):
@@ -73,7 +72,6 @@ def parse_pdb(infile):
 
 
 def tofile(pdb, out):
-
     f = open(out, 'w')
 
     nmodels = len(set(pdb['model']))
@@ -178,7 +176,7 @@ class Structure(object):
     @property
     def coor(self):
         """Return the coordinates"""
-        return np.asarray([self.data['x'], self.data[ 'y'], self.data['z']])
+        return np.asarray([self.data['x'], self.data['y'], self.data['z']])
 
     def duplicate(self):
         """Duplicate the object"""
@@ -186,8 +184,8 @@ class Structure(object):
 
     def _get_property(self, ptype):
         elements, ind = np.unique(self.data['e'], return_inverse=True)
-        return np.asarray([getattr(ELEMENTS[capwords(e)], ptype) 
-            for e in elements], dtype=np.float64)[ind]
+        return np.asarray([getattr(ELEMENTS[capwords(e)], ptype)
+                           for e in elements], dtype=np.float64)[ind]
 
     @property
     def mass(self):
@@ -198,9 +196,8 @@ class Structure(object):
 
     def rotate(self, rotmat):
         """Rotate atoms"""
-        self.data['x'], self.data['y'], self.data['z'] = (
-              np.asmatrix(rotmat) * np.asmatrix(self.coor)
-              )
+        self.data['x'], self.data['y'], self.data['z'] = \
+            (np.asmatrix(rotmat) * np.asmatrix(self.coor))
 
     def select(self, identifier, values, loperator='==', return_ind=False):
         """A simple way of selecting atoms"""
@@ -279,7 +276,6 @@ def parse_mmcif(infile):
 
 
 def mmcif_dict_to_array(atom_site):
-
     natoms = len(atom_site['id'])
     dtype = [('record', np.str_, 6), ('id', np.int32),
              ('name', np.str_, 4), ('alt', np.str_, 1),

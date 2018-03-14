@@ -93,6 +93,5 @@ def main():
             f.write(line.format(lcc_list[ind[n]], *rotmat[ind[n]].ravel()))
 
 
-
 if __name__ == '__main__':
     main()
