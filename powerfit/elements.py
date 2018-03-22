@@ -2641,5 +2641,3 @@ if __name__ == "__main__":
         print(repr(ele), '\n')
     import doctest
     doctest.testmod(verbose=False)
-
-
