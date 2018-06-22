@@ -579,8 +579,8 @@ def to_xplor(outfile, volume, label=[]):
     with open(outfile,'w') as out:
         out.write('\n')
         out.write('{:>8d} !NTITLE\n'.format(nlabel+1))
-	# CNS requires at least one REMARK line
-	out.write('REMARK\n')
+        # CNS requires at least one REMARK line
+        out.write('REMARK\n')
         for n in range(nlabel):
             out.write(''.join(['REMARK ', label[n], '\n']))
 
