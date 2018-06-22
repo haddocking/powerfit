@@ -105,7 +105,7 @@ def get_filetype_template(fname):
 def write(line):
     """Write line to stdout and logfile."""
     if stdout.isatty():
-        print line
+        print(line)
     logging.info(line)
 
 
