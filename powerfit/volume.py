@@ -558,10 +558,10 @@ class XPLORParser(object):
                 values = []
                 nslice = int(volumefile.readline()[0:8])
                 for m in range(nslicelines):
-		    line = volumefile.readline()
-		    for n in range(len(line)//12):
-			value = float(line[n*12: (n+1)*12])
-		        values.append(value)
+                    line = volumefile.readline()
+                    for n in range(len(line)//12):
+                        value = float(line[n*12: (n+1)*12])
+                        values.append(value)
                 array[i, :yextend, :xextend] = np.float64(values).reshape(yextend, xextend)
 
         return array
@@ -579,8 +579,8 @@ def to_xplor(outfile, volume, label=[]):
     with open(outfile,'w') as out:
         out.write('\n')
         out.write('{:>8d} !NTITLE\n'.format(nlabel+1))
-	# CNS requires at least one REMARK line
-	out.write('REMARK\n')
+        # CNS requires at least one REMARK line
+        out.write('REMARK\n')
         for n in range(nlabel):
             out.write(''.join(['REMARK ', label[n], '\n']))
 
