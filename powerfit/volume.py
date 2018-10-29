@@ -50,7 +50,7 @@ class Volume(object):
         elif fmt in ('xplor', 'cns'):
             to_xplor(fid, self)
         else:
-            raise ValueError("Format is not supported.")
+            raise RuntimeError("Format is not supported.")
 
 
 # builders
@@ -273,17 +273,36 @@ class CCP4Parser(object):
         # get the header
         self._get_header()
         # Symmetry and non-rectangular boxes are not supported.
-        error = (self.header['ispg'] != 1 or 
-                self.header['alpha'] != self.header['beta'] != 
-                self.header['gamma'] != 90)
-        if error:
-            msg = "Only densities with P1-symmetry in rectangular boxes are supported."
-            raise ValueError(msg)
+        is_orthogonal = True
+        for angle_name in ['alpha', 'beta', 'gamma']:
+            angle = self.header[angle_name]
+            if abs(angle - 90) > 1e-3:
+                is_orthogonal = False
+                break
+        if not is_orthogonal:
+            msg = "Only densities in rectangular boxes are supported."
+            raise RuntimeError(msg)
 
         # check the order of axis in the file
         self._get_order()
         # determine the voxelspacing and origin
-        self.voxelspacing = self.header['xlength'] / self.header['nx']
+        spacings = []
+        for axis_name in 'xyz':
+            length = self.header[axis_name + 'length']
+            nvoxels = self.header['n' + axis_name]
+            spacing = length / float(nvoxels)
+            spacings.append(spacing)
+
+        equal_spacing = True
+        average = sum(spacings) / float(len(spacings))
+        for spacing in spacings:
+            if abs(spacing - average) > 1e-4:
+                equal_spacing = False
+        if not equal_spacing:
+            msg = "Voxel spacing is not equal in all directions."
+            raise RuntimeError(msg)
+
+        self.voxelspacing = spacings[0]
         self.origin = self._get_origin()
         # generate the density
         shape_fields = 'nz ny nx'.split()
@@ -298,7 +317,7 @@ class CCP4Parser(object):
         elif m_stamp == '0x11':
             endian = '>'
         else:
-            raise ValueError('Endiannes is not properly set in file. Check the file format.')
+            raise RuntimeError('Endiannes is not properly set in file. Check the file format.')
         self._endian = endian
         self.fhandle.seek(0)
 
