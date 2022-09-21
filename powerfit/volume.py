@@ -8,6 +8,9 @@ import numpy as np
 from scipy.ndimage import zoom, gaussian_filter
 
 from ._powerfit import blur_points, dilate_points
+from six.moves import range
+from six.moves import zip
+import io
 
 class Volume(object):
 
@@ -76,7 +79,7 @@ def trim(volume, cutoff, margin=2):
         raise ValueError('Cutoff value should be lower than density max.')
 
     extent = []
-    for axis in xrange(volume.array.ndim):
+    for axis in range(volume.array.ndim):
         tmp = np.swapaxes(volume.array, 0, axis)
         for n, s in enumerate(tmp):
             if s.max() > cutoff:
@@ -87,7 +90,7 @@ def trim(volume, cutoff, margin=2):
                 high = min(tmp.shape[0], tmp.shape[0] - n + margin)
                 break
         extent.append(slice(low, high))
-    sub_array = volume.array[extent]
+    sub_array = volume.array[tuple(extent)]
     origin = [coor_origin + volume.voxelspacing * ext.start
             for coor_origin, ext in zip(volume.origin, extent[::-1])]
     return Volume(sub_array, volume.voxelspacing, origin)
@@ -96,7 +99,7 @@ def trim(volume, cutoff, margin=2):
 def extend(volume, shape):
     new_volume = zeros(shape, volume.voxelspacing, volume.origin)
     ind = [slice(x) for x in volume.shape]
-    new_volume.array[ind] = volume.array
+    new_volume.array[tuple(ind)] = volume.array
     return new_volume
 
 
@@ -210,7 +213,6 @@ def structure_to_shape_like(vol, xyz, resolution=None, weights=None,
         radii /= vol.voxelspacing
 
     sigma = (resolution / (np.sqrt(2.0) * np.pi)) / vol.voxelspacing
-
     # move the coordinates to the origin of the grid
     xyz_grid = xyz - np.asarray(vol.origin, dtype=np.float64).reshape(3, 1)
     xyz_grid /= vol.voxelspacing
@@ -259,8 +261,8 @@ class CCP4Parser(object):
     def __init__(self, fid):
 
         if isinstance(fid, str):
-            fhandle = open(fid)
-        elif isinstance(fid, file):
+            fhandle = open(fid, 'rb')
+        elif isinstance(fid, io.TextIOBase):
             fhandle = fid
         else:
             raise ValueError("Input should either be a file or filename.")
@@ -333,7 +335,7 @@ class CCP4Parser(object):
             else:
                 self.header[field] = header[index]
             index = end
-        self.header['label'] = ''.join(self.header['label'])
+        self.header['label'] = ''.join([x.decode("utf-8") for x in list(self.header['label'])])
 
     def _get_origin(self):
         start_fields = 'nsstart nrstart ncstart'.split()
@@ -472,9 +474,9 @@ def to_mrc(fid, volume, labels=[], fmt=None):
         for f in origin:
             out.write(_pack('f', f))
         for c in str_map:
-            out.write(_pack('c', c))
+            out.write(_pack('c', str.encode(c)))
         for c in machst:
-            out.write(_pack('c', c))
+            out.write(_pack('c', str.encode(c)))
         out.write(_pack('f', std_density))
         # max 10 labels
         # nlabels = min(len(labels), 10)
@@ -488,7 +490,7 @@ def to_mrc(fid, volume, labels=[], fmt=None):
         #     label = min(len(label), 80)
         out.write(_pack('i', nlabels))
         for c in labels:
-            out.write(_pack('c', c))
+            out.write(_pack('c', str.encode(c)))
         # write density
         modes = [np.int8, np.int16, np.float32]
         volume.array.astype(modes[mode]).tofile(out)
@@ -501,7 +503,7 @@ class XPLORParser(object):
 
     def __init__(self, fid):
 
-        if isinstance(fid, file):
+        if isinstance(fid, io.TextIOBase):
             fname = fid.name
         elif isinstance(fid, str):
             fname = fid

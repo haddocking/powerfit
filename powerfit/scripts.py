@@ -1,6 +1,9 @@
 from __future__ import division, absolute_import
+from __future__ import print_function
 from argparse import ArgumentParser, FileType
 from os.path import splitext
+from pathlib import Path
+import io
 
 from .volume import Volume, trim, resample, lower_resolution
 
@@ -36,27 +39,27 @@ def parse_em2em():
 def em2em():
     args = parse_em2em()
 
-    print 'Reading input file ...'
+    print('Reading input file ...')
     v = Volume.fromfile(args.infile, args.input_format)
 
     if args.resample is not None:
-        print 'Resampling ...'
+        print('Resampling ...')
         v = resample(v, v.voxelspacing / args.resample)
 
     if args.trim:
-        print 'Trimming ...'
+        print('Trimming ...')
         if args.trim_cutoff is None:
             args.trim_cutoff = 0.1 * v.array.max()
         v = trim(v, args.trim_cutoff)
 
-    print 'Writing to file ...'
+    print('Writing to file ...')
     v.tofile(args.outfile, args.output_format)
 
 
 def parse_image_pyramid():
     p = ArgumentParser()
 
-    p.add_argument('map', type=file, 
+    p.add_argument('map', type = str, #type=io.TextIOWrapper, 
             help='Initial density data.')
     p.add_argument('resolution', type=float, 
             help='Resolution of initial data.')
@@ -84,14 +87,13 @@ def parse_image_pyramid():
             raise ValueError('Target resolution of image-pyramid should be '
                 'lower than original data.')
     if args.base_name is None:
-        args.base_name = splitext(args.map.name)[0] 
+        args.base_name = Path(args.map).stem 
 
     return args
 
 
 def image_pyramid():
     args = parse_image_pyramid()
-
     # create image-pyramid
     vol = Volume.fromfile(args.map)
     fname = args.base_name + '_{:.0f}.mrc'

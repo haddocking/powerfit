@@ -1,10 +1,10 @@
+from __future__ import absolute_import
 import sys
 
 from powerfit.structure import Structure
 from powerfit.volume import structure_to_shape
 
 def main():
-
     structure = Structure.fromfile(sys.argv[1])
     template = structure_to_shape(
           structure.coor, resolution=float(sys.argv[2]),

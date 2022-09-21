@@ -70,6 +70,7 @@ Examples
 
 from __future__ import division, print_function
 
+from __future__ import absolute_import
 __version__ = '2015.01.29'
 __docformat__ = 'restructuredtext en'
 __all__ = 'ELEMENTS',

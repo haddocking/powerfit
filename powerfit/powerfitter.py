@@ -11,6 +11,7 @@ from string import Template
 import numpy as np
 from numpy.fft import irfftn as np_irfftn, rfftn as np_rfftn
 from scipy.ndimage import binary_erosion, laplace
+from six.moves import range
 try:
     from pyfftw import zeros_aligned, simd_alignment
     from pyfftw.builders import rfftn as rfftn_builder, irfftn as irfftn_builder
@@ -99,7 +100,7 @@ class PowerFitter(object):
         if self._queues is not None:
             self._njobs = len(self._queues)
 
-        for n in xrange(self._njobs):
+        for n in range(self._njobs):
             init_rot = n * self._nrot_per_job
             end_rot = init_rot + self._nrot_per_job
             if n == self._njobs - 1:
@@ -113,7 +114,7 @@ class PowerFitter(object):
                   ))
 
         time0 = time()
-        for n in xrange(self._njobs):
+        for n in range(self._njobs):
             processes[n].start()
 
         while self._counter.value() < nrot:
@@ -126,7 +127,7 @@ class PowerFitter(object):
             stdout.flush()
             sleep(0.5)
         stdout.write('\n')
-        for n in xrange(self._njobs):
+        for n in range(self._njobs):
             processes[n].join()
         self._combine()
 
@@ -318,7 +319,7 @@ class CPUCorrelator(BaseCorrelator):
         self._lcc.fill(0)
         self._rot.fill(0)
 
-        for n in xrange(self._rotations.shape[0]):
+        for n in range(self._rotations.shape[0]):
             # rotate template and mask
             self._translational_scan(self._rotations[n])
             # get the indices where the scanned lcc is greater
@@ -514,7 +515,7 @@ if OPENCL:
             self._glcc.fill(0)
             self._grot.fill(0)
             time0 = time()
-            for n in xrange(0, self._rotations.shape[0]):
+            for n in range(0, self._rotations.shape[0]):
 
                 rotmat = self._cl_rotations[n]
 
