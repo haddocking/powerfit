@@ -4,6 +4,8 @@ from math import sqrt
 from random import random
 
 import numpy as np
+import six
+from six.moves import zip
 
 
 def euler(angle, axis):
@@ -113,10 +115,14 @@ def proportional_orientations(angle):
 
     # determine the apropiate set to use
     smallestdiff = None
-    for s, n in rot_sets.iteritems():
+    for s, n in six.iteritems(rot_sets):
         alpha = n[1]
         diff = abs(angle - alpha)
-        if diff < smallestdiff or smallestdiff is None:
+        try:
+            if diff < smallestdiff:
+                smallestdiff = diff
+                fname = s
+        except TypeError:
             smallestdiff = diff
             fname = s
 

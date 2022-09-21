@@ -253,10 +253,17 @@ static PyMethodDef mymethods[] = {
 };
 
 
-PyMODINIT_FUNC
-init_extensions(void)
+static struct PyModuleDef extensions =
 {
-    (void) Py_InitModule("_extensions", mymethods);
-    import_array();
+    PyModuleDef_HEAD_INIT,
+    "_extensions", /* name of module */
+    "",          /* module documentation, may be NULL */
+    -1,          /* size of per-interpreter state of the module, or -1 if the module keeps state in global variables. */
+    mymethods
 };
 
+PyMODINIT_FUNC PyInit__extensions(void)
+{
+    import_array();	
+    return PyModule_Create(&extensions);
+};
