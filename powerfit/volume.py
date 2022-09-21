@@ -11,6 +11,7 @@ from ._powerfit import blur_points, dilate_points
 from six.moves import range
 from six.moves import zip
 import io
+import mrcfile
 
 class Volume(object):
 
@@ -235,9 +236,11 @@ def parse_volume(fid, fmt=None):
     if fmt is None:
         fmt = os.path.splitext(fname)[-1][1:]
     if fmt in ('ccp4', 'map'):
-        p = CCP4Parser(fname)
+        #p = CCP4Parser(fname)
+        p = MRCfileParser(fname)
     elif fmt == 'mrc':
-        p = MRCParser(fname)
+        #p = MRCParser(fname)
+        p = MRCfileParser(fname)
     elif fmt in ('xplor', 'cns'):
         p = XPLORParser(fname)
     else:
@@ -245,7 +248,7 @@ def parse_volume(fid, fmt=None):
     return p.density, p.voxelspacing, p.origin
 
 
-class CCP4Parser(object):
+"""class CCP4Parser(object):
 
     HEADER_SIZE = 1024
     HEADER_TYPE = ('i' * 10 + 'f' * 6 + 'i' * 3 + 'f' * 3 + 'i' * 3 +
@@ -386,10 +389,20 @@ class MRCParser(CCP4Parser):
     def _get_origin(self):
         origin_fields = 'xstart ystart zstart'.split()
         origin = [self.header[field] for field in origin_fields]
-        return origin
+        return origin"""
+
+class MRCfileParser(object):
+    
+    def __init__(self, filename):
+        # TODO: add check for orthaginality
+        with mrcfile.open(filename, 'r') as f:
+            self.density = f.data
+            self.voxelspacing = f.voxel_size.tolist()[0]
+            self.origin = np.array([f.header['nxstart'], f.header['nystart'], f.header['nzstart']])
 
 
-def to_mrc(fid, volume, labels=[], fmt=None):
+
+"""def to_mrc(fid, volume, labels=[], fmt=None):
 
     if fmt is None:
         fmt = os.path.splitext(fid)[-1][1:]
@@ -493,7 +506,25 @@ def to_mrc(fid, volume, labels=[], fmt=None):
             out.write(_pack('c', str.encode(c)))
         # write density
         modes = [np.int8, np.int16, np.float32]
-        volume.array.astype(modes[mode]).tofile(out)
+        volume.array.astype(modes[mode]).tofile(out)"""
+
+def to_mrc(fid, volume, fmt = None):
+    if fmt is None:
+        fmt = os.path.splitext(fid)[-1][1:]
+
+    if fmt not in ('ccp4', 'mrc', 'map'):
+        raise ValueError('Format is not recognized. Use ccp4, mrc, or map.')
+    
+    with mrcfile.new(fid, overwrite=True) as new:
+        new.set_data(volume.array)
+        vx = vy = vz = volume.voxelspacing
+        nx, ny, nz = volume.origin
+        new._set_voxel_size(vx, vy, vz)
+        new._set_nstart(nx, ny, nz)
+    
+
+
+
 
 
 class XPLORParser(object):
