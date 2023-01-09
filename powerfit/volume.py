@@ -11,7 +11,13 @@ from ._powerfit import blur_points, dilate_points
 from six.moves import range
 from six.moves import zip
 import io
+
+# Map parsers
 import mrcfile
+from TEMPy.maps.map_parser import MapParser
+from TEMPy.maps.em_map import Map
+from TEMPy.protein.structure_blurrer import StructureBlurrer
+
 
 class Volume(object):
 
@@ -192,6 +198,58 @@ def structure_to_shape(
     return out
 
 
+class StructureBlurrerbfac(StructureBlurrer):
+    # TEMPy 
+    def __init__(self, with_vc=False):
+        self.use_vc = False
+        import os
+        if with_vc or os.environ.get('BLUR_WITH_VC') is not None:
+            try:
+                __import__('voxcov')
+                self.use_vc = True
+            except ImportError:
+                print("voxcov not installed. Using standard blurring instead.")
+
+    def _gaussian_blur_real_space_vc_bfac(
+            self,
+            struct,
+            resolution,
+            exp_map,
+            sigma_coeff=0.356,
+            cutoff=4.0,
+    ):
+        import voxcov as vc
+        # print(type(exp_map))
+        blur_vc = vc.BlurMap(
+            exp_map.apix,
+            exp_map.origin,
+            [exp_map.x_size(), exp_map.y_size(), exp_map.z_size()],
+            cutoff,
+        )
+
+        # Constant for the b-factor sigma conversion 
+        sigma_conv = 3 / (8 * (np.pi**2))
+        
+        for a in struct.atomList:
+
+            sigma = sigma_conv * a.temp_fac * resolution * sigma_coeff
+            height = 0.4/sigma
+      
+            blur_vc.add_gaussian(
+                    [a.x, a.y, a.z],
+                    a.get_mass() * height, # height
+                    sigma_coeff * resolution # width
+            )
+        full_map = blur_vc.to_numpy()
+        return Map(
+                full_map,
+                exp_map.origin,
+                exp_map.apix,
+                exp_map.filename + "_simulated"
+        )
+    
+
+
 def structure_to_shape_like(vol, xyz, resolution=None, weights=None,
         radii=None, shape='vol'):
 
@@ -227,25 +285,23 @@ def structure_to_shape_like(vol, xyz, resolution=None, weights=None,
 
 
 # Volume parsers
+# Altered to EMMAP parsers 
 def parse_volume(fid, fmt=None):
     try:
         fname = fid.name
     except AttributeError:
         fname = fid
-
     if fmt is None:
         fmt = os.path.splitext(fname)[-1][1:]
-    if fmt in ('ccp4', 'map'):
-        #p = CCP4Parser(fname)
-        p = MRCfileParser(fname)
-    elif fmt == 'mrc':
+    if fmt in ('ccp4', 'map' , 'mrc'):
+    
         #p = MRCParser(fname)
-        p = MRCfileParser(fname)
+        p = MapParser.readMRC(fname)
     elif fmt in ('xplor', 'cns'):
-        p = XPLORParser(fname)
+        p = MapParser._readXPLOR(fname)
     else:
         raise ValueError('Extension of file is not supported.')
-    return p.density, p.voxelspacing, p.origin
+    return p.getMap(), p.apix[0], p.origin
 
 
 """class CCP4Parser(object):
@@ -345,7 +401,7 @@ def parse_volume(fid, fmt=None):
         start = [self.header[field] for field in start_fields]
         # Take care of axis order
         start = [start[x - 1] for x in self.order]
-        return np.asarray([x * self.voxelspacing for x in start])
+        return np.asarray([x * segit "tempy" ccpemlf.voxelspacing for x in start])
 
     def _get_density(self):
 
@@ -391,14 +447,20 @@ class MRCParser(CCP4Parser):
         origin = [self.header[field] for field in origin_fields]
         return origin"""
 
-class MRCfileParser(object):
-    
-    def __init__(self, filename):
-        # TODO: add check for orthaginality
-        with mrcfile.open(filename, 'r') as f:
-            self.density = f.data
-            self.voxelspacing = f.voxel_size.tolist()[0]
-            self.origin = np.array([f.header['nxstart'], f.header['nystart'], f.header['nzstart']])
+# TODO: Remove this if the TEMPy Parser is okay
+
+# class MRCfileParser(Map):
+#     # Inherited from Map in TEMPy Package
+#     # TODO: reference TEMPy package
+#     def __init__(self, filename):
+#         map = MapParser(filename)
+
+
+
+#         # TODO: add check for orthaginality
+#         self.density = self.getMap()
+#         self.voxelspacing = f.voxel_size.tolist()[0]
+#         self.origin = np.array([f.header['nxstart'], f.header['nystart'], f.header['nzstart']])
 
 
 
