@@ -177,8 +177,7 @@ class Structure(object):
     def chain_list(self):
         return np.unique(self.data['chain'])
 
-    def combine(self, structure):
-        return Structure(np.hstack((self.data, structure.data)))
+    
 
     @property
     def coor(self):
