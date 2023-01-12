@@ -17,8 +17,11 @@ import mrcfile
 from TEMPy.maps.map_parser import MapParser
 from TEMPy.maps.em_map import Map
 from TEMPy.protein.structure_blurrer import StructureBlurrer
+from TEMPy.map_process.process import MapEdit 
 
 
+
+# Completly change voume class to reflect 
 class Volume(object):
 
     @classmethod
@@ -62,6 +65,72 @@ class Volume(object):
         else:
             raise RuntimeError("Format is not supported.")
 
+
+class StructureBlurrerbfac(StructureBlurrer):
+    # TEMPy 
+    # Adaptation of TEMPy structure blurer which takes into account
+    # The b-factor of the molecule
+    # TODO: reference TEMPy
+    def __init__(self, outname:str, with_vc=False):
+        self.outname = outname
+        super().__init__(with_vc=with_vc)
+
+
+    def _gaussian_blur_real_space_vc_bfac(
+            self,
+            struct,
+            resolution,
+            exp_map,
+            SIGMA_COEFF=0.356,
+            cutoff=4.0,
+    ):
+
+        if not self.use_vc: return None 
+
+        import voxcov as vc
+
+        blur_vc = vc.BlurMap(
+            exp_map.apix,
+            exp_map.origin,
+            [exp_map.x_size(), exp_map.y_size(), exp_map.z_size()],
+            cutoff,
+        )
+
+        # Constant for the b-factor sigma conversion 
+        SIGMA_CONV = 3 / (8 * (np.pi**2))
+        
+        for a in struct.atomList:
+
+            sigma = SIGMA_CONV * a.temp_fac * resolution * SIGMA_COEFF
+            height = 0.4/sigma
+      
+            blur_vc.add_gaussian(
+                    [a.x, a.y, a.z],
+                    a.get_mass() * height, # height
+                    SIGMA_COEFF * resolution # width
+            )
+        full_map = blur_vc.to_numpy()
+        
+        return Map(
+                full_map,
+                exp_map.origin,
+                exp_map.apix,
+                self.outname,
+        )
+
+
+def maskMap(mapobj: Map) -> Map:
+    # TODO: Takes a Map object and returns a Mask of that Map
+    maskmap = mapobj.copy()
+
+    thres = MapEdit(maskmap).calculate_map_contour()
+
+    zeros = np.zeros(maskmap.fullMap.shape)
+    zeros[maskmap.fullMap >= thres] = 1
+
+    maskmap.fullMap = zeros
+
+    return maskmap
 
 # builders
 def zeros(shape, voxelspacing, origin):
@@ -198,60 +267,10 @@ def structure_to_shape(
     return out
 
 
-class StructureBlurrerbfac(StructureBlurrer):
-    # TEMPy 
-    def __init__(self, with_vc=False):
-        self.use_vc = False
-        import os
-        if with_vc or os.environ.get('BLUR_WITH_VC') is not None:
-            try:
-                __import__('voxcov')
-                self.use_vc = True
-            except ImportError:
-                print("voxcov not installed. Using standard blurring instead.")
-
-    def _gaussian_blur_real_space_vc_bfac(
-            self,
-            struct,
-            resolution,
-            exp_map,
-            sigma_coeff=0.356,
-            cutoff=4.0,
-    ):
-        import voxcov as vc
-        # print(type(exp_map))
-        blur_vc = vc.BlurMap(
-            exp_map.apix,
-            exp_map.origin,
-            [exp_map.x_size(), exp_map.y_size(), exp_map.z_size()],
-            cutoff,
-        )
-
-        # Constant for the b-factor sigma conversion 
-        sigma_conv = 3 / (8 * (np.pi**2))
-        
-        for a in struct.atomList:
-
-            sigma = sigma_conv * a.temp_fac * resolution * sigma_coeff
-            height = 0.4/sigma
-      
-            blur_vc.add_gaussian(
-                    [a.x, a.y, a.z],
-                    a.get_mass() * height, # height
-                    sigma_coeff * resolution # width
-            )
-        full_map = blur_vc.to_numpy()
-        return Map(
-                full_map,
-                exp_map.origin,
-                exp_map.apix,
-                exp_map.filename + "_simulated"
-        )
-    
-
 
 def structure_to_shape_like(vol, xyz, resolution=None, weights=None,
         radii=None, shape='vol'):
+        # shape like closer to 
 
     if resolution is None:
         resolution = vol.resolution
@@ -463,7 +482,7 @@ class MRCParser(CCP4Parser):
 #         self.origin = np.array([f.header['nxstart'], f.header['nystart'], f.header['nzstart']])
 
 
-
+# TODO: Look through this to see what information to keep
 """def to_mrc(fid, volume, labels=[], fmt=None):
 
     if fmt is None:
@@ -504,10 +523,7 @@ class MRCParser(CCP4Parser):
     if _BYTEORDER == 'little':
         machst = list('\x44\x41\x00\x00')
     elif _BYTEORDER == 'big':
-        machst = list('\x44\x41\x00\x00')
-    else:
-        raise ValueError("Byteorder {:} is not recognized".format(byteorder))
-    labels = [' '] * 800
+        machst = listructure* 800
     nlabels = 0
     min_density = volume.array.min()
     max_density = volume.array.max()
@@ -570,19 +586,29 @@ class MRCParser(CCP4Parser):
         modes = [np.int8, np.int16, np.float32]
         volume.array.astype(modes[mode]).tofile(out)"""
 
-def to_mrc(fid, volume, fmt = None):
+
+# TODO: Update this function to reflect EM changes
+# Maybe get rid of fmt
+def to_mrc(fid, volume: np.ndarray, fmt = None):
     if fmt is None:
         fmt = os.path.splitext(fid)[-1][1:]
 
     if fmt not in ('ccp4', 'mrc', 'map'):
         raise ValueError('Format is not recognized. Use ccp4, mrc, or map.')
+
     
-    with mrcfile.new(fid, overwrite=True) as new:
-        new.set_data(volume.array)
-        vx = vy = vz = volume.voxelspacing
-        nx, ny, nz = volume.origin
-        new._set_voxel_size(vx, vy, vz)
-        new._set_nstart(nx, ny, nz)
+    # TODO: Was having saving issues - double check code
+    # Convert back into 3 variables for TEMPy
+    vx = vy = vz = volume.voxelspacing
+    map = Map(
+        volume.array,
+        volume.origin,
+        (vx, vy, vz),
+        fid
+        )
+    
+    map.update_header()
+    map.write_to_MRC_file(fid)
     
 
 

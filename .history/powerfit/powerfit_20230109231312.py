@@ -22,7 +22,7 @@ from powerfit.volume import extend, nearest_multiple2357, trim, resample
 def parse_args():
     """Parse command-line options."""
 
-    p = ArgumentParser():
+    p = ArgumentParser()
 
     # Positional arguments
     p.add_argument('target', type=FileType('rb'),

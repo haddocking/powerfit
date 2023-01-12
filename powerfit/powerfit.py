@@ -10,14 +10,14 @@ from argparse import ArgumentParser, FileType
 import logging
 
 from powerfit import (
-      Volume, Structure, structure_to_shape_like, proportional_orientations,
+      Volume, structure_to_shape_like, proportional_orientations,
       quat_to_rotmat, determine_core_indices
       )
 from powerfit.powerfitter import PowerFitter
 from powerfit.analyzer import Analyzer
 from powerfit.helpers import mkdir_p, write_fits_to_pdb, fisher_sigma
-from powerfit.volume import extend, nearest_multiple2357, trim, resample
-
+from powerfit.volume import StructureBlurrerbfac, extend, nearest_multiple2357, trim, resample
+from powerfit.structure import Structure
 
 def parse_args():
     """Parse command-line options."""
@@ -40,6 +40,10 @@ def parse_args():
             help='Rotational sampling density in degree. Increasing '
                  'this number by a factor of 2 results in approximately '
                  '8 times more rotations sampled.')
+
+    p.add_argument('-bf', '--b-factor_weighted', dest='bfac', action='store_true',
+            help ='Uses b-factor information when creating the simulated map file  '
+                  'False by default')
     # Scoring flags
     p.add_argument('-l', '--laplace', dest='laplace', action='store_true',
             help='Use the Laplace pre-filter density data. '
@@ -62,12 +66,13 @@ def parse_args():
             help='Intensity cutoff to which the map will be trimmed. '
                  'Default is 10 percent of maximum intensity.')
     # Selection parameter
-    p.add_argument('-c', '--chain', dest='chain', type=str, default=None,
+    #TODO: reimplement this when I fix selection
+    """p.add_argument('-c', '--chain', dest='chain', type=str, default=None,
             metavar='<char>',
             help=('The chain IDs of the structure to be fitted. '
                   'Multiple chains can be selected using a comma separated list, i.e. -c A,B,C. '
                   'Default is the whole structure.'),
-                 )
+                 )"""
     # Output parameters
     p.add_argument('-d', '--directory', dest='directory', type=abspath, default='.',
             metavar='<dir>',
@@ -154,15 +159,20 @@ def main():
 
     # Read in structure or high-resolution map
     write('Template file read from: {:s}'.format(abspath(args.template.name)))
-    structure = Structure.fromfile(args.template)
+    structure = Structure.fromfile(abspath(args.template.name))
     if args.chain is not None:
         write('Selecting chains: ' + args.chain)
         structure = structure.select('chain', args.chain.split(','))
-    if structure.data.size == 0:
-        raise ValueError("No atoms were selected.")
+
+    # TODO: Figure out what size means, maybe the size of the dict
+    # if structure.data.size == 0:
+    #     raise ValueError("No atoms were selected.")
+
 
     # Move structure to origin of density
+    # structure.translate(target.origin - structure.centre_of_mass)
     structure.translate(target.origin - structure.coor.mean(axis=1))
+
     template = structure_to_shape_like(
           target, structure.coor, resolution=resolution,
           weights=structure.atomnumber, shape='vol'
@@ -182,7 +192,7 @@ def main():
     if args.core_weighted:
         write('Calculating core-weighted mask.')
         mask.array = determine_core_indices(mask.array)
-
+    
     pf = PowerFitter(target, laplace=args.laplace)
     pf._rotations = rotmat
     pf._template = template

@@ -11,6 +11,10 @@ from six.moves import range
 from six.moves import zip
 import io
 
+# TEMPy Parsers
+from TEMPy.protein.structure_parser import PDBParser, mmCIFParser
+import copy
+
 # records
 MODEL = 'MODEL '
 ATOM = 'ATOM  '
@@ -146,50 +150,73 @@ def pdb_array_to_dict(pdb_array):
     pdb['model'] = pdb_array['model'].tolist()
     return pdb
 
-
+# I think the issue is with the duplication of the Structure clas
+# I think as it duplicates the translation stays so it moves away
+# again and again so need to sort that out...
 class Structure(object):
 
     @classmethod
     def fromfile(cls, fid):
+        #TODO: Reference TEMPy
         """Initialize Structure from PDB-file"""
+        
         try:
             fname = fid.name
         except AttributeError:
             fname = fid
 
         if fname[-3:] in ('pdb', 'ent'):
-            arr = pdb_dict_to_array(parse_pdb(fid))
+            prot = PDBParser.read_PDB_file(
+                fid,
+                fid,
+                hetatm=False,
+                water=False)
         elif fname[-3:] == 'cif':
-            arr = mmcif_dict_to_array(parse_mmcif(fid))
+            prot = mmCIFParser.read_mmCIF_file(
+                fid,
+                hetatm=True,
+                water=False)
         else:
             raise IOError('Filetype not recognized.')
-        return cls(arr)
+        
+        return cls(prot)
 
-    def __init__(self, pdb):
-        self.data = pdb
-
+    def __init__(self, prot):
+        self.prot = prot
+        
     @property
     def atomnumber(self):
         """Return array of atom numbers"""
         return self._get_property('number')
 
     @property
-    def chain_list(self):
-        return np.unique(self.data['chain'])
+    def prot(self):
+        return self.__prot
 
-    
+    @prot.setter
+    def prot(self, prot):
+        self.__prot = prot
+
+    @property
+    def chain_list(self):
+        return self.prot.get_chain_list()
 
     @property
     def coor(self):
         """Return the coordinates"""
-        return np.asarray([self.data['x'], self.data[ 'y'], self.data['z']])
+        return np.asarray([*zip(*[atom.get_pos_vector()for atom in self.prot.atomList])])
 
     def duplicate(self):
         """Duplicate the object"""
-        return Structure(self.data.copy())
+        protdupe = self.__prot.copy()
+        structure = copy.copy(self)
+        structure.prot = protdupe
+        return structure
 
     def _get_property(self, ptype):
-        elements, ind = np.unique(self.data['e'], return_inverse=True)
+        elements, ind = np.unique(
+            [atom.elem for atom in self.prot.atomList], return_inverse=True
+            )
         return np.asarray([getattr(ELEMENTS[capwords(e)], ptype) 
             for e in elements], dtype=np.float64)[ind]
 
@@ -200,14 +227,30 @@ class Structure(object):
     def rmsd(self, structure):
         return np.sqrt(((self.coor - structure.coor) ** 2).mean() * 3)
 
-    def rotate(self, rotmat):
+    def rotate(self,
+            rotmat,
+            x_trans = 0,
+            y_trans = 0,
+            z_trans = 0):
         """Rotate atoms"""
-        self.data['x'], self.data['y'], self.data['z'] = (
-              np.asmatrix(rotmat) * np.asmatrix(self.coor)
-              )
+        
+        # com = self.prot.CoM
+        # newcom = com.matrix_transform(rotmat)
+        # offset = com - newcom
+        self.prot.matrix_transform(rotmat)
 
-    def select(self, identifier, values, loperator='==', return_ind=False):
-        """A simple way of selecting atoms"""
+        # self.prot.translate(
+        #     x_trans + offset.x,
+        #     y_trans + offset.y,
+        #     z_trans + offset.z
+        # )
+        
+
+    # TODO: Go over this, Don't want to tackle it right now
+
+
+    """def select(self, identifier, values, loperator='==', return_ind=False):
+        \"""A simple way of selecting atoms\"""
         if loperator == '==':
             oper = operator.eq
         elif loperator == '<':
@@ -238,25 +281,39 @@ class Structure(object):
             return selection
         else:
             return Structure(self.data[selection])
-
+"""
     @property
     def sequence(self):
-        resids, indices = np.unique(self.data['resi'], return_index=True)
-        return self.data['resn'][indices]
+        return np.asarray([atom.res for atom in self.prot.get_CAonly()])
 
     def translate(self, trans):
         """Translate atoms"""
-        self.data['x'] += trans[0]
-        self.data['y'] += trans[1]
-        self.data['z'] += trans[2]
+        tx, ty, tz = trans
+        self.prot.translate(tx, ty, tz)
 
-    def tofile(self, fid):
+    def tofile(self, fid, outtype = 'pdb'):
         """Write instance to PDB-file"""
-        tofile(pdb_array_to_dict(self.data), fid)
+        if outtype == 'pdb':
+            # TODO: sort out a bug where 7zoa with hetatm
+            # Doesn't work and gets 0 mass total
+            # 
+            self.prot.write_to_PDB(fid)
+
+        elif outtype == 'mmcif':
+            self.prot.write_to_mmcif(fid)
+            
+        else:
+            raise IOError('Filetype not recognized.')
 
     @property
     def rvdw(self):
         return self._get_property('vdwrad')
+    
+    @property
+    def centre_of_mass(self):
+        return np.array([x for x in self.prot.CoM])
+
+
 
 
 def parse_mmcif(infile):
