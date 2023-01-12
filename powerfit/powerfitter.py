@@ -81,11 +81,11 @@ class PowerFitter(object):
             self._gpu_scan()
 
     def _gpu_scan(self):
-        self._corr = GPUCorrelator(self._target.array, self._queues[0],
+        self._corr = GPUCorrelator(self._target.grid, self._queues[0],
                 laplace=self._laplace)
 
-        self._corr.template = self._template.array
-        self._corr.mask = self._mask.array
+        self._corr.template = self._template.grid
+        self._corr.mask = self._mask.grid
         self._corr.rotations = self._rotations
         self._corr.scan()
         self._lcc = self._corr.lcc
@@ -134,9 +134,9 @@ class PowerFitter(object):
     @staticmethod
     def _run_correlator_instance(target, template, mask, rotations, laplace,
             counter, jobid, queues, directory):
-        correlator = CPUCorrelator(target.array, laplace=laplace)
-        correlator.template = template.array
-        correlator.mask = mask.array
+        correlator = CPUCorrelator(target.grid, laplace=laplace)
+        correlator.template = template.grid
+        correlator.mask = mask.grid
         correlator.rotations = rotations
         correlator._counter = counter
         correlator.scan()

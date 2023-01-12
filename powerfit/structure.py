@@ -13,8 +13,7 @@ import io
 
 # TEMPy Parsers
 from TEMPy.protein.structure_parser import PDBParser, mmCIFParser
-import copy
-
+from copy import copy
 # records
 MODEL = 'MODEL '
 ATOM = 'ATOM  '
@@ -197,6 +196,13 @@ class Structure(object):
     def prot(self, prot):
         self.__prot = prot
 
+    
+    @property
+    def bfacs(self):
+        return np.asarray([a.temp_fac for a
+                            in self.__prot.atomList])
+
+
     @property
     def chain_list(self):
         return self.prot.get_chain_list()
@@ -209,7 +215,7 @@ class Structure(object):
     def duplicate(self):
         """Duplicate the object"""
         protdupe = self.__prot.copy()
-        structure = copy.copy(self)
+        structure = copy(self)
         structure.prot = protdupe
         return structure
 

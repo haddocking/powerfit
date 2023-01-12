@@ -5,9 +5,10 @@ test-cases/
 analysis/
 .history/
 .ipynb_checkpoints/
+dist/
 powerfit/.structure.py
 scripts/gemmilist.txt
+scripts/xyz_fixed.py
 scripts/structtest.py
 *.c
 *.pyc
-dist/

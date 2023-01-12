@@ -10,13 +10,13 @@ from argparse import ArgumentParser, FileType
 import logging
 
 from powerfit import (
-      Volume, structure_to_shape_like, proportional_orientations,
+      Volume, structure_to_shape_TEMPy, structure_to_shape_like, proportional_orientations,
       quat_to_rotmat, determine_core_indices
       )
 from powerfit.powerfitter import PowerFitter
 from powerfit.analyzer import Analyzer
 from powerfit.helpers import mkdir_p, write_fits_to_pdb, fisher_sigma
-from powerfit.volume import StructureBlurrerbfac, extend, nearest_multiple2357, trim, resample
+from powerfit.volume import extend, nearest_multiple2357, trim, resample
 from powerfit.structure import Structure
 
 def parse_args():
@@ -149,7 +149,7 @@ def main():
     # Trim target density if requested
     if not args.no_trimming:
         if args.trimming_cutoff is None:
-            args.trimming_cutoff = target.array.max() / 10
+            args.trimming_cutoff = target.grid.max() / 10
         target = trim(target, args.trimming_cutoff)
         write(('Shape after trimming:' + ' {:d}'*3).format(*target.shape))
     # Extend the density to a multiple of 2, 3, 5, and 7 for clFFT
@@ -160,9 +160,11 @@ def main():
     # Read in structure or high-resolution map
     write('Template file read from: {:s}'.format(abspath(args.template.name)))
     structure = Structure.fromfile(abspath(args.template.name))
-    if args.chain is not None:
-        write('Selecting chains: ' + args.chain)
-        structure = structure.select('chain', args.chain.split(','))
+
+    # TODO: add this back in to at some point
+    # if args.chain is not None:
+    #     write('Selecting chains: ' + args.chain)
+    #     structure = structure.select('chain', args.chain.split(','))
 
     # TODO: Figure out what size means, maybe the size of the dict
     # if structure.data.size == 0:
@@ -173,13 +175,11 @@ def main():
     # structure.translate(target.origin - structure.centre_of_mass)
     structure.translate(target.origin - structure.coor.mean(axis=1))
 
-    template = structure_to_shape_like(
-          target, structure.coor, resolution=resolution,
-          weights=structure.atomnumber, shape='vol'
+    template = structure_to_shape_TEMPy(
+          target, structure, resolution=resolution,
+          bfac = args.bfac
           )
-    mask = structure_to_shape_like(
-          target, structure.coor, resolution=resolution, shape='mask'
-          )
+    mask = template.maskMap()
 
     # Read in the rotations to sample
     write('Reading in rotations.')
@@ -191,7 +191,7 @@ def main():
     # Apply core-weighted mask if requested
     if args.core_weighted:
         write('Calculating core-weighted mask.')
-        mask.array = determine_core_indices(mask.array)
+        mask.grid = determine_core_indices(mask.grid)
     
     pf = PowerFitter(target, laplace=args.laplace)
     pf._rotations = rotmat
@@ -211,9 +211,11 @@ def main():
 
     write('Analyzing results')
     # calculate the molecular volume of the structure
-    mv = structure_to_shape_like(
-          target, structure.coor, resolution=resolution, radii=structure.rvdw, shape='mask'
-          ).array.sum() * target.voxelspacing ** 3
+
+
+    mv = structure_to_shape_TEMPy(
+          target, structure, resolution=resolution, radii=structure.rvdw, shape='mask'
+          ).grid.sum() * target.voxelspacing ** 3
     z_sigma = fisher_sigma(mv, resolution)
     analyzer = Analyzer(
             pf._lcc, rotmat, pf._rot, voxelspacing=target.voxelspacing,
@@ -221,7 +223,7 @@ def main():
             )
 
     write('Writing solutions to file.')
-    Volume(pf._lcc, target.voxelspacing, target.origin).tofile(join(args.directory, 'lcc.mrc'))
+    Volume.fromdata(pf._lcc, target.voxelspacing, target.origin).tofile(join(args.directory, 'lcc.mrc'))
     analyzer.tofile(join(args.directory, 'solutions.out'))
 
     write('Writing PDBs to file.')
