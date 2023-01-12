@@ -3,6 +3,8 @@ env/
 packages/
 test-cases/
 analysis/
+.history/
+.ipynb_checkpoints/
 
 *.c
 *.pyc
