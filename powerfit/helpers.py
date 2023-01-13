@@ -50,7 +50,7 @@ def fisher_sigma(mv, fsc):
     return 1 / sqrt(mv / fsc - 3)
 
 
-def write_fits_to_pdb(structure, solutions, basename='fit'):
+def write_fits_to_pdb(structure, solutions, basename='fit', xyz_fixed = False):
     translated_structure = structure.duplicate()
     center = translated_structure.coor.mean(axis=1)
     translated_structure.translate(-center)
@@ -60,4 +60,5 @@ def write_fits_to_pdb(structure, solutions, basename='fit'):
         trans = sol[3:6]
         out.rotate(rot)
         out.translate(trans)
+        if xyz_fixed: out.combine(xyz_fixed)
         out.tofile(basename + '_{:d}.pdb'.format(n))

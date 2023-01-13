@@ -16,7 +16,7 @@ from powerfit import (
 from powerfit.powerfitter import PowerFitter
 from powerfit.analyzer import Analyzer
 from powerfit.helpers import mkdir_p, write_fits_to_pdb, fisher_sigma
-from powerfit.volume import extend, nearest_multiple2357, trim, resample
+from powerfit.volume import extend, nearest_multiple2357, trim, resample, xyz_fixed 
 from powerfit.structure import Structure
 
 def parse_args():
@@ -44,6 +44,10 @@ def parse_args():
     p.add_argument('-bf', '--b-factor_weighted', dest='bfac', action='store_true',
             help ='Uses b-factor information when creating the simulated map file  '
                   'False by default')
+    
+    p.add_argument('-f', '--xyz_fixed', dest = 'xyz_fixed',type=FileType('rb'),
+            help= 'Runs Powerfit with a fixed model. '
+                  'Format should either be PDB or mmCIF')
     # Scoring flags
     p.add_argument('-l', '--laplace', dest='laplace', action='store_true',
             help='Use the Laplace pre-filter density data. '
@@ -160,6 +164,9 @@ def main():
     # Read in structure or high-resolution map
     write('Template file read from: {:s}'.format(abspath(args.template.name)))
     structure = Structure.fromfile(abspath(args.template.name))
+    if args.xyz_fixed:
+        write('Fixed model file read from: {:s}'.format(abspath(args.xyz_fixed.name)))
+        xyz_fixed_structure = Structure.fromfile(abspath(args.xyz_fixed.name))
 
     # TODO: add this back in to at some point
     # if args.chain is not None:
@@ -179,6 +186,17 @@ def main():
           target, structure, resolution=resolution,
           bfac = args.bfac
           )
+
+    if args.xyz_fixed:
+        fixed_vol = structure_to_shape_TEMPy(
+            target, xyz_fixed_structure, resolution=resolution,
+            bfac = args.bfac
+            )
+        template = xyz_fixed(
+            target,
+            fixed_vol
+        )
+
     mask = template.maskMap()
 
     # Read in the rotations to sample
@@ -214,8 +232,11 @@ def main():
 
 
     mv = structure_to_shape_TEMPy(
-          target, structure, resolution=resolution, radii=structure.rvdw, shape='mask'
-          ).grid.sum() * target.voxelspacing ** 3
+          target, structure, resolution=resolution, 
+          ).maskMap().grid.sum() * target.voxelspacing ** 3
+    
+    
+    
     z_sigma = fisher_sigma(mv, resolution)
     analyzer = Analyzer(
             pf._lcc, rotmat, pf._rot, voxelspacing=target.voxelspacing,
@@ -228,8 +249,10 @@ def main():
 
     write('Writing PDBs to file.')
     n = min(args.num, len(analyzer.solutions))
+    if args.xyz_fixed: fixed = xyz_fixed_structure
+    else: fixed = False
     write_fits_to_pdb(structure, analyzer.solutions[:n],
-            basename=join(args.directory, 'fit'))
+            basename=join(args.directory, 'fit'), xyz_fixed=fixed)
 
     write('Total time: {:.0f}m {:.0f}s'.format(*divmod(time() - time0, 60)))
 

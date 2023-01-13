@@ -202,7 +202,6 @@ class Structure(object):
         return np.asarray([a.temp_fac for a
                             in self.__prot.atomList])
 
-
     @property
     def chain_list(self):
         return self.prot.get_chain_list()
@@ -233,24 +232,13 @@ class Structure(object):
     def rmsd(self, structure):
         return np.sqrt(((self.coor - structure.coor) ** 2).mean() * 3)
 
-    def rotate(self,
-            rotmat,
-            x_trans = 0,
-            y_trans = 0,
-            z_trans = 0):
+    def rotate(self, rotmat):
         """Rotate atoms"""
-        
-        # com = self.prot.CoM
-        # newcom = com.matrix_transform(rotmat)
-        # offset = com - newcom
+     
         self.prot.matrix_transform(rotmat)
-
-        # self.prot.translate(
-        #     x_trans + offset.x,
-        #     y_trans + offset.y,
-        #     z_trans + offset.z
-        # )
-        
+    
+    def combine(self, structure):
+        self.__prot.add_structure_instance(structure.prot)
 
     # TODO: Go over this, Don't want to tackle it right now
 

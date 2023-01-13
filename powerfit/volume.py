@@ -125,6 +125,7 @@ class Volume(object):
 
     def maskMap(self):
         # TODO: Takes a Map object and returns a Mask of that Map
+        # Temporary, look into how TEMPy does this, incorporate a radaii
         maskmap = self.__vol.copy()
         maskmap.update_header()
         thres = MapEdit(maskmap).calculate_map_contour()
@@ -411,169 +412,26 @@ either in the Volume class or as a kwarg")
     # vol = Volume.fromMap(simmap)
     # vol.tofile(sys.argv[3])
 
-
-# Volume parsers
-# Altered to EMMAP parsers 
-def parse_volume(fid, fmt=None):
-    try:
-        fname = fid.name
-    except AttributeError:
-        fname = fid
-    if fmt is None:
-        fmt = os.path.splitext(fname)[-1][1:]
-    if fmt in ('ccp4', 'map' , 'mrc'):
+def xyz_fixed(
+    target: Volume,
+    vol: Volume,
+    ) -> Volume:
     
-        #p = MRCParser(fname)
-        p = MapParser.readMRC(fname)
-    elif fmt in ('xplor', 'cns'):
-        p = MapParser._readXPLOR(fname)
-    else:
-        raise ValueError('Extension of file is not supported.')
-    return p
+    # Needs to be the same shape to work
+    assert target.shape == vol.shape
 
+    # scale the simulated map to the real map
+    scaled_grid = (vol.grid- np.min(vol.grid) )/( np.max(
+                vol.grid)-np.min(vol.grid))*np.max(target.grid)
 
-"""class CCP4Parser(object):
+    # Duplicate the volume object for cut volume
+    reduced_vol = target.duplicate()
+    reduced_vol.grid -= scaled_grid
 
-    HEADER_SIZE = 1024
-    HEADER_TYPE = ('i' * 10 + 'f' * 6 + 'i' * 3 + 'f' * 3 + 'i' * 3 +
-                   'f' * 27 + 'c' * 8 + 'f' * 1 + 'i' * 1 + 'c' * 800)
-    HEADER_FIELDS = (
-          'nc nr ns mode ncstart nrstart nsstart nx ny nz xlength ylength '
-          'zlength alpha beta gamma mapc mapr maps amin amax amean ispg '
-          'nsymbt lskflg skwmat skwtrn extra xstart ystart zstart map '
-          'machst rms nlabel label'
-          ).split()
-    HEADER_CHUNKS = [1] * 25 + [9, 3, 12] + [1] * 3 + [4, 4, 1, 1, 800]
+    # Remove negative info
+    reduced_vol.grid[reduced_vol.grid < 0] = 0
 
-    def __init__(self, fid):
-
-        if isinstance(fid, str):
-            fhandle = open(fid, 'rb')
-        elif isinstance(fid, io.TextIOBase):
-            fhandle = fid
-        else:
-            raise ValueError("Input should either be a file or filename.")
-
-        self.fhandle = fhandle
-        self.fname = fhandle.name
-
-        # first determine the endiannes of the file
-        self._get_endiannes()
-        # get the header
-        self._get_header()
-        # Symmetry and non-rectangular boxes are not supported.
-        is_orthogonal = True
-        for angle_name in ['alpha', 'beta', 'gamma']:
-            angle = self.header[angle_name]
-            if abs(angle - 90) > 1e-3:
-                is_orthogonal = False
-                break
-        if not is_orthogonal:
-            msg = "Only densities in rectangular boxes are supported."
-            raise RuntimeError(msg)
-
-        # check the order of axis in the file
-        self._get_order()
-        # determine the voxelspacing and origin
-        spacings = []
-        for axis_name in 'xyz':
-            length = self.header[axis_name + 'length']
-            nvoxels = self.header['n' + axis_name]
-            spacing = length / float(nvoxels)
-            spacings.append(spacing)
-
-        equal_spacing = True
-        average = sum(spacings) / float(len(spacings))
-        for spacing in spacings:
-            if abs(spacing - average) > 1e-4:
-                equal_spacing = False
-        if not equal_spacing:
-            msg = "Voxel spacing is not equal in all directions."
-            raise RuntimeError(msg)
-
-        self.voxelspacing = spacings[0]
-        self.origin = self._get_origin()
-        # generate the density
-        shape_fields = 'nz ny nx'.split()
-        self.shape = [self.header[field] for field in shape_fields]
-        self._get_density()
-
-    def _get_endiannes(self):
-        self.fhandle.seek(212)
-        m_stamp = hex(ord(self.fhandle.read(1)))
-        if m_stamp == '0x44':
-            endian = '<'
-        elif m_stamp == '0x11':
-            endian = '>'
-        else:
-            raise RuntimeError('Endiannes is not properly set in file. Check the file format.')
-        self._endian = endian
-        self.fhandle.seek(0)
-
-    def _get_header(self):
-        header = _unpack(self._endian + self.HEADER_TYPE,
-                         self.fhandle.read(self.HEADER_SIZE))
-        self.header = {}
-        index = 0
-        for field, nchunks in zip(self.HEADER_FIELDS, self.HEADER_CHUNKS):
-            end = index + nchunks
-            if nchunks > 1:
-                self.header[field] = header[index: end]
-            else:
-                self.header[field] = header[index]
-            index = end
-        self.header['label'] = ''.join([x.decode("utf-8") for x in list(self.header['label'])])
-
-    def _get_origin(self):
-        start_fields = 'nsstart nrstart ncstart'.split()
-        start = [self.header[field] for field in start_fields]
-        # Take care of axis order
-        start = [start[x - 1] for x in self.order]
-        return np.asarray([x * segit "tempy" ccpemlf.voxelspacing for x in start])
-
-    def _get_density(self):
-
-        # Determine the dtype of the file based on the mode
-        mode = self.header['mode']
-        if mode == 0:
-            dtype = 'i1'
-        elif mode == 1:
-            dtype = 'i2'
-        elif mode == 2:
-            dtype = 'f4'
-
-        density = np.fromfile(self.fhandle, dtype=self._endian + dtype).reshape(self.shape)
-        if self.order == (1, 3, 2):
-            self.density = np.swapaxes(self.density, 0, 1)
-        elif self.order == (2, 1, 3):
-            self.density = np.swapaxes(self.density, 1, 2)
-        elif self.order == (2, 3, 1):
-            self.density = np.swapaxes(self.density, 2, 0)
-            self.density = np.swapaxes(self.density, 0, 1)
-        elif self.order == (3, 1, 2):
-            self.density = np.swapaxes(self.density, 2, 1)
-            self.density = np.swapaxes(self.density, 0, 2)
-        elif self.order == (3, 2, 1):
-            self.density = np.swapaxes(self.density, 0, 2)
-
-        # Upgrade precision to double if float, and to int32 if int16
-        if mode == 1:
-            density = density.astype(np.int32)
-        elif mode == 2:
-            density = density.astype(np.float64)
-        self.density =density
-
-    def _get_order(self):
-        self.order = tuple(self.header[axis] for axis in ('mapc', 'mapr',
-            'maps'))
-
-
-class MRCParser(CCP4Parser):
-
-    def _get_origin(self):
-        origin_fields = 'xstart ystart zstart'.split()
-        origin = [self.header[field] for field in origin_fields]
-        return origin"""
+    return reduced_vol
 
 # TODO: Remove this if the TEMPy Parser is okay
 
