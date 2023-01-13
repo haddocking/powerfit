@@ -1,6 +1,6 @@
 Metadata-Version: 2.1
 Name: powerfit
-Version: 2.0.0
+Version: 1.1.0
 Summary: Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps
 Home-page: https://github.com/haddocking/powerfit
 Author: Gydo C.P. van Zundert

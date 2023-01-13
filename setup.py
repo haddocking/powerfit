@@ -39,7 +39,7 @@ def main():
         "low-resolution cryo-electron microscopy density maps")
 
     setup(name="powerfit",
-          version='2.0.0',
+          version='1.1.0',
           description=description,
           url="https://github.com/haddocking/powerfit",
           author='Gydo C.P. van Zundert',
@@ -56,7 +56,7 @@ def main():
           install_requires=['numpy>=1.8', 'scipy'],
           entry_points={
               'console_scripts': [
-                  'powerfit = powerfit.powerfit:main',
+                  'powerfit = powerfit.powerfit:run',
                   'image-pyramid = powerfit.scripts:image_pyramid',
                   'em2em = powerfit.scripts:em2em',
                   ]

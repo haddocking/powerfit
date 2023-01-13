@@ -3,6 +3,7 @@ from struct import unpack as _unpack, pack as _pack
 import os.path
 from sys import byteorder as _BYTEORDER
 import warnings
+from pathlib import Path
 
 import numpy as np
 from scipy.ndimage import zoom, gaussian_filter
@@ -122,6 +123,10 @@ class Volume(object):
         volume = copy(self)
         volume.vol = voldupe
         return volume
+
+    @property
+    def absolute(self):
+        return str(Path(self.__vol.filename).resolve())
 
     def maskMap(self):
         # TODO: Takes a Map object and returns a Mask of that Map
@@ -412,7 +417,7 @@ either in the Volume class or as a kwarg")
     # vol = Volume.fromMap(simmap)
     # vol.tofile(sys.argv[3])
 
-def xyz_fixed(
+def xyz_fixed_transform(
     target: Volume,
     vol: Volume,
     ) -> Volume:

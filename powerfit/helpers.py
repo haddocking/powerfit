@@ -14,13 +14,10 @@ from . import volume
 
 
 def mkdir_p(path):
-    try:
-        os.makedirs(path)
-    except OSError as exc:
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
-            pass
-        else:
-            raise
+    if not path.exists():
+        path.mkdir()
+    else:
+        pass
 
 
 def determine_core_indices(mask):
@@ -50,15 +47,34 @@ def fisher_sigma(mv, fsc):
     return 1 / sqrt(mv / fsc - 3)
 
 
-def write_fits_to_pdb(structure, solutions, basename='fit', xyz_fixed = False):
+def write_fits_to_pdb(
+    structure,
+    solutions, 
+    basename='fit', 
+    xyz_fixed = False,
+    return_files = True,
+    return_instances = False
+    ):
+
+    if not return_files and not return_instances:
+        raise AssertionError('Either return_files or return_instances must be specified.')
+
     translated_structure = structure.duplicate()
     center = translated_structure.coor.mean(axis=1)
     translated_structure.translate(-center)
+
+    # output list a list of structure instances
+    if return_instances:    output_list = []
     for n, sol in enumerate(solutions, start=1):
         out = translated_structure.duplicate()
         rot = np.asarray([float(x) for x in sol[6:]]).reshape(3, 3)
         trans = sol[3:6]
         out.rotate(rot)
         out.translate(trans)
-        if xyz_fixed: out.combine(xyz_fixed)
-        out.tofile(basename + '_{:d}.pdb'.format(n))
+        if xyz_fixed:        out.combine(xyz_fixed)
+        if return_files:     out.tofile(basename + '_{:d}.pdb'.format(n))
+        if return_instances: output_list.append(out)
+
+    if return_instances:     return output_list
+
+

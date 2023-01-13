@@ -2,21 +2,21 @@
 from __future__ import absolute_import, division
 
 from __future__ import print_function
-from os.path import splitext, join, abspath
-from os import makedirs
+from os.path import splitext, join
+from pathlib import Path
 from sys import stdout, argv
 from time import time
 from argparse import ArgumentParser, FileType
 import logging
 
 from powerfit import (
-      Volume, structure_to_shape_TEMPy, structure_to_shape_like, proportional_orientations,
+      Volume, structure_to_shape_TEMPy, proportional_orientations,
       quat_to_rotmat, determine_core_indices
       )
 from powerfit.powerfitter import PowerFitter
 from powerfit.analyzer import Analyzer
 from powerfit.helpers import mkdir_p, write_fits_to_pdb, fisher_sigma
-from powerfit.volume import extend, nearest_multiple2357, trim, resample, xyz_fixed 
+from powerfit.volume import extend, nearest_multiple2357, trim, resample, xyz_fixed_transform
 from powerfit.structure import Structure
 
 def parse_args():
@@ -25,12 +25,12 @@ def parse_args():
     p = ArgumentParser()
 
     # Positional arguments
-    p.add_argument('target', type=FileType('rb'),
+    p.add_argument('target', type=Path,
             help='Target density map to fit the model in. '
                  'Data should either be in CCP4 or MRC format')
     p.add_argument('resolution', type=float,
             help='Resolution of map in angstrom')
-    p.add_argument('template', type=open,
+    p.add_argument('template', type=Path,
             help='Atomic model to be fitted in the density. '
                  'Format should either be PDB or mmCIF')
 
@@ -45,7 +45,7 @@ def parse_args():
             help ='Uses b-factor information when creating the simulated map file  '
                   'False by default')
     
-    p.add_argument('-f', '--xyz_fixed', dest = 'xyz_fixed',type=FileType('rb'),
+    p.add_argument('-f', '--xyz_fixed', dest = 'xyz_fixed',type=Path,
             help= 'Runs Powerfit with a fixed model. '
                   'Format should either be PDB or mmCIF')
     # Scoring flags
@@ -78,7 +78,7 @@ def parse_args():
                   'Default is the whole structure.'),
                  )"""
     # Output parameters
-    p.add_argument('-d', '--directory', dest='directory', type=abspath, default='.',
+    p.add_argument('-d', '--directory', dest='directory', type=Path, default='.',
             metavar='<dir>',
             help='Directory where the results are stored.')
     p.add_argument('-n', '--num', dest='num', type=int, default=10,
@@ -95,6 +95,8 @@ def parse_args():
                  'of available processors on your machine.')
 
     args = p.parse_args()
+
+    
 
     return args
 
@@ -119,19 +121,38 @@ def write(line):
     logging.info(line)
 
 
-def main():
+def main(
+    target: Path or Volume,
+    resolution: float,
+    structure:Path or Structure,
+
+    directory= Path('.'),
+    nproc: int = 1,
+    num: int = 10,
+    xyz_fixed: Path or Structure = None,
+    gpu: bool = False,
+    no_resampling: bool = False,
+    no_trimming: bool = False,
+    bfac: bool = False,
+    core_weighted: bool = False,
+    laplace: bool = False,
+    resampling_rate:float = 2.,
+    angle: float = 10.,
+    trimming_cutoff = None,
+    return_instances: bool = False,
+    return_files = True
+    ):
 
     time0 = time()
-    args = parse_args()
-    mkdir_p(args.directory)
+    mkdir_p(directory)
     # Configure logging file
-    logging.basicConfig(filename=join(args.directory, 'powerfit.log'), 
+    logging.basicConfig(filename=str(directory.joinpath('powerfit.log')), 
             level=logging.INFO, format='%(asctime)s %(message)s')
     logging.info(' '.join(argv))
 
     # Get GPU queue if requested
     queues = None
-    if args.gpu:
+    if gpu:
         import pyopencl as cl
         p = cl.get_platforms()[0]
         devs = p.get_devices()
@@ -139,22 +160,26 @@ def main():
         # For clFFT each queue should have its own Context
         queues = [cl.CommandQueue(context, device=dev) for dev in devs]
 
-    write('Target file read from: {:s}'.format(abspath(args.target.name)))
-    target = Volume.fromfile(args.target)
-    write('Target resolution: {:.2f}'.format(args.resolution))
-    resolution = args.resolution
+
+    if isinstance(target, Path): 
+        target = Volume.fromfile(str(target))
+
+    write('Target file read from: {:s}'.format(target.absolute))
+
+    write('Target resolution: {:.2f}'.format(resolution))
+
     write(('Initial shape of density:' + ' {:d}'*3).format(*target.shape))
     # Resample target density if requested
-    if not args.no_resampling:
-        factor = 2 * args.resampling_rate * target.voxelspacing / resolution
+    if not no_resampling:
+        factor = 2 * resampling_rate * target.voxelspacing / resolution
         if factor < .9:
             target = resample(target, factor)
             write(('Shape after resampling:' + ' {:d}'*3).format(*target.shape))
     # Trim target density if requested
-    if not args.no_trimming:
-        if args.trimming_cutoff is None:
-            args.trimming_cutoff = target.grid.max() / 10
-        target = trim(target, args.trimming_cutoff)
+    if not no_trimming:
+        if trimming_cutoff is None:
+            trimming_cutoff = target.grid.max() / 10
+        target = trim(target, trimming_cutoff)
         write(('Shape after trimming:' + ' {:d}'*3).format(*target.shape))
     # Extend the density to a multiple of 2, 3, 5, and 7 for clFFT
     extended_shape = [nearest_multiple2357(n) for n in target.shape]
@@ -162,11 +187,14 @@ def main():
     write(('Shape after extending:' + ' {:d}'*3).format(*target.shape))
 
     # Read in structure or high-resolution map
-    write('Template file read from: {:s}'.format(abspath(args.template.name)))
-    structure = Structure.fromfile(abspath(args.template.name))
-    if args.xyz_fixed:
-        write('Fixed model file read from: {:s}'.format(abspath(args.xyz_fixed.name)))
-        xyz_fixed_structure = Structure.fromfile(abspath(args.xyz_fixed.name))
+    if isinstance(structure, Path): 
+        structure = Structure.fromfile(str(template.absolute()))
+
+    write('Template file read from: {:s}'.format(structure.absolute))
+    if xyz_fixed:
+        if isinstance(xyz_fixed, Path): 
+            xyz_fixed_structure = Structure.fromfile(str(xyz_fixed.absolute()))
+        write('Fixed model file read from: {:s}'.format(xyz_fixed_structure.absolute))
 
     # TODO: add this back in to at some point
     # if args.chain is not None:
@@ -184,15 +212,16 @@ def main():
 
     template = structure_to_shape_TEMPy(
           target, structure, resolution=resolution,
-          bfac = args.bfac
-          )
+          bfac = bfac
+        )
 
-    if args.xyz_fixed:
+    if xyz_fixed:
         fixed_vol = structure_to_shape_TEMPy(
             target, xyz_fixed_structure, resolution=resolution,
-            bfac = args.bfac
-            )
-        template = xyz_fixed(
+            bfac = bfac
+        )
+
+        template = xyz_fixed_transform(
             target,
             fixed_vol
         )
@@ -201,27 +230,27 @@ def main():
 
     # Read in the rotations to sample
     write('Reading in rotations.')
-    q, w, degree = proportional_orientations(args.angle)
+    q, w, degree = proportional_orientations(angle)
     rotmat = quat_to_rotmat(q)
-    write('Requested rotational sampling density: {:.2f}'.format(args.angle))
+    write('Requested rotational sampling density: {:.2f}'.format(angle))
     write('Real rotational sampling density: {:}'.format(degree))
 
     # Apply core-weighted mask if requested
-    if args.core_weighted:
+    if core_weighted:
         write('Calculating core-weighted mask.')
         mask.grid = determine_core_indices(mask.grid)
     
-    pf = PowerFitter(target, laplace=args.laplace)
+    pf = PowerFitter(target, laplace=laplace)
     pf._rotations = rotmat
     pf._template = template
     pf._mask = mask
-    pf._nproc = args.nproc
-    pf.directory = args.directory
+    pf._nproc = nproc
+    pf.directory = directory
     pf._queues = queues
-    if args.gpu:
+    if gpu:
         write('Using GPU-accelerated search.')
     else:
-        write('Requested number of processors: {:d}'.format(args.nproc))
+        write('Requested number of processors: {:d}'.format(nproc))
     write('Starting search')
     time1 = time()
     pf.scan()
@@ -243,19 +272,58 @@ def main():
             origin=target.origin, z_sigma=z_sigma
             )
 
-    write('Writing solutions to file.')
-    Volume.fromdata(pf._lcc, target.voxelspacing, target.origin).tofile(join(args.directory, 'lcc.mrc'))
-    analyzer.tofile(join(args.directory, 'solutions.out'))
+    lccvol = Volume.fromdata(pf._lcc, target.voxelspacing, target.origin) 
 
-    write('Writing PDBs to file.')
-    n = min(args.num, len(analyzer.solutions))
-    if args.xyz_fixed: fixed = xyz_fixed_structure
-    else: fixed = False
-    write_fits_to_pdb(structure, analyzer.solutions[:n],
-            basename=join(args.directory, 'fit'), xyz_fixed=fixed)
+    if return_files:    
+        write('Writing solutions to file.')
+        lccvol.tofile(str(directory.joinpath('lcc.mrc')))
+        analyzer.tofile(str(directory.joinpath('solutions.out')))
+        write('Writing PDBs to file.')
+
+    n = min(num, len(analyzer.solutions))
+    if xyz_fixed: fixed = xyz_fixed_structure
+    else:         fixed = False
+
+    out_fits = write_fits_to_pdb(structure,
+            analyzer.solutions[:n],
+            basename=str(directory.joinpath('fit')), 
+            xyz_fixed=fixed, 
+            return_instances=return_instances,
+            return_files=return_files)
+    
+    if return_instances:
+        return {
+            'fitted_models': out_fits,
+            'lcc': lccvol,
+            'analyzer': analyzer,
+
+        }
+                
 
     write('Total time: {:.0f}m {:.0f}s'.format(*divmod(time() - time0, 60)))
 
+def run():
+        args = parse_args()
+
+
+        main(
+        args.target,
+        args.resolution,
+        args.template,
+        directory = args.directory,
+        nproc = args.nproc,
+        num = args.num,
+        xyz_fixed = args.xyz_fixed,
+        gpu = args.gpu,
+        no_resampling = args.no_resampling,
+        no_trimming  = args.no_trimming,
+        bfac = args.bfac,
+        core_weighted = args.core_weighted,
+        laplace = args.laplace,
+        resampling_rate = args.resampling_rate,
+        angle = args.angle,
+        trimming_cutoff = args.trimming_cutoff
+        )
 
 if __name__ == '__main__':
-    main()
+    run()

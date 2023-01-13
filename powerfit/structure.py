@@ -1,6 +1,5 @@
 from __future__ import absolute_import
 from collections import defaultdict, Sequence, OrderedDict
-import operator
 from string import capwords
 
 import numpy as np
@@ -10,10 +9,13 @@ import six
 from six.moves import range
 from six.moves import zip
 import io
+from pathlib import Path
 
 # TEMPy Parsers
 from TEMPy.protein.structure_parser import PDBParser, mmCIFParser
 from copy import copy
+
+
 # records
 MODEL = 'MODEL '
 ATOM = 'ATOM  '
@@ -228,6 +230,11 @@ class Structure(object):
     @property
     def mass(self):
         return self._get_property('mass')
+    
+    
+    @property
+    def absolute(self):
+        return str(Path(self.__prot.filename).resolve())
 
     def rmsd(self, structure):
         return np.sqrt(((self.coor - structure.coor) ** 2).mean() * 3)
@@ -236,6 +243,7 @@ class Structure(object):
         """Rotate atoms"""
      
         self.prot.matrix_transform(rotmat)
+    
     
     def combine(self, structure):
         self.__prot.add_structure_instance(structure.prot)
