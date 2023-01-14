@@ -65,6 +65,7 @@ class Volume(object):
 
         self.__vol = vol
         self.__resolution = None
+        self.__threshold = MapEdit(vol).calculate_map_contour()
 
     @property
     def vol(self):
@@ -73,6 +74,14 @@ class Volume(object):
     @vol.setter
     def vol(self, vol):
         self.__vol = vol
+
+    @property
+    def threshold(self):
+        return self.__threshold
+
+    @threshold.setter
+    def threshold(self, threshold):
+        self.__threshold = threshold
 
     @property
     def resolution(self):
@@ -133,10 +142,9 @@ class Volume(object):
         # Temporary, look into how TEMPy does this, incorporate a radaii
         maskmap = self.__vol.copy()
         maskmap.update_header()
-        thres = MapEdit(maskmap).calculate_map_contour()
 
         zeros = np.zeros(maskmap.fullMap.shape)
-        zeros[maskmap.fullMap >= thres] = 1
+        zeros[maskmap.fullMap >= self.__threshold] = 1
 
         maskmap.fullMap = zeros
 
