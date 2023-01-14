@@ -12,3 +12,4 @@ scripts/xyz_fixed.py
 scripts/structtest.py
 *.c
 *.pyc
+powerfit.egg-info
