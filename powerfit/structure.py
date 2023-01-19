@@ -12,8 +12,9 @@ import io
 from pathlib import Path
 
 # TEMPy Parsers
-from TEMPy.protein.structure_parser import PDBParser, mmCIFParser
+from TEMPy.protein.structure_parser import PDBParser, mmCIFParser, gemmi_helper_fns
 from copy import copy
+import gemmi
 
 
 # records
@@ -182,8 +183,20 @@ class Structure(object):
         
         return cls(prot)
 
+    @classmethod
+    def fromGemmi(cls, fid:gemmi.Structure):
+        if not isinstance(fid, gemmi.Structure):
+            AssertionError ('Not a gemmi structure cannot use fromGemmi')
+        
+        prot = PDBParser.read_gemmi_struture(
+                fid,
+                hetatm=False,
+                water=False)
+        
+        cls(prot)
+
     def __init__(self, prot):
-        self.prot = prot
+        self.__prot = prot
         
     @property
     def atomnumber(self):
@@ -376,3 +389,40 @@ def mmcif_dict_to_array(atom_site):
     cifdata['charge'] = atom_site['pdbx_formal_charge']
     cifdata['model'] = atom_site['pdbx_PDB_model_num']
     return cifdata
+
+
+class PDBParser(PDBParser):
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def read_gemmi_struture(
+            structure,
+            hetatm=False,
+            water=False,
+    ):
+        """Copy of PDBParser from TEMPy so I can read in gemmi structure
+        ref - TEMPy"""
+        filename = 'temp' # change but not needed right now
+    
+
+        if not structure[0][0].name:
+            structure = gemmi_helper_fns.name_nameless_chains(structure)
+
+        if not hetatm:
+            structure.remove_ligands_and_waters()
+        if not water:
+            structure.remove_waters()
+        structure.remove_empty_chains()
+
+        structure.setup_entities()
+        structure.assign_label_seq_id()
+        data_block = structure.make_mmcif_document().sole_block()
+
+        return mmCIFParser._convertGEMMItoTEMPy(
+                                            data_block,
+                                            structure,
+                                            filename,
+                                            water=water,
+                                            hetatm=hetatm,
+                                            )
