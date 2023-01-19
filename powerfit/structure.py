@@ -233,8 +233,12 @@ class Structure(object):
     
     
     @property
-    def absolute(self):
+    def filename(self):
         return str(Path(self.__prot.filename).resolve())
+    
+    @filename.setter
+    def filename(self, fname):
+        self.__prot.filename = fname
 
     def rmsd(self, structure):
         return np.sqrt(((self.coor - structure.coor) ** 2).mean() * 3)
@@ -293,8 +297,11 @@ class Structure(object):
         tx, ty, tz = trans
         self.prot.translate(tx, ty, tz)
 
-    def tofile(self, fid, outtype = 'pdb'):
+    def tofile(self, fid=None, outtype = 'pdb'):
         """Write instance to PDB-file"""
+        if fid is None:
+            fid = self.filename
+            
         if outtype == 'pdb':
             # TODO: sort out a bug where 7zoa with hetatm
             # Doesn't work and gets 0 mass total

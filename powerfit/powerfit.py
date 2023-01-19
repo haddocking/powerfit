@@ -2,11 +2,11 @@
 from __future__ import absolute_import, division
 
 from __future__ import print_function
-from os.path import splitext, join
+from os.path import splitext
 from pathlib import Path
 from sys import stdout, argv
 from time import time
-from argparse import ArgumentParser, FileType
+from argparse import ArgumentParser
 import logging
 
 from powerfit import (
@@ -163,8 +163,12 @@ def main(
 
     if isinstance(target, Path): 
         target = Volume.fromfile(str(target))
+    
+    # Need to cacluate threshold 
+    target.resolution = resolution
+    target.calc_threshold()
 
-    write('Target file read from: {:s}'.format(target.absolute))
+    write('Target file read from: {:s}'.format(target.filename))
 
     write('Target resolution: {:.2f}'.format(resolution))
 
@@ -188,13 +192,13 @@ def main(
 
     # Read in structure or high-resolution map
     if isinstance(structure, Path): 
-        structure = Structure.fromfile(str(template.absolute()))
+        structure = Structure.fromfile(str(structure.resolve()))
 
-    write('Template file read from: {:s}'.format(structure.absolute))
+    write('Template file read from: {:s}'.format(structure.filename))
     if xyz_fixed:
         if isinstance(xyz_fixed, Path): 
-            xyz_fixed_structure = Structure.fromfile(str(xyz_fixed.absolute()))
-        write('Fixed model file read from: {:s}'.format(xyz_fixed_structure.absolute))
+            xyz_fixed_structure = Structure.fromfile(str(xyz_fixed.resolve()))
+        write('Fixed model file read from: {:s}'.format(xyz_fixed_structure.filename))
 
     # TODO: add this back in to at some point
     # if args.chain is not None:
@@ -214,6 +218,9 @@ def main(
           target, structure, resolution=resolution,
           bfac = bfac
         )
+
+    # template.resolution = resolution
+    # template.calc_threshold(simulated=True)
 
     if xyz_fixed:
         fixed_vol = structure_to_shape_TEMPy(

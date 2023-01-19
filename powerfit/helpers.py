@@ -46,7 +46,7 @@ def get_queue(platformid=0, deviceid=0):
 def fisher_sigma(mv, fsc):
     return 1 / sqrt(mv / fsc - 3)
 
-
+# Change this up so that an
 def write_fits_to_pdb(
     structure,
     solutions, 
@@ -71,8 +71,9 @@ def write_fits_to_pdb(
         trans = sol[3:6]
         out.rotate(rot)
         out.translate(trans)
+        out.filename = basename + '_{:d}.pdb'.format(n)
         if xyz_fixed:        out.combine(xyz_fixed)
-        if return_files:     out.tofile(basename + '_{:d}.pdb'.format(n))
+        if return_files:     out.tofile()
         if return_instances: output_list.append(out)
 
     if return_instances:     return output_list
