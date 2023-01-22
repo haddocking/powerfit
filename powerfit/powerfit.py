@@ -280,6 +280,7 @@ def main(
             )
 
     lccvol = Volume.fromdata(pf._lcc, target.voxelspacing, target.origin) 
+    lccvol.filename = 'lcc.mrc'
 
     if return_files:    
         write('Writing solutions to file.')
@@ -299,15 +300,28 @@ def main(
             return_files=return_files)
     
     if return_instances:
-        return {
+        to_return = {
             'fitted_models': out_fits,
             'lcc': lccvol,
             'analyzer': analyzer,
 
         }
+    elif return_files:
+        to_return = {
+            'fitted_models': [out.filename for out in out_fits],
+            'lcc': lccvol.filename,
+            'analyzer': 'solutions.out',
+
+        }
+    
+    # Not needed
+    else: 
+        to_return =  None
                 
 
     write('Total time: {:.0f}m {:.0f}s'.format(*divmod(time() - time0, 60)))
+    
+    return to_return
 
 def run():
         args = parse_args()

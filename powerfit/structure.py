@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-from collections import defaultdict, Sequence, OrderedDict
+from collections import defaultdict, OrderedDict
 from string import capwords
 
 import numpy as np
