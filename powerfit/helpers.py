@@ -65,6 +65,7 @@ def write_fits_to_pdb(
 
     # output list a list of structure instances
     if return_instances:    output_list = []
+    
     for n, sol in enumerate(solutions, start=1):
         out = translated_structure.duplicate()
         rot = np.asarray([float(x) for x in sol[6:]]).reshape(3, 3)
