@@ -89,7 +89,7 @@ class Volume(object):
             if not self.__resolution:
                 raise ValueError('No resolution specified')
 
-            #Taken from scores_process.py in CCOEM Scores_process.py used for
+            #Taken from scores_process.py in CCPEM Scores_process.py used for
             # TEMPy Global scores in GUI
             if self.__resolution > 10.0: t = 2.5
             elif self.__resolution > 6.0: t = 2.0
