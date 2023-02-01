@@ -3,7 +3,7 @@ from __future__ import absolute_import
 from six.moves import range
 
 
-from numpy import zeros, bool, greater_equal, log
+from numpy import zeros, bool_, greater_equal, log
 from scipy.ndimage import label, maximum_position
 from six.moves import zip
 
@@ -92,7 +92,7 @@ class Analyzer(object):
         stepsize = (max_cc - min_cc) / self._steps
         cutoff = max_cc
         positions = []
-        mask = zeros(self._corr.shape, dtype=bool)
+        mask = zeros(self._corr.shape, dtype=bool_)
         for n in range(self._steps):
             cutoff -= stepsize
             greater_equal(self._corr, cutoff, mask)
