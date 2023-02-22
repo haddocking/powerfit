@@ -11,7 +11,7 @@ import logging
 
 from powerfit import (
     Volume,
-    structure_to_shape_TEMPy,
+    structure_to_shape_like,
     proportional_orientations,
     quat_to_rotmat,
     determine_core_indices,
@@ -298,11 +298,30 @@ def main(
 
     # Move structure to origin of density
     # structure.translate(target.origin - structure.centre_of_mass)
+    if bfac: 
+        weights = 0.4/structure.bfacs
+    else:
+        weights = structure.atomnumber
+
+
     structure.translate(target.origin - structure.coor.mean(axis=1))
 
-    template = structure_to_shape_TEMPy(
-        target, structure, resolution=resolution, bfac=bfac
+   
+    template = structure_to_shape_like(
+        target, 
+        structure.coor, 
+        resolution=resolution, 
+        weights=weights,
+        shape='vol'
     )
+
+
+    mask = structure_to_shape_like(
+          target, 
+          structure.coor, 
+          resolution=resolution, 
+          shape='mask'
+          )
 
     # template.resolution = resolution
     # template.calc_threshold(simulated=True)
@@ -315,8 +334,6 @@ def main(
     #     template = xyz_fixed_transform(target, fixed_vol)
 
     #     template.calc_threshold()
-
-    mask = template.maskMap()
 
     # Read in the rotations to sample
     write("Reading in rotations.")
