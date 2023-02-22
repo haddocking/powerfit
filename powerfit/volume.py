@@ -510,6 +510,7 @@ def xyz_fixed_transform(
     reduced_vol.grid -= scaled_grid # Removes a chunk of the volume
     reduced_vol.grid[reduced_vol.grid < 0] = 0
 
+    reduced_vol.calc_threshold()
     reduced_vol_mask = reduced_vol.maskMap()
 
     # Create softmask logic here
