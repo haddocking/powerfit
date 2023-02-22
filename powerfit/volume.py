@@ -520,7 +520,7 @@ def xyz_fixed_transform(
     gaussian_points = gaussian_points[vol_mask == 1]
     
     # Hopefully this outputs a lovely cut volume with some gaussian blurring
-    reduced_vol += gaussian_points
+    reduced_vol.grid += gaussian_points
 
     # Remove negative info
 
