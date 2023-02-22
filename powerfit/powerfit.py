@@ -366,16 +366,9 @@ def main(
     write("Analyzing results")
     # calculate the molecular volume of the structure
 
-    mv = (
-        structure_to_shape_TEMPy(
-            target,
-            structure,
-            resolution=resolution,
-        )
-        .maskMap()
-        .grid.sum()
-        * target.voxelspacing**3
-    )
+    mv = structure_to_shape_like(
+          target, structure.coor, resolution=resolution, radii=structure.rvdw, shape='mask'
+          ).array.sum() * target.voxelspacing ** 3
 
     z_sigma = fisher_sigma(mv, resolution)
     analyzer = Analyzer(
