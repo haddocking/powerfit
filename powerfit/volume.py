@@ -13,12 +13,14 @@ from six.moves import range
 from six.moves import zip
 import io
 
+# For XYZ_fixed
+from scipy.ndimage import binary_dilation, gaussian_filter
+
 # Map parsers
 from TEMPy.maps.map_parser import MapParser
 from TEMPy.maps.em_map import Map
 from TEMPy.protein.structure_blurrer import StructureBlurrer
 from TEMPy.protein.scoring_functions import ScoringFunctions 
-
 
 from copy import copy
 # Completly change voume class to reflect 
@@ -493,6 +495,7 @@ either in the Volume class or as a kwarg")
 def xyz_fixed_transform(
     target: Volume,
     vol: Volume,
+    vol_mask: Volume,
     ) -> Volume:
     
     # Needs to be the same shape to work
@@ -504,10 +507,21 @@ def xyz_fixed_transform(
 
     # Duplicate the volume object for cut volume
     reduced_vol = target.duplicate()
-    reduced_vol.grid -= scaled_grid
+    reduced_vol.grid -= scaled_grid # Removes a chunk of the volume
+    reduced_vol.grid[reduced_vol.grid < 0] = 0
+
+    reduced_vol_mask = reduced_vol.maskMap()
+
+    # Create softmask logic here
+    dilation_mask = binary_dilation(reduced_vol_mask.grid, iterations=1)
+    dilated_points_only = dilation_mask - reduced_vol_mask.grid
+    gaussian_points = gaussian_filter(dilated_points_only*4, sigma=2)
+    gaussian_points = gaussian_points[vol_mask == 1]
+    
+    # Hopefully this outputs a lovely cut volume with some gaussian blurring
+    reduced_vol += gaussian_points
 
     # Remove negative info
-    reduced_vol.grid[reduced_vol.grid < 0] = 0
 
     return reduced_vol
 

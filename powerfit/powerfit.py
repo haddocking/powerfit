@@ -326,14 +326,31 @@ def main(
     # template.resolution = resolution
     # template.calc_threshold(simulated=True)
 
-    # if xyz_fixed:
-    #     fixed_vol = structure_to_shape_TEMPy(
-    #         target, xyz_fixed_structure, resolution=resolution, bfac=bfac
-    #     )
+    if xyz_fixed:
+        fixed_vol = structure_to_shape_like(
+            target, 
+            xyz_fixed_structure.coor, 
+            resolution=resolution, 
+            weights=weights,
+            shape='vol'
+        )
 
-    #     template = xyz_fixed_transform(target, fixed_vol)
+        fixed_vol_mask = structure_to_shape_like(
+            target, 
+            xyz_fixed_structure.coor, 
+            resolution=resolution, 
+            shape='mask'
+        )
 
-    #     template.calc_threshold()
+
+        template = xyz_fixed_transform(
+            target, 
+            fixed_vol,
+            fixed_vol_mask,
+            )
+
+        template.tofile(str(directory.joinpath("fixed_vol.mrc"))) # temp
+        template.calc_threshold()
 
     # Read in the rotations to sample
     write("Reading in rotations.")
@@ -368,7 +385,7 @@ def main(
 
     mv = structure_to_shape_like(
           target, structure.coor, resolution=resolution, radii=structure.rvdw, shape='mask'
-          ).array.sum() * target.voxelspacing ** 3
+          ).grid.sum() * target.voxelspacing ** 3
 
     z_sigma = fisher_sigma(mv, resolution)
     analyzer = Analyzer(

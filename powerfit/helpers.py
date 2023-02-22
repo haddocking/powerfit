@@ -80,11 +80,11 @@ def write_fits_to_pdb(
         out.translate(trans)
         out.filename = basename + "_{:d}.pdb".format(n + 1)
         if xyz_fixed:
-
-            if not quick_structure_overlap(out, xyz_fixed):
-                out.combine(xyz_fixed)
-            else:
-                continue
+            out.combine(xyz_fixed)
+            # if not quick_structure_overlap(out, xyz_fixed):
+            #     out.combine(xyz_fixed)
+            # else:
+            #     continue
 
         if return_files:
             out.tofile()
