@@ -193,7 +193,7 @@ class Structure(object):
                 hetatm=False,
                 water=False)
         
-        cls(prot)
+        return cls(prot)
 
     def __init__(self, prot):
         self.__prot = prot
