@@ -119,3 +119,4 @@ def quick_structure_overlap(structure1, structure2):
         return False
     else:
         return True
+
