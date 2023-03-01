@@ -20,11 +20,13 @@ from powerfit.powerfitter import PowerFitter
 from powerfit.analyzer import Analyzer
 from powerfit.helpers import mkdir_p, write_fits_to_pdb, fisher_sigma
 from powerfit.volume import (
+    ChainRestrictions,
     extend,
     nearest_multiple2357,
     trim,
     resample,
-    xyz_fixed_transform,
+    xyz_fixed_transform
+
 )
 from powerfit.structure import Structure
 
@@ -327,30 +329,36 @@ def main(
     # template.calc_threshold(simulated=True)
 
     if xyz_fixed:
-        fixed_vol = structure_to_shape_like(
-            target, 
-            xyz_fixed_structure.coor, 
-            resolution=resolution, 
-            weights=weights,
-            shape='vol'
+        cr = ChainRestrictions(
+            volin = template,
+            pdbin = structure,
+            xyzfixed = xyz_fixed_structure,
         )
 
-        fixed_vol_mask = structure_to_shape_like(
-            target, 
-            xyz_fixed_structure.coor, 
-            resolution=resolution, 
-            shape='mask'
-        )
+        template = cr.run()
+        #     target, 
+        #     xyz_fixed_structure.coor, 
+        #     resolution=resolution, 
+        #     weights=weights,
+        #     shape='vol'
+        # )
+
+        # fixed_vol_mask = structure_to_shape_like(
+        #     target, 
+        #     xyz_fixed_structure.coor, 
+        #     resolution=resolution, 
+        #     shape='mask'
+        # )
 
 
-        template = xyz_fixed_transform(
-            target, 
-            fixed_vol,
-            fixed_vol_mask,
-            )
+        # template = xyz_fixed_transform(
+        #     target, 
+        #     fixed_vol,
+        #     fixed_vol_mask,
+        #     )
 
         template.tofile(str(directory.joinpath("fixed_vol.mrc"))) # temp
-        template.calc_threshold()
+        # template.calc_threshold()
 
     # Read in the rotations to sample
     write("Reading in rotations.")

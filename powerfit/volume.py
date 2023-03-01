@@ -529,7 +529,7 @@ def xyz_fixed_transform(
 
 class ChainRestrictions(object):
     def __init__(self, **kwargs):
-        self.volin = kwargs.get('volin') # Volume
+        self.vol = kwargs.get('volin') # Volume
         self.volout = kwargs.get('volout', None) # Might not need
         self.pdbin = kwargs.get('pdbin', None)
         self.xyzfixed = kwargs.get('xyzfixed', None)
@@ -538,24 +538,21 @@ class ChainRestrictions(object):
 
     
     def run(self):
-        from powerfit import Structure
 
         """
         Run the program
         :return: Volume object of the new volume with the chain restrictions
         """
-        xyz_fixed = Structure.fromfile(self.xyzfixed)
-        pdbin = Structure.fromfile(self.pdbin)
-        center, xyz_fixed_radius = tuple(xyz_fixed.centre_of_mass), self.find_largest_side(xyz_fixed) /2
-        radius = self.find_largest_side(pdbin) + xyz_fixed_radius
+        
+        center, xyz_fixed_radius = tuple(self.xyzfixed.centre_of_mass), self.find_largest_side(self.xyzfixed) /2
+        radius = self.find_largest_side(self.pdbin) + xyz_fixed_radius
 
         if self.verbose:
             print(f'Center of the fixed xyz file is: {center} and the radius is: {xyz_fixed_radius}')
             print(f'The search radius is: {radius}')
 
 
-        if not self.check_file_exists(self.volin):
-            raise ValueError('Volume file does not exist')
+       
         
         if self.verbose: print("Voxel size is ",self.vol.voxelspacing)
         radius /= self.vol.voxelspacing
@@ -568,6 +565,7 @@ class ChainRestrictions(object):
         if self.view:
             self.check_gaussian_visually(self.vol.grid)
 
+        
         filtered_volume = self.add_gasussian_filter(self.vol, 5, center, radius)
 
         if self.view:
@@ -587,10 +585,10 @@ class ChainRestrictions(object):
         :return: volume with all values outside the sphere of radius r set to zero
         """
         
-        if not self.check_radius():
+        if not self.check_radius(radius):
             raise ValueError('Radius cannot be negative and/or must be a float')
         
-        if not self.check_center():
+        if not self.check_center(center):
             raise ValueError('Center must be a tuple and cannot be negative')
         
         if not self.check_within_volume(center, radius, volin):
@@ -610,44 +608,44 @@ class ChainRestrictions(object):
 
         return points_within_radius
 
-    def check_radius(self):
+    def check_radius(self, radius):
         """
         Check if the radius is negative and/or a float
         :return: True if the radius is negative and/or a float
         """
-        if self.radius < 0:
+        if radius < 0:
             raise ValueError('Radius cannot be negative')
-        if not isinstance(self.radius, float):
+        if not isinstance(radius, float):
             raise ValueError('Radius must be a float')
         return True
 
 
-    def check_center(self):
+    def check_center(self, center):
         """
         Check if the center is negative and/or a tuple
         :return: True if the center is negative and/or a tuple"""
-        if not isinstance(self.center, tuple):
+        if not isinstance(center, tuple):
             raise ValueError('Center must be a tuple')
-        if self.center[0] < 0 or self.center[1] < 0 or self.center[2] < 0:
+        if  center[0] < 0 or  center[1] < 0 or  center[2] < 0:
             raise ValueError('Center cannot be negative')
         return True
 
 
-    def check_within_volume(self):
+    def check_within_volume(self, center, radius, vol):
         """
         Check if the center is within the volume and if the radius is within the volume
         :return: True if the center is within the volume and if the radius is within the volume
 
         """
-        sx, sy, sz = self.vol.shape
-        if self.center[0] > sx or self.center[1] > sy or self.center[2] > sz:
+        sx, sy, sz = vol.shape
+        if center[0] > sx or center[1] > sy or center[2] > sz:
             raise ValueError('Center cannot be larger than the volume')
-        if self.radius > sx or self.radius > sy or self.radius > sz:
+        if radius > sx or radius > sy or radius > sz:
             raise ValueError('Radius cannot be larger than the volume')
         return True
 
 
-    def add_gasussian_filter(vol: Volume, sigma: float, center: tuple, radius: float):
+    def add_gasussian_filter(self, vol: Volume, sigma: float, center: tuple, radius: float):
         """
         This function takes a volume and a radius and returns a volume with the same shape as the input volume, but with all values outside the sphere of radius r set to zero.
         :param radius: radius of the sphere
