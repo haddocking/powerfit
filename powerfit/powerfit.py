@@ -325,40 +325,20 @@ def main(
           shape='mask'
           )
 
-    # template.resolution = resolution
-    # template.calc_threshold(simulated=True)
-
+    
     if xyz_fixed:
         cr = ChainRestrictions(
-            volin = template,
+            volin = target,
             pdbin = structure,
             xyzfixed = xyz_fixed_structure,
+            verbose = True,
         )
 
-        template = cr.run()
-        #     target, 
-        #     xyz_fixed_structure.coor, 
-        #     resolution=resolution, 
-        #     weights=weights,
-        #     shape='vol'
-        # )
+        target = cr.run()
+        
 
-        # fixed_vol_mask = structure_to_shape_like(
-        #     target, 
-        #     xyz_fixed_structure.coor, 
-        #     resolution=resolution, 
-        #     shape='mask'
-        # )
-
-
-        # template = xyz_fixed_transform(
-        #     target, 
-        #     fixed_vol,
-        #     fixed_vol_mask,
-        #     )
-
-        template.tofile(str(directory.joinpath("fixed_vol.mrc"))) # temp
-        # template.calc_threshold()
+        target.tofile(str(directory.joinpath("fixed_vol.mrc"))) # temp
+        
 
     # Read in the rotations to sample
     write("Reading in rotations.")

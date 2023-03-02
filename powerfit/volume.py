@@ -545,28 +545,33 @@ class ChainRestrictions(object):
         """
         
         center, xyz_fixed_radius = tuple(self.xyzfixed.centre_of_mass), self.find_largest_side(self.xyzfixed) /2
-        radius = self.find_largest_side(self.pdbin) + xyz_fixed_radius
+        semi_axis = np.array(self.get_sides(self.xyzfixed)) /2
+        semi_axis += xyz_fixed_radius
+        semi_axis /= self.vol.voxelspacing
+
+        
+        semi_axis = tuple(semi_axis)
+        
 
         if self.verbose:
             print(f'Center of the fixed xyz file is: {center} and the radius is: {xyz_fixed_radius}')
-            print(f'The search radius is: {radius}')
+            print(f'Semi-axes of the ovoid are: {semi_axis}')
 
 
        
         
-        if self.verbose: print("Voxel size is ",self.vol.voxelspacing)
-        radius /= self.vol.voxelspacing
+        if self.verbose: print("Voxel size is ",self.vol.voxelspacing, ". The origin is ", self.vol.origin)
         center /= self.vol.voxelspacing
         center -= self.vol.start
         center = tuple(center)
         
-        self.vol.grid = self.sphere_radius(radius, self.vol, center)
+        self.vol.grid = self.ovoid_cutting(semi_axis, self.vol, center)
 
         if self.view:
             self.check_gaussian_visually(self.vol.grid)
 
         
-        filtered_volume = self.add_gasussian_filter(self.vol, 5, center, radius)
+        filtered_volume = self.add_gasussian_filter(self.vol, 5, center, semi_axis)
 
         if self.view:
             self.check_gaussian_visually(filtered_volume)
@@ -575,38 +580,31 @@ class ChainRestrictions(object):
 
         return self.vol
 
-    def sphere_radius(self, radius: float, volin: Volume, center: tuple):
-    
+    def ovoid_cutting(self, semi_axes: tuple, volin: Volume, center: tuple):
+
         """
-        This function takes a volume and a radius and returns a volume with the same shape as the input volume, but with all values outside the sphere of radius r set to zero.
-        :param radius: radius of the sphere
+        This function takes a volume and semi-axes of an ovoid and returns a volume with the same shape as the input volume, but with all values outside the ovoid set to zero.
+        :param semi_axes: semi-axes of the ovoid as a tuple (a, b, c)
         :param volin: input volume
-        :param center: center of the sphere
-        :return: volume with all values outside the sphere of radius r set to zero
+        :param center: center of the ovoid as a tuple (x, y, z)
+        :return: volume with all values outside the ovoid set to zero
         """
-        
-        if not self.check_radius(radius):
-            raise ValueError('Radius cannot be negative and/or must be a float')
-        
+
         if not self.check_center(center):
-            raise ValueError('Center must be a tuple and cannot be negative')
-        
-        if not self.check_within_volume(center, radius, volin):
-            raise ValueError('Center cannot be larger than the volume and/or radius cannot be larger than the volume')
-        
-        sx, sy, sz = volin.grid.shape
+            raise ValueError("Center must be a tuple and cannot be negative")
 
-        x, y, z = np.ogrid[:sx, :sy, :sz]
+        distances = self.distances_of_ovoid(semi_axes, volin, center)
 
-        # Calculate distance from center of grid to each point
-        distances = np.sqrt((x - center[0])**2 + (y - center[1])**2 + (z - center[2])**2)
+        # Create boolean mask for points within ovoid
+        mask = distances <= 1
 
-        mask = distances <= radius
+        # Select points within ovoid
+        points_within_ovo = np.zeros_like(volin.grid)
+        points_within_ovo[mask] = volin.grid[mask]
 
-        points_within_radius = np.zeros_like(volin.grid)
-        points_within_radius[mask] = volin.grid[mask]
+        return points_within_ovo
 
-        return points_within_radius
+    
 
     def check_radius(self, radius):
         """
@@ -645,7 +643,7 @@ class ChainRestrictions(object):
         return True
 
 
-    def add_gasussian_filter(self, vol: Volume, sigma: float, center: tuple, radius: float):
+    def add_gasussian_filter(self, vol: Volume, sigma: float, center: tuple, semi_axes: float):
         """
         This function takes a volume and a radius and returns a volume with the same shape as the input volume, but with all values outside the sphere of radius r set to zero.
         :param radius: radius of the sphere
@@ -655,31 +653,55 @@ class ChainRestrictions(object):
 
         """
         from scipy.ndimage import gaussian_filter
+        
+        distances = self.distances_of_ovoid(semi_axes, volin=vol, center=center)
 
-        # Create a 3D Boolean mask that selects points outside the sphere
-        sx, sy, sz = vol.grid.shape
-        x, y, z = np.ogrid[:sx, :sy, :sz]
-        distances = np.sqrt((x - center[0])**2 + (y - center[1])**2 + (z - center[2])**2)
+        mask = distances >= 1
 
-        # create a zeros array of the same shape as the volume
-        # zeros_array[cx][cy][cz]= np.max(vol.grid) 
-
-        filtered_volume_data = gaussian_filter(vol.grid, sigma=sigma, mode='nearest')
+        filtered_volume_data = gaussian_filter(vol.grid, sigma=sigma, mode="nearest")
 
         # Select the points outside the sphere by using the inverse of the boolean mask
-        outside_sphere = distances > radius
-        filtered_volume_data[~outside_sphere] = vol.grid[~outside_sphere]
+        
+        filtered_volume_data[~mask] = vol.grid[~mask]
 
         return filtered_volume_data
 
-
-    # function to read in a using Structure and and find the longest difference between corners of box
+    
     def find_largest_side(self, pdb):
         """
         This function takes a pdb file and returns the longest side of the box
         :param pdb: Structure
         :return: longest side of the box
         """
+        x_side, y_side, z_side = self.get_sides(pdb)
+        
+        x_y_hypo = np.sqrt(x_side**2 + y_side**2)
+        if self.verbose: print("X side is: ", x_side, "Y side is: ", y_side, "Z side is: ", z_side)
+        cuboidline = np.sqrt(x_y_hypo**2 + z_side**2)
+
+        return cuboidline
+    
+    @staticmethod
+    def distances_of_ovoid(semi_axes: tuple, volin: Volume, center: tuple):
+        sx, sy, sz = volin.grid.shape
+
+        # Create 3D grid of coordinates
+        x, y, z = np.ogrid[:sx, :sy, :sz]
+        
+        # Why does this fix things so often????
+        center = np.flip(center)
+        # Calculate distance from center of grid to each point
+        distances = (
+            ((x - center[0]) / semi_axes[0]) ** 2
+            + ((y - center[1]) / semi_axes[1]) ** 2
+            + ((z - center[2]) / semi_axes[2]) ** 2
+        )
+
+
+        return distances
+    
+    @staticmethod
+    def get_sides(pdb):
         coordinates = pdb.coor 
         x = coordinates[:,0]
         y = coordinates[:,1]
@@ -693,9 +715,5 @@ class ChainRestrictions(object):
         x_side = x_max - x_min
         y_side = y_max - y_min
         z_side = z_max - z_min
-        
-        x_y_hypo = np.sqrt(x_side**2 + y_side**2)
-        if self.verbose: print("X side is: ", x_side, "Y side is: ", y_side, "Z side is: ", z_side)
-        cuboidline = np.sqrt(x_y_hypo**2 + z_side**2)
 
-        return cuboidline
+        return(x_side, y_side, z_side)
