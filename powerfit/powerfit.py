@@ -325,8 +325,8 @@ def main(
 
     # template.resolution = resolution
     # template.calc_threshold(simulated=True)
-
-    if xyz_fixed:
+    # Might try and use connectivity instead of XYZ_fixed, circular area around fit
+    """if xyz_fixed:
         fixed_vol = structure_to_shape_like(
             target, 
             xyz_fixed_structure.coor, 
@@ -350,7 +350,8 @@ def main(
             )
 
         template.tofile(str(directory.joinpath("fixed_vol.mrc"))) # temp
-        template.calc_threshold()
+        logging.info ("fixed_vol.mrc written to disk, threshold is: {:}".format(template.threshold))
+        template.calc_threshold()"""
 
     # Read in the rotations to sample
     write("Reading in rotations.")

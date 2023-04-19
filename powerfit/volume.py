@@ -492,6 +492,7 @@ either in the Volume class or as a kwarg")
     # vol = Volume.fromMap(simmap)
     # vol.tofile(sys.argv[3])
 
+"""Under active development so very messy"""
 def xyz_fixed_transform(
     target: Volume,
     vol: Volume,
@@ -517,10 +518,16 @@ def xyz_fixed_transform(
     dilation_mask = binary_dilation(reduced_vol_mask.grid, iterations=1)
     dilated_points_only = dilation_mask - reduced_vol_mask.grid
     gaussian_points = gaussian_filter(dilated_points_only*4, sigma=2)
-    gaussian_points = gaussian_points[vol_mask == 1]
+    # use pyplot to and imshow to take a slice down the middle of the gaussian_points array
+    # import matplotlib.pyplot as plt
+    # plt.imshow(vol_mask[vol_mask.shape[0]//2])
+    # plt.show()
+    # gaussian_points = gaussian_points[vol_mask == 1]
     
     # Hopefully this outputs a lovely cut volume with some gaussian blurring
-    reduced_vol.grid += gaussian_points[0]
+    # sx, sy, sz = reduced_vol.shape
+    
+    # reduced_vol.grid += gaussian_points#.reshape(1, sx, sy, sz)
 
     # Remove negative info
 

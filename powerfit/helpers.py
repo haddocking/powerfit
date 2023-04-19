@@ -2,6 +2,7 @@ from __future__ import absolute_import, division
 import os
 import errno
 from math import sqrt, pi
+from scipy.spatial import KDTree
 
 
 import numpy as np
@@ -80,11 +81,11 @@ def write_fits_to_pdb(
         out.translate(trans)
         out.filename = basename + "_{:d}.pdb".format(n + 1)
         if xyz_fixed:
-            out.combine(xyz_fixed)
-            # if not quick_structure_overlap(out, xyz_fixed):
-            #     out.combine(xyz_fixed)
-            # else:
-            #     continue
+
+            if quick_structure_overlap(out, xyz_fixed):
+                out.combine(xyz_fixed)
+            else:
+                continue
 
         if return_files:
             out.tofile()
@@ -98,24 +99,24 @@ def write_fits_to_pdb(
 
 def quick_structure_overlap(structure1, structure2):
 
-    (p1min_x, p1min_y, p1min_z), (p1max_x, p1max_y, p1max_z) = (
-        np.min(structure1.coor, axis=1).astype(int),
-        np.max(structure1.coor, axis=1).astype(int),
-    )
-    points = np.stack([structure2.coor[0], structure2.coor[1], structure2.coor[2]], 1)
+    # Get the coordinates of the two structures
+    coords1 = np.asarray([structure1.coor[0], structure1.coor[1], structure1.coor[2]]).T
+    coords2 = np.asarray([structure2.coor[0], structure2.coor[1], structure2.coor[2]]).T
 
-    new_idx = (
-        (points[:, 0] <= p1max_x)
-        & (points[:, 0] >= p1min_x)
-        & (points[:, 1] <= p1max_y)
-        & (points[:, 1] >= p1min_y)
-        & (points[:, 2] <= p1max_z)
-        & (points[:, 2] >= p1min_z)
-    )
+    # Define a minimum number of points for intersection
+    min_overlap = min(len(coords1), len(coords2)) * 0.05
 
-    points = points[new_idx]
+    # Build a KDTree for the second structure
+    tree = KDTree(coords2)
 
-    if len(points) <= 10:  # picked arbitrarily
-        return False
-    else:
+    # Define a distance threshold for point cloud intersection
+    distance_threshold = 2
+
+    # Check for nearby points between the two models
+    num_intersecting_points = np.sum(tree.query(coords1, k=1)[0] < distance_threshold)
+
+    # Check if the models intersecth
+    if num_intersecting_points < min_overlap:
         return True
+    else:
+        return False
