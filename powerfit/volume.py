@@ -533,178 +533,194 @@ def xyz_fixed_transform(
 
     return reduced_vol
 
-# TODO: Remove this if the TEMPy Parser is okay
 
-# class MRCfileParser(Map):
-#     # Inherited from Map in TEMPy Package
-#     # TODO: reference TEMPy package
-#     def __init__(self, filename):
-#         map = MapParser(filename)
-
-
-
-#         # TODO: add check for orthaginality
-#         self.density = self.getMap()
-#         self.voxelspacing = f.voxel_size.tolist()[0]
-#         self.origin = np.grid([f.header['nxstart'], f.header['nystart'], f.header['nzstart']])
-
-
-# TODO: Look through this to see what information to keep
-
-# TODO: Update this function to reflect EM changes
-# Maybe get rid of fmt
-# def to_mrc(fid, volume: np.ndarray, fmt = None):
-#     if fmt is None:
-#         fmt = os.path.splitext(fid)[-1][1:]
-
-#     if fmt not in ('ccp4', 'mrc', 'map'):
-#         raise ValueError('Format is not recognized. Use ccp4, mrc, or map.')
+class ChainRestrictions(object):
+    def __init__(self, **kwargs):
+        self.vol = kwargs.get('volin') # Volume
+        self.volout = kwargs.get('volout', None) # Might not need
+        self.pdbin = kwargs.get('pdbin', None)
+        self.xyzfixed = kwargs.get('xyzfixed', None)
+        self.view = kwargs.get('view', False)
+        self.verbose = kwargs.get('verbose', False)
 
     
-#     # TODO: Was having saving issues - double check code
-#     # Convert back into 3 variables for TEMPy
-#     vx = vy = vz = volume.voxelspacing
-#     map = Map(
-#         volume.grid,
-#         volume.origin,
-#         (vx, vy, vz),
-#         fid
-#         )
+    def run(self):
+
+        """
+        Run the program
+        :return: Volume object of the new volume with the chain restrictions
+        """
+        
+        center, xyz_fixed_radius = tuple(self.xyzfixed.centre_of_mass), self.find_largest_side(self.xyzfixed) /2
+        semi_axis = np.array(self.get_sides(self.xyzfixed)) /2
+        semi_axis += xyz_fixed_radius
+        semi_axis /= self.vol.voxelspacing
+
+        
+        semi_axis = tuple(semi_axis)
+        
+
+        if self.verbose:
+            print(f'Center of the fixed xyz file is: {center} and the radius is: {xyz_fixed_radius}')
+            print(f'Semi-axes of the ovoid are: {semi_axis}')
+
+
+       
+        
+        if self.verbose: print("Voxel size is ",self.vol.voxelspacing, ". The origin is ", self.vol.origin)
+        center /= self.vol.voxelspacing
+        center -= self.vol.start
+        center = tuple(center)
+        
+        self.vol.grid = self.ovoid_cutting(semi_axis, self.vol, center)
+
+        if self.view:
+            self.check_gaussian_visually(self.vol.grid)
+
+        
+        filtered_volume = self.add_gasussian_filter(self.vol, 5, center, semi_axis)
+
+        if self.view:
+            self.check_gaussian_visually(filtered_volume)
+
+        self.vol.grid = filtered_volume
+
+        return self.vol
+
+    def ovoid_cutting(self, semi_axes: tuple, volin: Volume, center: tuple):
+
+        """
+        This function takes a volume and semi-axes of an ovoid and returns a volume with the same shape as the input volume, but with all values outside the ovoid set to zero.
+        :param semi_axes: semi-axes of the ovoid as a tuple (a, b, c)
+        :param volin: input volume
+        :param center: center of the ovoid as a tuple (x, y, z)
+        :return: volume with all values outside the ovoid set to zero
+        """
+
+        if not self.check_center(center):
+            raise ValueError("Center must be a tuple and cannot be negative")
+
+        distances = self.distances_of_ovoid(semi_axes, volin, center)
+
+        # Create boolean mask for points within ovoid
+        mask = distances <= 1
+
+        # Select points within ovoid
+        points_within_ovo = np.zeros_like(volin.grid)
+        points_within_ovo[mask] = volin.grid[mask]
+
+        return points_within_ovo
+
     
-#     map.update_header()
-#     map.write_to_MRC_file(fid)
+
+    def check_radius(self, radius):
+        """
+        Check if the radius is negative and/or a float
+        :return: True if the radius is negative and/or a float
+        """
+        if radius < 0:
+            raise ValueError('Radius cannot be negative')
+        if not isinstance(radius, float):
+            raise ValueError('Radius must be a float')
+        return True
+
+
+    def check_center(self, center):
+        """
+        Check if the center is negative and/or a tuple
+        :return: True if the center is negative and/or a tuple"""
+        if not isinstance(center, tuple):
+            raise ValueError('Center must be a tuple')
+        if  center[0] < 0 or  center[1] < 0 or  center[2] < 0:
+            raise ValueError('Center cannot be negative')
+        return True
+
+
+    def check_within_volume(self, center, radius, vol):
+        """
+        Check if the center is within the volume and if the radius is within the volume
+        :return: True if the center is within the volume and if the radius is within the volume
+
+        """
+        sx, sy, sz = vol.shape
+        if center[0] > sx or center[1] > sy or center[2] > sz:
+            raise ValueError('Center cannot be larger than the volume')
+        if radius > sx or radius > sy or radius > sz:
+            raise ValueError('Radius cannot be larger than the volume')
+        return True
+
+
+    def add_gasussian_filter(self, vol: Volume, sigma: float, center: tuple, semi_axes: float):
+        """
+        This function takes a volume and a radius and returns a volume with the same shape as the input volume, but with all values outside the sphere of radius r set to zero.
+        :param radius: radius of the sphere
+        :param volin: input volume
+        :param center: center of the sphere
+        :return: Volume with gaussian filter
+
+        """
+        from scipy.ndimage import gaussian_filter
+        
+        distances = self.distances_of_ovoid(semi_axes, volin=vol, center=center)
+
+        mask = distances >= 1
+
+        filtered_volume_data = gaussian_filter(vol.grid, sigma=sigma, mode="nearest")
+
+        # Select the points outside the sphere by using the inverse of the boolean mask
+        
+        filtered_volume_data[~mask] = vol.grid[~mask]
+
+        return filtered_volume_data
+
     
+    def find_largest_side(self, pdb):
+        """
+        This function takes a pdb file and returns the longest side of the box
+        :param pdb: Structure
+        :return: longest side of the box
+        """
+        x_side, y_side, z_side = self.get_sides(pdb)
+        
+        x_y_hypo = np.sqrt(x_side**2 + y_side**2)
+        if self.verbose: print("X side is: ", x_side, "Y side is: ", y_side, "Z side is: ", z_side)
+        cuboidline = np.sqrt(x_y_hypo**2 + z_side**2)
+
+        return cuboidline
+    
+    @staticmethod
+    def distances_of_ovoid(semi_axes: tuple, volin: Volume, center: tuple):
+        sx, sy, sz = volin.grid.shape
+
+        # Create 3D grid of coordinates
+        x, y, z = np.ogrid[:sx, :sy, :sz]
+        
+        # Why does this fix things so often????
+        center = np.flip(center)
+        # Calculate distance from center of grid to each point
+        distances = (
+            ((x - center[0]) / semi_axes[0]) ** 2
+            + ((y - center[1]) / semi_axes[1]) ** 2
+            + ((z - center[2]) / semi_axes[2]) ** 2
+        )
 
 
+        return distances
+    
+    @staticmethod
+    def get_sides(pdb):
+        coordinates = pdb.coor 
+        x = coordinates[:,0]
+        y = coordinates[:,1]
+        z = coordinates[:,2]
+        x_max = max(x)
+        x_min = min(x)
+        y_max = max(y)
+        y_min = min(y)
+        z_max = max(z)
+        z_min = min(z)
+        x_side = x_max - x_min
+        y_side = y_max - y_min
+        z_side = z_max - z_min
 
-
-
-# class XPLORParser(object):
-#     """
-#     Class for reading XPLOR volume files created by NIH-XPLOR or CNS.
-#     """
-
-#     def __init__(self, fid):
-
-#         if isinstance(fid, io.TextIOBase):
-#             fname = fid.name
-#         elif isinstance(fid, str):
-#             fname = fid
-#             fid = open(fid)
-#         else:
-#             raise TypeError('Input should either be a file or filename')
-
-#         self.source = fname
-#         self._get_header()
-
-#     def _get_header(self):
-
-#         header = {}
-#         with open(self.source) as volume:
-#             # first line is blank
-#             volume.readline()
-
-#             line = volume.readline()
-#             nlabels = int(line.split()[0])
-
-#             label = [volume.readline() for n in range(nlabels)]
-#             header['label'] = label
-
-#             line = volume.readline()
-#             header['nx']      = int(line[0:8])
-#             header['nxstart'] = int(line[8:16])
-#             header['nxend']   = int(line[16:24])
-#             header['ny']      = int(line[24:32])
-#             header['nystart'] = int(line[32:40])
-#             header['nyend']   = int(line[40:48])
-#             header['nz']      = int(line[48:56])
-#             header['nzstart'] = int(line[56:64])
-#             header['nzend']   = int(line[64:72])
-
-#             line = volume.readline()
-#             header['xlength'] = float(line[0:12])
-#             header['ylength'] = float(line[12:24])
-#             header['zlength'] = float(line[24:36])
-#             header['alpha'] = float(line[36:48])
-#             header['beta'] = float(line[48:60])
-#             header['gamma'] = float(line[60:72])
-
-#             header['order'] = volume.readline()[0:3]
-
-#             self.header = header
-
-#     @property
-#     def voxelspacing(self):
-#         return self.header['xlength']/float(self.header['nx'])
-
-#     @property
-#     def origin(self):
-#         return [self.voxelspacing * x for x in
-#                 [self.header['nxstart'], self.header['nystart'], self.header['nzstart']]]
-
-#     @property
-#     def density(self):
-#         with open(self.source) as volumefile:
-#             for n in range(2 + len(self.header['label']) + 3):
-#                 volumefile.readline()
-#             nx = self.header['nx']
-#             ny = self.header['ny']
-#             nz = self.header['nz']
-
-#             array = np.zeros((nz, ny, nx), dtype=np.float64)
-
-#             xextend = self.header['nxend'] - self.header['nxstart'] + 1
-#             yextend = self.header['nyend'] - self.header['nystart'] + 1
-#             zextend = self.header['nzend'] - self.header['nzstart'] + 1
-
-#             nslicelines = int(np.ceil(xextend*yextend/6.0))
-#             for i in range(zextend):
-#                 values = []
-#                 nslice = int(volumefile.readline()[0:8])
-#                 for m in range(nslicelines):
-#                     line = volumefile.readline()
-#                     for n in range(len(line)//12):
-#                         value = float(line[n*12: (n+1)*12])
-#                         values.append(value)
-#                 array[i, :yextend, :xextend] = np.float64(values).reshape(yextend, xextend)
-
-#         return array
-
-
-# def to_xplor(outfile, volume, label=[]):
-
-#     nz, ny, nx = volume.shape
-#     voxelspacing = volume.voxelspacing
-#     xstart, ystart, zstart = [int(round(x)) for x in volume.start]
-#     xlength, ylength, zlength = volume.dimensions
-#     alpha = beta = gamma = 90.0
-
-#     nlabel = len(label)
-#     with open(outfile,'w') as out:
-#         out.write('\n')
-#         out.write('{:>8d} !NTITLE\n'.format(nlabel+1))
-#         # CNS requires at least one REMARK line
-#         out.write('REMARK\n')
-#         for n in range(nlabel):
-#             out.write(''.join(['REMARK ', label[n], '\n']))
-
-#         out.write(('{:>8d}'*9 + '\n').format(nx, xstart, xstart + nx - 1,
-#                                              ny, ystart, ystart + ny - 1,
-#                                              nz, zstart, zstart + nz - 1))
-#         out.write( ('{:12.5E}'*6 + '\n').format(xlength, ylength, zlength,
-#                                                 alpha, beta, gamma))
-#         out.write('ZYX\n')
-#         #FIXME very inefficient way of writing out the volume ...
-#         for z in range(nz):
-#             out.write('{:>8d}\n'.format(z))
-#             n = 0
-#             for y in range(ny):
-#                 for x in range(nx):
-#                     out.write('%12.5E'%volume.grid[z,y,x])
-#                     n += 1
-#                     if (n)%6 is 0:
-#                         out.write('\n')
-#             if (nx*ny)%6 > 0:
-#                 out.write('\n')
-#         out.write('{:>8d}\n'.format(-9999))
-#         out.write('{:12.4E} {:12.4E} '.format(volume.grid.mean(), volume.grid.std()))
+        return(x_side, y_side, z_side)

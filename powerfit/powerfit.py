@@ -333,6 +333,13 @@ def main(
             resolution=resolution, 
             weights=weights,
             shape='vol'
+    
+    if xyz_fixed:
+        cr = ChainRestrictions(
+            volin = target,
+            pdbin = structure,
+            xyzfixed = xyz_fixed_structure,
+            verbose = True,
         )
 
         fixed_vol_mask = structure_to_shape_like(
@@ -352,6 +359,8 @@ def main(
         template.tofile(str(directory.joinpath("fixed_vol.mrc"))) # temp
         logging.info ("fixed_vol.mrc written to disk, threshold is: {:}".format(template.threshold))
         template.calc_threshold()"""
+        target.tofile(str(directory.joinpath("fixed_vol.mrc"))) # temp
+        
 
     # Read in the rotations to sample
     write("Reading in rotations.")

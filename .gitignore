@@ -10,6 +10,7 @@ powerfit/.structure.py
 scripts/gemmilist.txt
 scripts/xyz_fixed.py
 scripts/structtest.py
+scripts/shphereradius.py
 *.c
 *.pyc
 powerfit.egg-info/
