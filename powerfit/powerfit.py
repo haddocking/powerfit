@@ -1,10 +1,25 @@
 #! ../env/bin/python
+
+# Original repsositry by haddock labs,
+# licensed under the Apache License, Version 2.0.
+
+# Modified by Luc Elliott, 24/04/2023, with the following modifications: 
+#   Updated the code to be compatible with Python 3.7.
+#   Updated API functionality 
+#   added more arguments to the command line interface
+#   added more logging
+
+
+
+# For more information about the original code, please see https://github.com/haddocking/powerfit. 
+
+# Your modified code follows...
+
 from __future__ import absolute_import, division
 
 from __future__ import print_function
 from os.path import splitext
 from pathlib import Path
-from sys import stdout, argv
 from time import time
 from argparse import ArgumentParser
 import logging
@@ -139,14 +154,7 @@ def parse_args():
         metavar="<str>",
         help="Basename of the output files.",
     )
-    # Selection parameter
-    # TODO: reimplement this when I fix selection
-    """p.add_argument('-c', '--chain', dest='chain', type=str, default=None,
-            metavar='<char>',
-            help=('The chain IDs of the structure to be fitted. '
-                  'Multiple chains can be selected using a comma separated list, i.e. -c A,B,C. '
-                  'Default is the whole structure.'),
-                 )"""
+
     # Output parameters
     p.add_argument(
         "-d",
@@ -306,17 +314,6 @@ def main(
             xyz_fixed_structure = Structure.fromfile(str(xyz_fixed.resolve()))
         write("Fixed model file read from: {:s}".format(xyz_fixed_structure.filename))
 
-    # TODO: add this back in to at some point
-    # if args.chain is not None:
-    #     write('Selecting chains: ' + args.chain)
-    #     structure = structure.select('chain', args.chain.split(','))
-
-    # TODO: Figure out what size means, maybe the size of the dict
-    # if structure.data.size == 0:
-    #     raise ValueError("No atoms were selected.")
-
-    # Move structure to origin of density
-    # structure.translate(target.origin - structure.centre_of_mass)
     if bfac: 
         weights = 0.4/structure.bfacs
     else:
@@ -342,12 +339,7 @@ def main(
           shape='mask'
           )
 
-    # template.resolution = resolution
-    # template.calc_threshold(simulated=True)
-    # Might try and use connectivity instead of XYZ_fixed, circular area around fit
-    
-
-    # Read in the rotations to sample
+ 
     write("Reading in rotations.")
     q, w, degree = proportional_orientations(angle)
     rotmat = quat_to_rotmat(q)
@@ -430,7 +422,7 @@ def main(
             "analyzer": "solutions.out",
         }
 
-    # Not needed
+    
     else:
         to_return = None
 

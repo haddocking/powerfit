@@ -1,3 +1,16 @@
+# Original repsositry by haddock labs,
+# licensed under the Apache License, Version 2.0.
+
+# Modified by Luc Elliott, 24/04/2023, with the following modifications: 
+#   Updated the code to be compatible with Python 3.7.
+#   Updated the code to be compatible with the latest version of the TEMPy library.
+#   Updated the code to be compatible with the latest version of the gemmi library.
+#   
+
+# For more information about the original code, please see https://github.com/haddocking/powerfit. 
+
+# Your modified code follows...
+
 from __future__ import absolute_import
 from collections import defaultdict, OrderedDict
 from string import capwords
@@ -13,6 +26,8 @@ from pathlib import Path
 
 # TEMPy Parsers
 from TEMPy.protein.structure_parser import PDBParser, mmCIFParser, gemmi_helper_fns
+# Cragnolini T, Sahota H, Joseph AP, Sweeney A, Malhotra S, Vasishtan D, Topf M (2021a) TEMPy2: A Python library with improved 3D electron microscopy density-fitting and validation workflows. Acta Crystallogr Sect D Struct Biol 77:41–47. doi:10.1107/S2059798320014928
+
 from copy import copy
 import gemmi
 
@@ -152,14 +167,12 @@ def pdb_array_to_dict(pdb_array):
     pdb['model'] = pdb_array['model'].tolist()
     return pdb
 
-# I think the issue is with the duplication of the Structure clas
-# I think as it duplicates the translation stays so it moves away
-# again and again so need to sort that out...
+
 class Structure(object):
 
     @classmethod
     def fromfile(cls, fid):
-        #TODO: Reference TEMPy
+        
         """Initialize Structure from PDB-file"""
         
         try:
@@ -259,48 +272,13 @@ class Structure(object):
     def rotate(self, rotmat):
         """Rotate atoms"""
      
-        self.prot.matrix_transform(rotmat)
+        self.__prot.matrix_transform(rotmat)
     
     
     def combine(self, structure):
         self.__prot.add_structure_instance(structure.prot)
 
-    # TODO: Go over this, Don't want to tackle it right now
-
-
-    """def select(self, identifier, values, loperator='==', return_ind=False):
-        \"""A simple way of selecting atoms\"""
-        if loperator == '==':
-            oper = operator.eq
-        elif loperator == '<':
-            oper = operator.lt
-        elif loperator == '>':
-            oper = operator.gt
-        elif loperator == '>=':
-            oper = operator.ge
-        elif loperator == '<=':
-            oper = operator.le
-        elif loperator == '!=':
-            oper = operator.ne
-        else:
-            raise ValueError('Logic operator not recognized.')
-
-        if not isinstance(values, Sequence) or isinstance(values, six.string_types):
-            values = (values,)
-
-        selection = oper(self.data[identifier], values[0])
-        if len(values) > 1:
-            for v in values[1:]:
-                if loperator == '!=':
-                    selection &= oper(self.data[identifier], v)
-                else:
-                    selection |= oper(self.data[identifier], v)
-
-        if return_ind:
-            return selection
-        else:
-            return Structure(self.data[selection])
-"""
+   
     @property
     def sequence(self):
         return np.asarray([atom.res for atom in self.prot.get_CAonly()])
@@ -316,13 +294,10 @@ class Structure(object):
             fid = self.filename
             
         if outtype == 'pdb':
-            # TODO: sort out a bug where 7zoa with hetatm
-            # Doesn't work and gets 0 mass total
-            # 
-            self.prot.write_to_PDB(fid)
+            self.__prot.write_to_PDB(fid)
 
         elif outtype == 'mmcif':
-            self.prot.write_to_mmcif(fid)
+            self.__prot.write_to_mmcif(fid)
             
         else:
             raise IOError('Filetype not recognized.')
@@ -401,9 +376,8 @@ class PDBParser(PDBParser):
             hetatm=False,
             water=False,
     ):
-        """Copy of PDBParser from TEMPy so I can read in gemmi structure
-        ref - TEMPy"""
-        filename = 'temp' # change but not needed right now
+        """Copy of PDBParser from TEMPy so I can read in gemmi structure"""
+        filename = 'tempory_name.pdb'
     
 
         if not structure[0][0].name:

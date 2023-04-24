@@ -1,0 +1,18 @@
+This repository includes modifications to the original powerfit 
+repository, created by Haddock labs The original repository is 
+licensed under the Apache License, Version 2.0.
+
+The modifications made to the original repository 
+include:
+    updates to Python 3.7 
+    changes to the Volume and Structure Parsers
+    Added API functionality
+    Changes to the logging functionality
+    Added more command line functionality
+
+
+For more information about the original repository, 
+please see https://github.com/haddocking/powerfit.
+
+When using, please reference:
+G.C.P. van Zundert and A.M.J.J. Bonvin. Fast and sensitive rigid-body fitting into cryo-EM density maps with PowerFit. AIMS Biophysics 2, 73-87 (2015).

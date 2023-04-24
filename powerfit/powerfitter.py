@@ -1,3 +1,13 @@
+# Original repsositry by haddock labs,
+# licensed under the Apache License, Version 2.0.
+
+# Modified by Luc Elliott, 24/04/2023, with the following modifications: 
+#   Updated the code to be compatible with Python 3.7.
+
+# For more information about the original code, please see https://github.com/haddocking/powerfit. 
+
+# Your modified code follows...
+
 from __future__ import absolute_import, division
 
 from sys import stdout
@@ -5,12 +15,12 @@ from os import remove
 from os.path import join, abspath, isdir
 import os.path
 from time import time, sleep
-from multiprocessing import RawValue, Lock, Process, cpu_count
+from multiprocessing import RawValue, Lock, Process
 from string import Template
 
 import numpy as np
 from numpy.fft import irfftn as np_irfftn, rfftn as np_rfftn
-from scipy.ndimage import binary_erosion, laplace
+from scipy.ndimage import laplace
 from six.moves import range
 
 try:

@@ -1,5 +1,17 @@
+# Original repsositry by haddock labs,
+# licensed under the Apache License, Version 2.0.
+
+# Modified by Luc Elliott, 24/04/2023, with the following modifications: 
+#   Updated the code to be compatible with Python 3.7.
+#   Made Volvume class compatible with the TEMPy Map object.
+#   Added different ways to initialise the Volume class.
+
+# For more information about the original code, please see https://github.com/haddocking/powerfit. 
+
+# Your modified code follows...
+
+
 from __future__ import division, absolute_import
-from struct import unpack as _unpack, pack as _pack
 import os.path
 from sys import byteorder as _BYTEORDER
 import warnings
@@ -11,19 +23,17 @@ from scipy.ndimage import zoom, gaussian_filter
 from ._powerfit import blur_points, dilate_points
 from six.moves import range
 from six.moves import zip
-import io
-
-# For XYZ_fixed
-from scipy.ndimage import binary_dilation, gaussian_filter
 
 # Map parsers
 from TEMPy.maps.map_parser import MapParser
 from TEMPy.maps.em_map import Map
 from TEMPy.protein.structure_blurrer import StructureBlurrer
 from TEMPy.protein.scoring_functions import ScoringFunctions 
+# Cragnolini T, Sahota H, Joseph AP, Sweeney A, Malhotra S, Vasishtan D, Topf M (2021a) TEMPy2: A Python library with improved 3D electron microscopy density-fitting and validation workflows. Acta Crystallogr Sect D Struct Biol 77:41–47. doi:10.1107/S2059798320014928
 
 from copy import copy
-# Completly change voume class to reflect 
+
+
 class Volume(object):
 
     @classmethod
@@ -179,21 +189,6 @@ class Volume(object):
         self.__vol.filename = fname
         self['Filename'] = fname
 
-    def maskMap(self):
-        # TODO: Takes a Map object and returns a Mask of that Map
-        # Temporary, look into how TEMPy does this, incorporate a radaii
-        maskmap = self.__vol.copy()
-        maskmap.update_header()
-
-        zeros = np.zeros(maskmap.fullMap.shape)
-        zeros[maskmap.fullMap >= self.__threshold] = 1
-
-        maskmap.fullMap = zeros
-
-        maskmapVolume = Volume.fromMap(maskmap)
-
-        maskmapVolume['Mask'] = True
-        return maskmapVolume
 
     def tofile(self, fid=None, fmt=None):
         if fid is None:
@@ -225,10 +220,6 @@ class Volume(object):
 
 
 class StructureBlurrerbfac(StructureBlurrer):
-    # TEMPy 
-    # Adaptation of TEMPy structure blurer which takes into account
-    # The b-factor of the molecule
-    # TODO: reference TEMPy
     def __init__(self, outname:str, with_vc=False):
         self.outname = outname
         super().__init__(with_vc=with_vc)
@@ -275,8 +266,6 @@ class StructureBlurrerbfac(StructureBlurrer):
                 exp_map.apix,
                 self.outname,
         )
-
-
 
 
 # builders
@@ -451,44 +440,5 @@ def structure_to_shape_like(vol, xyz, resolution=None, weights=None,
     return out
 
 
-def structure_to_shape_TEMPy(
-                vol,
-                structure, 
-                resolution=None, 
-                bfac=False,
-                normalise=False,
-                            ):
 
-    if resolution is None:
-        resolution = vol.resolution
-    
-    if resolution is None:
-        raise AssertionError ("resolution must be specified\
-either in the Volume class or as a kwarg")
-
-    sb = StructureBlurrerbfac('', with_vc=True)
-
-    if bfac:
-        method = sb._gaussian_blur_real_space_vc_bfac
-        
-    else:
-        method = sb._gaussian_blur_real_space_vc
-
-    simmap = method(
-            structure.prot,
-            resolution,
-            vol.vol,
-        )
-
-    if normalise:
-        simmap.normalise()
-    
-    simmap_vol = Volume.fromMap(simmap)
-    simmap_vol.resolution = resolution
-    simmap_vol.calc_threshold(simulated=True)
-    simmap_vol['Simulated'] = True
-    return simmap_vol
-
-    # vol = Volume.fromMap(simmap)
-    # vol.tofile(sys.argv[3])
 

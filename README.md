@@ -4,6 +4,13 @@
 
 ## About PowerFit
 
+**This is an updated version of the original PowerFit code to be** **compatible with Python 3.7. The original code can be found at**
+**https://github.com/haddocking/powerfit.**
+
+Please read NOTICE.txt for information on the license and the original authors.
+
+
+
 PowerFit is a Python package and simple command-line program to automatically
 fit high-resolution atomic structures in cryo-EM densities. To this end it
 performs a full-exhaustive 6-dimensional cross-correlation search between the
@@ -22,8 +29,8 @@ been succesfully installed and used on Linux and MacOSX machines.
 
 Minimal requirements for the CPU version:
 
-* Python2.7
-* NumPy 1.8+
+* Python3.7+ (We recommend using Anaconda)
+* NumPy 1.20.3
 * SciPy
 * GCC (or another C-compiler)
 
@@ -37,7 +44,7 @@ To offload computations to the GPU the following is also required
 * OpenCL1.1+
 * pyopencl
 * clFFT
-* gpyfft
+* gpyfft 
 
 Recommended for installation
 
@@ -50,7 +57,7 @@ Recommended for installation
 If you already have fulfilled the requirements, the installation should be as
 easy as opening up a shell and typing
 
-    git clone https://github.com/haddocking/powerfit.git
+    git clone https://github.com/hllelli2/powerfit37.git
     cd powerfit
     sudo python setup.py install
 
@@ -61,7 +68,7 @@ running in no time.
 
 ### Linux 
 
-Linux systems usually already include a Python2.7 distribution. First make
+Linux systems usually already include a Python distribution. First make
 sure the Python header files, NumPy, SciPy, and *git* are available by
 opening up a terminal and typing for Debian and Ubuntu systems
 
@@ -103,6 +110,8 @@ Installing pyFFTW for faster CPU version can be done as follows using *brew*
 
 
 ### Windows
+
+**Warning:** Windows has not been tested for this verison of Powerfit.
 
 First install *git* for Windows, as it comes with a handy bash shell. Go to
 [git-scm](https://git-scm.com/download/), download *git* and install it. Next,
@@ -215,6 +224,8 @@ Copyright (c) 2005-2015, Christoph Gohlke
 
 
 ## Tested platforms
+
+**Warning** has not been tested on Windows. :
 
 | Operating System| CPU single | CPU multi | GPU |
 | --------------- | ---------- | --------- | --- |
