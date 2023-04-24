@@ -310,7 +310,7 @@ def main(
 
     write("Template file read from: {:s}".format(structure.filename))
     if xyz_fixed:
-        if isinstance(xyz_fixed, Path):
+        if isinstance(xyz_fixed, (Path,str)):
             xyz_fixed_structure = Structure.fromfile(str(xyz_fixed.resolve()))
         write("Fixed model file read from: {:s}".format(xyz_fixed_structure.filename))
 
