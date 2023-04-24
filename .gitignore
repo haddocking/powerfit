@@ -14,3 +14,4 @@ scripts/shphereradius.py
 *.c
 *.pyc
 powerfit.egg-info/
+tests/
