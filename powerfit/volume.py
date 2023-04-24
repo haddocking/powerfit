@@ -3,7 +3,7 @@
 
 # Modified by Luc Elliott, 24/04/2023, with the following modifications: 
 #   Updated the code to be compatible with Python 3.7.
-#   Made Volvume class compatible with the TEMPy Map object.
+#   Made Volume class compatible with the TEMPy Map object.
 #   Added different ways to initialise the Volume class.
 
 # For more information about the original code, please see https://github.com/haddocking/powerfit. 
