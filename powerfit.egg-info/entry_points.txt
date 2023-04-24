@@ -1,0 +1,4 @@
+[console_scripts]
+em2em = powerfit.scripts:em2em
+image-pyramid = powerfit.scripts:image_pyramid
+powerfit = powerfit.powerfit:run

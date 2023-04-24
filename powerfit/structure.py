@@ -1,6 +1,5 @@
 from __future__ import absolute_import
-from collections import defaultdict, Sequence, OrderedDict
-import operator
+from collections import defaultdict, OrderedDict
 from string import capwords
 
 import numpy as np
@@ -10,6 +9,13 @@ import six
 from six.moves import range
 from six.moves import zip
 import io
+from pathlib import Path
+
+# TEMPy Parsers
+from TEMPy.protein.structure_parser import PDBParser, mmCIFParser, gemmi_helper_fns
+from copy import copy
+import gemmi
+
 
 # records
 MODEL = 'MODEL '
@@ -146,69 +152,124 @@ def pdb_array_to_dict(pdb_array):
     pdb['model'] = pdb_array['model'].tolist()
     return pdb
 
-
+# I think the issue is with the duplication of the Structure clas
+# I think as it duplicates the translation stays so it moves away
+# again and again so need to sort that out...
 class Structure(object):
 
     @classmethod
     def fromfile(cls, fid):
+        #TODO: Reference TEMPy
         """Initialize Structure from PDB-file"""
+        
         try:
             fname = fid.name
         except AttributeError:
             fname = fid
 
         if fname[-3:] in ('pdb', 'ent'):
-            arr = pdb_dict_to_array(parse_pdb(fid))
+            prot = PDBParser.read_PDB_file(
+                fid,
+                fid,
+                hetatm=False,
+                water=False)
         elif fname[-3:] == 'cif':
-            arr = mmcif_dict_to_array(parse_mmcif(fid))
+            prot = mmCIFParser.read_mmCIF_file(
+                fid,
+                hetatm=True,
+                water=False)
         else:
             raise IOError('Filetype not recognized.')
-        return cls(arr)
+        
+        return cls(prot)
 
-    def __init__(self, pdb):
-        self.data = pdb
+    @classmethod
+    def fromGemmi(cls, fid:gemmi.Structure):
+        if not isinstance(fid, gemmi.Structure):
+            AssertionError ('Not a gemmi structure cannot use fromGemmi')
+        
+        prot = PDBParser.read_gemmi_struture(
+                fid,
+                hetatm=False,
+                water=False)
+        
+        return cls(prot)
 
+    def __init__(self, prot):
+        self.__prot = prot
+        
     @property
     def atomnumber(self):
         """Return array of atom numbers"""
         return self._get_property('number')
 
     @property
-    def chain_list(self):
-        return np.unique(self.data['chain'])
+    def prot(self):
+        return self.__prot
 
-    def combine(self, structure):
-        return Structure(np.hstack((self.data, structure.data)))
+    @prot.setter
+    def prot(self, prot):
+        self.__prot = prot
+
+    
+    @property
+    def bfacs(self):
+        return np.asarray([a.temp_fac for a
+                            in self.__prot.atomList])
+
+    @property
+    def chain_list(self):
+        return self.prot.get_chain_list()
 
     @property
     def coor(self):
         """Return the coordinates"""
-        return np.asarray([self.data['x'], self.data[ 'y'], self.data['z']])
+        return np.asarray([*zip(*[atom.get_pos_vector()for atom in self.prot.atomList])])
 
     def duplicate(self):
         """Duplicate the object"""
-        return Structure(self.data.copy())
+        protdupe = self.__prot.copy()
+        structure = copy(self)
+        structure.prot = protdupe
+        return structure
 
     def _get_property(self, ptype):
-        elements, ind = np.unique(self.data['e'], return_inverse=True)
+        elements, ind = np.unique(
+            [atom.elem for atom in self.prot.atomList], return_inverse=True
+            )
         return np.asarray([getattr(ELEMENTS[capwords(e)], ptype) 
             for e in elements], dtype=np.float64)[ind]
 
     @property
     def mass(self):
         return self._get_property('mass')
+    
+    
+    @property
+    def filename(self):
+        return str(Path(self.__prot.filename).resolve())
+    
+    @filename.setter
+    def filename(self, fname):
+        self.__prot.filename = fname
 
     def rmsd(self, structure):
         return np.sqrt(((self.coor - structure.coor) ** 2).mean() * 3)
 
     def rotate(self, rotmat):
         """Rotate atoms"""
-        self.data['x'], self.data['y'], self.data['z'] = (
-              np.asmatrix(rotmat) * np.asmatrix(self.coor)
-              )
+     
+        self.prot.matrix_transform(rotmat)
+    
+    
+    def combine(self, structure):
+        self.__prot.add_structure_instance(structure.prot)
 
-    def select(self, identifier, values, loperator='==', return_ind=False):
-        """A simple way of selecting atoms"""
+    # TODO: Go over this, Don't want to tackle it right now
+
+
+    """def select(self, identifier, values, loperator='==', return_ind=False):
+        \"""A simple way of selecting atoms\"""
         if loperator == '==':
             oper = operator.eq
         elif loperator == '<':
@@ -239,25 +300,42 @@ class Structure(object):
             return selection
         else:
             return Structure(self.data[selection])
-
+"""
     @property
     def sequence(self):
-        resids, indices = np.unique(self.data['resi'], return_index=True)
-        return self.data['resn'][indices]
+        return np.asarray([atom.res for atom in self.prot.get_CAonly()])
 
     def translate(self, trans):
         """Translate atoms"""
-        self.data['x'] += trans[0]
-        self.data['y'] += trans[1]
-        self.data['z'] += trans[2]
+        tx, ty, tz = trans
+        self.prot.translate(tx, ty, tz)
 
-    def tofile(self, fid):
+    def tofile(self, fid=None, outtype = 'pdb'):
         """Write instance to PDB-file"""
-        tofile(pdb_array_to_dict(self.data), fid)
+        if fid is None:
+            fid = self.filename
+            
+        if outtype == 'pdb':
+            # TODO: sort out a bug where 7zoa with hetatm
+            # Doesn't work and gets 0 mass total
+            # 
+            self.prot.write_to_PDB(fid)
+
+        elif outtype == 'mmcif':
+            self.prot.write_to_mmcif(fid)
+            
+        else:
+            raise IOError('Filetype not recognized.')
 
     @property
     def rvdw(self):
         return self._get_property('vdwrad')
+    
+    @property
+    def centre_of_mass(self):
+        return np.array([x for x in self.prot.CoM])
+
+
 
 
 def parse_mmcif(infile):
@@ -311,3 +389,40 @@ def mmcif_dict_to_array(atom_site):
     cifdata['charge'] = atom_site['pdbx_formal_charge']
     cifdata['model'] = atom_site['pdbx_PDB_model_num']
     return cifdata
+
+
+class PDBParser(PDBParser):
+    def __init__(self):
+        pass
+
+    @staticmethod
+    def read_gemmi_struture(
+            structure,
+            hetatm=False,
+            water=False,
+    ):
+        """Copy of PDBParser from TEMPy so I can read in gemmi structure
+        ref - TEMPy"""
+        filename = 'temp' # change but not needed right now
+    
+
+        if not structure[0][0].name:
+            structure = gemmi_helper_fns.name_nameless_chains(structure)
+
+        if not hetatm:
+            structure.remove_ligands_and_waters()
+        if not water:
+            structure.remove_waters()
+        structure.remove_empty_chains()
+
+        structure.setup_entities()
+        structure.assign_label_seq_id()
+        data_block = structure.make_mmcif_document().sole_block()
+
+        return mmCIFParser._convertGEMMItoTEMPy(
+                                            data_block,
+                                            structure,
+                                            filename,
+                                            water=water,
+                                            hetatm=hetatm,
+                                            )
