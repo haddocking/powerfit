@@ -18,13 +18,12 @@ from powerfit import (
 )
 from powerfit.powerfitter import PowerFitter
 from powerfit.analyzer import Analyzer
-from powerfit.helpers import mkdir_p, write_fits_to_pdb, fisher_sigma
+from powerfit.helpers import mkdir_p, write_fits_to_pdb, fisher_sigma, setup_logging
 from powerfit.volume import (
     extend,
     nearest_multiple2357,
     trim,
-    resample,
-    xyz_fixed_transform,
+    resample
 )
 from powerfit.structure import Structure
 
@@ -132,6 +131,14 @@ def parse_args():
         help="Intensity cutoff to which the map will be trimmed. "
         "Default is 10 percent of maximum intensity.",
     )
+    p.add_argument(
+        "-bn",
+        "--basename",
+        type=str,
+        default="fit",
+        metavar="<str>",
+        help="Basename of the output files.",
+    )
     # Selection parameter
     # TODO: reimplement this when I fix selection
     """p.add_argument('-c', '--chain', dest='chain', type=str, default=None,
@@ -180,6 +187,14 @@ def parse_args():
         "of available processors on your machine.",
     )
 
+    p.add_argument(
+        "-lf",
+        "--logging_file",
+        dest="logging_file",
+        type=str,
+        default=None,
+    )
+
     args = p.parse_args()
 
     return args
@@ -200,9 +215,8 @@ def get_filetype_template(fname):
 
 def write(line):
     """Write line to stdout and logfile."""
-    if stdout.isatty():
-        print(line)
-    logging.info(line)
+    logger = logging.getLogger(__name__)
+    logger.info(line)
 
 
 def main(
@@ -224,18 +238,23 @@ def main(
     trimming_cutoff=None,
     return_instances: bool = False,
     return_files=True,
+    basename: str = "fit",
+    logging_file: str = None,
 ):
 
     time0 = time()
     mkdir_p(directory)
-    # Configure logging file
-    logging.basicConfig(
-        filename=str(directory.joinpath("powerfit.log")),
-        level=logging.INFO,
-        format="%(asctime)s %(message)s",
-    )
-    logging.info(" ".join(argv))
 
+    # Configure logging file
+    if logging_file is None:
+        logging_file = directory.joinpath("powerfit.log")
+    
+
+    global logger
+    logger = setup_logging(level="INFO", logfile=logging_file,
+                            # debugfile=debug_file
+                            )
+    
     # Get GPU queue if requested
     queues = None
     if gpu:
@@ -326,41 +345,7 @@ def main(
     # template.resolution = resolution
     # template.calc_threshold(simulated=True)
     # Might try and use connectivity instead of XYZ_fixed, circular area around fit
-    """if xyz_fixed:
-        fixed_vol = structure_to_shape_like(
-            target, 
-            xyz_fixed_structure.coor, 
-            resolution=resolution, 
-            weights=weights,
-            shape='vol'
     
-    if xyz_fixed:
-        cr = ChainRestrictions(
-            volin = target,
-            pdbin = structure,
-            xyzfixed = xyz_fixed_structure,
-            verbose = True,
-        )
-
-        fixed_vol_mask = structure_to_shape_like(
-            target, 
-            xyz_fixed_structure.coor, 
-            resolution=resolution, 
-            shape='mask'
-        )
-
-
-        template = xyz_fixed_transform(
-            target, 
-            fixed_vol,
-            fixed_vol_mask,
-            )
-
-        template.tofile(str(directory.joinpath("fixed_vol.mrc"))) # temp
-        logging.info ("fixed_vol.mrc written to disk, threshold is: {:}".format(template.threshold))
-        template.calc_threshold()"""
-        target.tofile(str(directory.joinpath("fixed_vol.mrc"))) # temp
-        
 
     # Read in the rotations to sample
     write("Reading in rotations.")
@@ -426,7 +411,7 @@ def main(
         structure,
         analyzer.solutions,
         n,
-        basename=str(directory.joinpath("fit")),
+        basename=str(directory.joinpath(basename)),
         xyz_fixed=fixed,
         return_instances=return_instances,
         return_files=return_files,
@@ -474,6 +459,8 @@ def run():
         resampling_rate=args.resampling_rate,
         angle=args.angle,
         trimming_cutoff=args.trimming_cutoff,
+        basename=args.basename,
+        logging_file=args.logging_file,
     )
 
 

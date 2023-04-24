@@ -1,8 +1,13 @@
 from __future__ import absolute_import, division
+
+from math import sqrt
+from scipy.spatial import cKDTree
+
+
+from enum import Enum
+import logging
 import os
-import errno
-from math import sqrt, pi
-from scipy.spatial import KDTree
+import sys
 
 
 import numpy as np
@@ -107,7 +112,7 @@ def quick_structure_overlap(structure1, structure2):
     min_overlap = min(len(coords1), len(coords2)) * 0.05
 
     # Build a KDTree for the second structure
-    tree = KDTree(coords2)
+    tree = cKDTree(coords2)
 
     # Define a distance threshold for point cloud intersection
     distance_threshold = 2
@@ -121,3 +126,81 @@ def quick_structure_overlap(structure1, structure2):
     else:
         return False
 
+class LogColors(Enum):
+    """Color container for log messages"""
+    CRITICAL = 31
+    DEBUG = 34
+    DEFAULT = 0
+    ERROR = 31
+    WARNING = 33
+
+
+class LogColorFormatter(logging.Formatter):
+    """Formatter for log messages"""
+
+    def format(self, record):
+        if record.levelname in LogColors.__members__:
+            prefix = '\033[1;{}m'.format(LogColors[record.levelname].value)
+            postfix = '\033[{}m'.format(LogColors["DEFAULT"].value)
+            record.msg = os.linesep.join([prefix + msg + postfix for msg in str(record.msg).splitlines()])
+        return logging.Formatter.format(self, record)
+
+def setup_logging(level="INFO", logfile=None, debugfile=None):
+    # Author Adam Simpkin, Taken from SliceNDice code:
+    # REF
+
+    """Set up logging to the console for the root logger.
+
+    :param level: str, optional
+        The console logging level to be used [default: info]
+        To change, use one of
+            [ notset | info | debug | warning | error | critical ]
+    :param logfile: str, optional
+        The path to a log file containing INFO level output
+    :param debugfile: str, optional
+        The path to a log file containing all output
+    :return: :obj:`~logging.Logger`
+        Instance of a :obj:`~logging.Logger`
+    """
+
+    # Reset any Handlers or Filters already in the logger to start from scratch
+    # https://stackoverflow.com/a/16966965
+    map(logging.getLogger().removeHandler, logging.getLogger().handlers[:])
+    map(logging.getLogger().removeFilter, logging.getLogger().filters[:])
+    logging.getLogger().handlers = []
+    logging_levels = {
+        "notset": logging.NOTSET,
+        "info": logging.INFO,
+        "debug": logging.DEBUG,
+        "warning": logging.WARNING,
+        "error": logging.ERROR,
+        "critical": logging.CRITICAL,
+    }
+
+    # Create logger and default settings
+    logging.getLogger().setLevel(level)
+
+    # create console handler with a higher log level
+    ch = logging.StreamHandler(stream=sys.stdout)
+    ch.setLevel(logging_levels.get(level, logging.INFO))
+    ch.setFormatter(LogColorFormatter("%(message)s"))
+    logging.getLogger().addHandler(ch)
+
+    # create file handler which logs only info messages
+    if logfile:
+        fh = logging.FileHandler(logfile)
+        fh.setLevel(logging.INFO)
+        fh.setFormatter(logging.Formatter("%(message)s"))
+        logging.getLogger().addHandler(fh)
+    # create file handler which logs even debug messages
+    if debugfile:
+        fh = logging.FileHandler(debugfile)
+        fh.setLevel(logging.NOTSET)
+        fh.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
+        logging.getLogger().addHandler(fh)
+
+    logging.getLogger().debug("Console logger level: %s", logging_levels.get(level, logging.INFO))
+    logging.getLogger().debug("File logger level: %s", logging.INFO)
+    logging.getLogger().debug("File debug logger level: %s", logging.NOTSET)
+
+    return logging.getLogger()
