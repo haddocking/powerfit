@@ -115,7 +115,7 @@ def quick_structure_overlap(structure1, structure2):
     tree = cKDTree(coords2)
 
     # Define a distance threshold for point cloud intersection
-    distance_threshold = 2
+    distance_threshold = 1
 
     # Check for nearby points between the two models
     num_intersecting_points = np.sum(tree.query(coords1, k=1)[0] < distance_threshold)
