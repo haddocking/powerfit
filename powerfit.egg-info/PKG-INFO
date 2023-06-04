@@ -11,3 +11,4 @@ Classifier: Programming Language :: Python :: 2.7
 Classifier: Intended Audience :: Science/Research
 Classifier: Topic :: Scientific/Engineering :: Bio-Informatics
 License-File: LICENSE
+License-File: NOTICE.txt

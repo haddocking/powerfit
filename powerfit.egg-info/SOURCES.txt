@@ -1,5 +1,6 @@
 .gitignore
 LICENSE
+NOTICE.txt
 README.md
 setup.py
 dist/powerfit-2.0.0-py3.7-linux-x86_64.egg

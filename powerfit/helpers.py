@@ -87,9 +87,7 @@ def write_fits_to_pdb(
         out.filename = basename + "_{:d}.pdb".format(n + 1)
         if xyz_fixed:
 
-            if quick_structure_overlap(out, xyz_fixed):
-                out.combine(xyz_fixed)
-            else:
+            if not quick_structure_overlap(out, xyz_fixed): # Altered so chains don't get combined
                 continue
 
         if return_files:
@@ -115,7 +113,7 @@ def quick_structure_overlap(structure1, structure2):
     tree = cKDTree(coords2)
 
     # Define a distance threshold for point cloud intersection
-    distance_threshold = 1
+    distance_threshold = 1 # change distance threshold and min_overlap to be more sensitive
 
     # Check for nearby points between the two models
     num_intersecting_points = np.sum(tree.query(coords1, k=1)[0] < distance_threshold)
