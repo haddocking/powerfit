@@ -36,24 +36,26 @@ def main():
     package_data = {'powerfit': [os.path.join('data', '*.npy'), 'kernels.cl']}
 
     description = ("Rigid body fitting of high-resolution structures in "
-        "low-resolution cryo-electron microscopy density maps")
+        "low-resolution cryo-electron microscopy density maps. (Python 3.8)) "
+        "Updated to be compatible with Python 3.8 for information about the "
+        "previous version, please contact g.c.p.vanzundert@uu.nl.")
 
-    setup(name="powerfit",
+    setup(name="powerfit38",
           version='1.1.0',
           description=description,
-          url="https://github.com/haddocking/powerfit",
-          author='Gydo C.P. van Zundert',
-          author_email='g.c.p.vanzundert@uu.nl',
+          url="https://github.com/hllelli2/powerfit37",
+          author='Gydo C.P. van Zundert, Luc Elliott, Adam Simpkin',
+          author_email='g.c.p.vanzundert@uu.nl, hllelli2@liverpool.ac.uk, hlasimpk@liverpool.ac.uk',
           license="Apache",
           classifiers=[
               'Development Status :: 3 - Alpha',
-              'Programming Language :: Python :: 2.7',
+              'Programming Language :: Python :: 3.8',
               'Intended Audience :: Science/Research',
               'Topic :: Scientific/Engineering :: Bio-Informatics',
               ],
           packages=packages,
           package_data = package_data,
-          install_requires=['numpy>=1.8', 'scipy'],
+          install_requires=['numpy>=1.23.0', 'scipy'],
           entry_points={
               'console_scripts': [
                   'powerfit = powerfit.powerfit:run',

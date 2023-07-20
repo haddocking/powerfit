@@ -100,7 +100,7 @@ class Analyzer(object):
             positions += maximum_position(self._corr, labels, list(range(1, nfeatures + 1)))
         self._positions = set(positions)
 
-    def tofile(self, out='solutions.out'):
+    def to_file(self, out='solutions.out'):
 
         if self._solutions is None:
             self._generate_solutions()

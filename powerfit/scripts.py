@@ -40,7 +40,7 @@ def em2em():
     args = parse_em2em()
 
     print('Reading input file ...')
-    v = Volume.fromfile(args.infile, args.input_format)
+    v = Volume.from_file(args.infile, args.input_format)
 
     if args.resample is not None:
         print('Resampling ...')
@@ -53,7 +53,7 @@ def em2em():
         v = trim(v, args.trim_cutoff)
 
     print('Writing to file ...')
-    v.tofile(args.outfile, args.output_format)
+    v.to_file(args.outfile, args.output_format)
 
 
 def parse_image_pyramid():
@@ -95,12 +95,12 @@ def parse_image_pyramid():
 def image_pyramid():
     args = parse_image_pyramid()
     # create image-pyramid
-    vol = Volume.fromfile(args.map)
+    vol = Volume.from_file(args.map)
     fname = args.base_name + '_{:.0f}.mrc'
     for resolution in args.target_resolutions:
         vol2 = lower_resolution(vol, args.resolution, resolution)
         new_voxelspacing = resolution / (2 * args.resampling_rate)
         factor = vol.voxelspacing / new_voxelspacing 
         vol2 = resample(vol2, factor, order=1)
-        vol2.tofile(fname.format(resolution))
+        vol2.to_file(fname.format(resolution))
 

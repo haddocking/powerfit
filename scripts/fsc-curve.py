@@ -9,8 +9,8 @@ from powerfit import Volume
 from powerfit._powerfit import fsc_curve
 from six.moves import range
 
-vol1 = Volume.fromfile(sys.argv[1])
-vol2 = Volume.fromfile(sys.argv[2])
+vol1 = Volume.from_file(sys.argv[1])
+vol2 = Volume.from_file(sys.argv[2])
 
 ft_vol1 = fftn(vol1.array)
 ft_vol2 = fftn(vol2.array)
