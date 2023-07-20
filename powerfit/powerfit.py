@@ -9,23 +9,21 @@
 #   added more arguments to the command line interface
 #   added more logging
 
-
-
 # For more information about the original code, please see https://github.com/haddocking/powerfit. 
 
 # Your modified code follows...
 
 from __future__ import absolute_import, division
-
 from __future__ import print_function
+
 from os.path import splitext
 from pathlib import Path
 from time import time
 from argparse import ArgumentParser
 import logging
+from typing import Union
 
 from powerfit import (
-    Volume,
     structure_to_shape_like,
     proportional_orientations,
     quat_to_rotmat,
@@ -34,14 +32,14 @@ from powerfit import (
 from powerfit.powerfitter import PowerFitter
 from powerfit.analyzer import Analyzer
 from powerfit.helpers import mkdir_p, write_fits_to_pdb, fisher_sigma, setup_logging
-from powerfit.volume import (
+from powerfit.volume_helpers import (
     extend,
     nearest_multiple2357,
     trim,
     resample
 )
-from powerfit.structure import Structure
-
+from powerfit.structure_helpers import Structure
+from struvolpy import Volume
 
 def parse_args():
     """Parse command-line options."""
@@ -228,13 +226,13 @@ def write(line):
 
 
 def main(
-    target: Path or Volume,
+    volume_or_pathway: Union[Path, Volume],
     resolution: float,
-    structure: Path or Structure,
+    structure_or_pathway: Union[Path, Structure],
     directory=Path("."),
     nproc: int = 1,
     num: int = 10,
-    xyz_fixed: Path or Structure = None,
+    xyz_fixed=None,
     gpu: bool = False,
     no_resampling: bool = False,
     no_trimming: bool = False,
@@ -247,7 +245,7 @@ def main(
     return_instances: bool = False,
     return_files=True,
     basename: str = "fit",
-    logging_file: str = None,
+    logging_file=None,
 ):
 
     time0 = time()
@@ -274,25 +272,28 @@ def main(
         # For clFFT each queue should have its own Context
         queues = [cl.CommandQueue(context, device=dev) for dev in devs]
 
-    if isinstance(target, Path):
-        target = Volume.fromfile(str(target))
+    if isinstance(volume_or_pathway, Path):
+        target = Volume.from_file(str(volume_or_pathway))
+    else:
+        target = volume_or_pathway
 
     # Need to cacluate threshold
     target.resolution = resolution
-    target.calc_threshold()
+    target.calculate_threshold()
 
     write("Target file read from: {:s}".format(target.filename))
 
     write("Target resolution: {:.2f}".format(resolution))
 
     write(("Initial shape of density:" + " {:d}" * 3).format(*target.shape))
-    # Resample target density if requested
+
+
     if not no_resampling:
         factor = 2 * resampling_rate * target.voxelspacing / resolution
         if factor < 0.9:
             target = resample(target, factor)
             write(("Shape after resampling:" + " {:d}" * 3).format(*target.shape))
-    # Trim target density if requested
+
     if not no_trimming:
         if trimming_cutoff is None:
             trimming_cutoff = target.grid.max() / 10
@@ -305,15 +306,17 @@ def main(
 
     # Read in structure or high-resolution map
 
-    if isinstance(structure, Path):
-        structure = Structure.fromfile(str(structure.resolve()))
+    if isinstance(structure_or_pathway, Path):
+        structure = Structure.from_file(str(structure_or_pathway.resolve()))
+    else:
+        structure = structure_or_pathway
 
-    write("Template file read from: {:s}".format(structure.filename))
+    write("Template file read from: {:s}".format(structure.filepathway))
     if xyz_fixed:
         if isinstance(xyz_fixed, (Path,str)):
             xyz_fixed = Path(xyz_fixed)
-            xyz_fixed_structure = Structure.fromfile(str(xyz_fixed.resolve()))
-        write("Fixed model file read from: {:s}".format(xyz_fixed_structure.filename))
+            xyz_fixed_structure = Structure.from_file(str(xyz_fixed.resolve()))
+        write("Fixed model file read from: {:s}".format(xyz_fixed_structure.filepathway))
 
     if bfac: 
         weights = 0.4/structure.bfacs
@@ -385,20 +388,20 @@ def main(
         z_sigma=z_sigma,
     )
 
-    lccvol = Volume.fromdata(pf._lcc, target.voxelspacing, target.origin)
+    lccvol = Volume.from_data(pf._lcc, target.voxelspacing, target.origin)
     lccvol.filename = "lcc.mrc"
 
     if return_files:
         write("Writing solutions to file.")
-        lccvol.tofile(str(directory.joinpath("lcc.mrc")))
-        analyzer.tofile(str(directory.joinpath("solutions.out")))
+        lccvol.to_file(str(directory.joinpath("lcc.mrc")))
+        analyzer.to_file(str(directory.joinpath("solutions.out")))
         write("Writing PDBs to file.")
 
     n = min(num, len(analyzer.solutions))
     if xyz_fixed:
         fixed = xyz_fixed_structure
     else:
-        fixed = False
+        fixed = ""
 
     out_fits = write_fits_to_pdb(
         structure,
@@ -416,6 +419,7 @@ def main(
             "lcc": lccvol,
             "analyzer": analyzer,
         }
+        
     elif return_files:
         to_return = {
             "fitted_models": [out.filename for out in out_fits],
