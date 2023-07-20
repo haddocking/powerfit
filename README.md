@@ -4,8 +4,10 @@
 
 ## About PowerFit
 
-**This is an updated version of the original PowerFit code to be** **compatible with Python 3.7. The original code can be found at**
+**This is an updated version of the original PowerFit code to be** **compatible with Python 3.8. The original code can be found at**
 **https://github.com/haddocking/powerfit.**
+
+**Some information in this README.md file is outdated as this update is undergoing active development.**
 
 Please read NOTICE.txt for information on the license and the original authors.
 
@@ -29,8 +31,8 @@ been succesfully installed and used on Linux and MacOSX machines.
 
 Minimal requirements for the CPU version:
 
-* Python3.7+ (We recommend using Anaconda)
-* NumPy 1.20.3
+* Python3.8+ (We recommend using Anaconda)
+* NumPy 1.23.0+
 * SciPy
 * GCC (or another C-compiler)
 
@@ -46,6 +48,12 @@ To offload computations to the GPU the following is also required
 * clFFT
 * gpyfft 
 
+## Deprecation Notice
+
+> **Note:** gpyfft is written for Python 2.7 and is no longer actively maintained. It does not work directly from downloading the repo.
+
+I will endeavor to include the *workaround* I use to install onto a conda enviroment. This is not a permanent solution and will be removed when a better solution is found.
+
 Recommended for installation
 
 * git
@@ -57,9 +65,9 @@ Recommended for installation
 If you already have fulfilled the requirements, the installation should be as
 easy as opening up a shell and typing
 
-    git clone https://github.com/hllelli2/powerfit37.git
-    cd powerfit
-    sudo python setup.py install
+    git clone https://github.com/hllelli2/powerfit38.git
+    cd powerfit38
+    python install .
 
 If you are starting from a clean system, follow the instructions for your
 particular operating system as described below, they should get you up and
@@ -84,6 +92,8 @@ system is now prepared, follow the general instructions above to install
 
 
 ### MacOSX
+
+**Warning:** I have not tested PowerFit on MacOSX. If you have any issues please let me know.
 
 First install [*git*](https://git-scm.com/download) by following the
 instructions on their website, or using a package manager such as *brew*
@@ -111,7 +121,7 @@ Installing pyFFTW for faster CPU version can be done as follows using *brew*
 
 ### Windows
 
-**Warning:** Windows has not been tested for this verison of Powerfit.
+**Warning:** I have not tested PowerFit on Windows. If you have any issues please let me know.
 
 First install *git* for Windows, as it comes with a handy bash shell. Go to
 [git-scm](https://git-scm.com/download/), download *git* and install it. Next,
@@ -225,13 +235,13 @@ Copyright (c) 2005-2015, Christoph Gohlke
 
 ## Tested platforms
 
-**Warning** has not been tested on Windows. :
+**Note** I will update this section as I test the code on different platforms.
 
 | Operating System| CPU single | CPU multi | GPU |
 | --------------- | ---------- | --------- | --- |
 |Linux            | Yes        | Yes       | Yes |
-|MacOSX           | Yes        | Yes       | Yes |
-|Windows          | Yes        | Fail      | No  |
+|~~MacOSX~~           | ~~Yes~~        | ~~Yes~~       | ~~Yes~~ |
+|~~Windows~~          | ~~Yes~~        | ~~Fail~~      | ~~No~~  |
 
 The GPU version has been tested on:
 * NVIDIA GeForce GTX 680 and AMD Radeon HD 7730M for Linux

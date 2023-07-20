@@ -4,7 +4,7 @@
 # licensed under the Apache License, Version 2.0.
 
 # Modified by Luc Elliott, 24/04/2023, with the following modifications: 
-#   Updated the code to be compatible with Python 3.7.
+#   Updated the code to be compatible with Python 3.8.
 #   Updated API functionality 
 #   added more arguments to the command line interface
 #   added more logging
