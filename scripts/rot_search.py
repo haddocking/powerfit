@@ -8,9 +8,10 @@ import os
 import numpy as np
 from scipy.ndimage import laplace
 
-from powerfit import Volume, Structure, quat_to_rotmat, proportional_orientations, determine_core_indices
+from powerfit import Structure, quat_to_rotmat, proportional_orientations, determine_core_indices
+from struvolpy import Volume
 from powerfit._powerfit import rotate_grid
-from powerfit.volume import zeros_like, res_to_sigma, structure_to_shape
+from powerfit.volume import zeros_like, structure_to_shape
 from six.moves import range
 
 
@@ -49,8 +50,8 @@ def main():
     except OSError:
         pass
 
-    target = Volume.fromfile(args.target)
-    structure = Structure.fromfile(args.template)
+    target = Volume.from_file(args.target)
+    structure = Structure.from_file(args.template)
     center = structure.coor.mean(axis=1)
     radius = np.linalg.norm((structure.coor - center.reshape(-1, 1)), axis=0).max() + 0.5 * args.resolution
 
