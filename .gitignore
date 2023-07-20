@@ -16,5 +16,4 @@ scripts/shphereradius.py
 powerfit.egg-info/
 tests/
 .vscode/
-dist/
 *.egg-info/
