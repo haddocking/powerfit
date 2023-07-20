@@ -164,7 +164,7 @@ def write_fits_to_pdb(
         rot = np.asarray([float(x) for x in sol[6:]]).reshape(3, 3)
         trans = sol[3:6]
         out.rotate(rot)
-        out.translate(trans)
+        out.translate(np.array(trans))
         out.filename = basename + "_{:d}.pdb".format(n + 1)
         if xyz_fixed:
 
