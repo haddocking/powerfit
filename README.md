@@ -111,6 +111,16 @@ install a Python distribution with NumPy and Scipy included such as
 bash shell shipped with *git* and follow the general instructions written
 above.
 
+### Docker
+
+First install [docker](https://docs.docker.com/engine/install/) by following the
+instructions.
+
+A docker container comprised of powerfit and its necessary dependencies can be
+created for the linux/amd64 platform as follows
+
+    docker build -t powerfit --platform linux/amd64 -f Dockerfile .
+
 
 ## Usage
 
@@ -126,6 +136,11 @@ cross-correlation score on a single CPU-core. During the search, *powerfit*
 will update you about the progress of the search if you are using it
 interactively in the shell.
 
+Running powerfit in a docker container named powerfit on data located at
+a hypothetical `/path/to/data` on your machine can be done as follows:
+
+    docker run --rm -v /path/to/data:/data powerfit \
+        powerfit /data/<map> <resolution> /data/<pdb> -d /data
 
 ### Options
 
