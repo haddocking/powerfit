@@ -116,10 +116,10 @@ above.
 First install [docker](https://docs.docker.com/engine/install/) by following the
 instructions.
 
-A docker container comprised of PowerFit and its necessary CPU/GPU
-dependencies can be created for the linux/amd64 platform as follows
+A docker container comprised of PowerFit and its CPU/GPU
+dependencies can be created for your compute platform as follows
 
-    docker build -t powerfit --platform linux/amd64 -f Dockerfile .
+    docker build -t powerfit -f Dockerfile .
 
 
 ## Usage
