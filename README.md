@@ -116,8 +116,8 @@ above.
 First install [docker](https://docs.docker.com/engine/install/) by following the
 instructions.
 
-A docker container comprised of powerfit and its necessary dependencies can be
-created for the linux/amd64 platform as follows
+A docker container comprised of PowerFit and its necessary CPU/GPU
+dependencies can be created for the linux/amd64 platform as follows
 
     docker build -t powerfit --platform linux/amd64 -f Dockerfile .
 
@@ -136,7 +136,7 @@ cross-correlation score on a single CPU-core. During the search, *powerfit*
 will update you about the progress of the search if you are using it
 interactively in the shell.
 
-Running powerfit in a docker container named powerfit on data located at
+Running PowerFit in a docker container named powerfit on data located at
 a hypothetical `/path/to/data` on your machine can be done as follows:
 
     docker run --rm -v /path/to/data:/data powerfit \
