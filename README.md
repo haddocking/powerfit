@@ -137,7 +137,7 @@ will update you about the progress of the search if you are using it
 interactively in the shell.
 
 Running PowerFit in a docker container named powerfit on data located at
-a hypothetical `/path/to/data` on your machine can be done as follows:
+a hypothetical `/path/to/data` on your machine can be done as follows
 
     docker run --rm -v /path/to/data:/data powerfit \
         powerfit /data/<map> <resolution> /data/<pdb> -d /data
