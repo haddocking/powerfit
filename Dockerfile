@@ -29,36 +29,29 @@ RUN apt-get update --fix-missing && \
         opencl-headers \
         ocl-icd-opencl-dev \
         libboost-all-dev \
-        pocl-opencl-icd
+        pocl-opencl-icd && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
+WORKDIR /src
 
-RUN mkdir src && \
-    cd /src && \
-    wget https://bootstrap.pypa.io/pip/2.7/get-pip.py && \
+RUN wget https://bootstrap.pypa.io/pip/2.7/get-pip.py && \
     python2 get-pip.py && \
-    python2.7 -mpip install Cython==0.29.33 pyfftw==0.12.0 pybind11 setuptools && \
-    python2.7 -mpip install numpy==1.16.6 pyopencl==2020.2 install backports.weakref==1.0.post1
+    python2.7 -mpip install \
+        Cython==0.29.33 pyfftw==0.12.0 pybind11 setuptools \
+        numpy==1.16.6 pyopencl==2020.2 backports.weakref==1.0.post1
 
-RUN cd /src && \
-    git clone https://github.com/clMathLibraries/clFFT.git && \
+RUN git clone https://github.com/clMathLibraries/clFFT.git && \
     cd clFFT/src && \
     cmake . && \
     make && \
     make install
 
-RUN cd /src && \
-    git clone https://github.com/haddocking/powerfit && \
+RUN git clone https://github.com/haddocking/powerfit && \
     cd powerfit && \
     python2.7 setup.py install
 
-RUN cd /src && \
-    git clone https://github.com/geggo/gpyfft.git && \
-    export LD_LIBRARY_PATH=/usr/local/lib64 && \
-    export CLFFT_DIR=/src/clFFT && \
-    export CLFFT_LIB_DIRS=/usr/local/lib64 && \
-    export CLFFT_INCL_DIRS=/src/clFFT/src/include && \
-    export CL_INCL_DIRS=/usr/local/include && \
-    export LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib  && \
+RUN git clone https://github.com/geggo/gpyfft.git && \
     cd gpyfft && \
     sed -i \
         -e "s|CLFFT_DIR = r'/home/gregor/devel/clFFT'|CLFFT_DIR = '/src/clFFT'|" \
