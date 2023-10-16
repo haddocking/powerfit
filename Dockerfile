@@ -1,5 +1,7 @@
 FROM ubuntu:18.04
 
+ARG POWERFIT_VERSION=v2.1.0
+
 ENV LD_LIBRARY_PATH=/usr/local/lib64
 ENV CLFFT_DIR=/src/clFFT
 ENV CLFFT_LIB_DIRS=/usr/local/lib64
@@ -9,27 +11,27 @@ ENV LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib
 
 RUN apt-get update --fix-missing && \
     apt-get install -y \
-        python2.7 \
-        python2.7-dev \
-        git \
-        wget \
-        gcc \
-        g++ \
-        libfftw3-dev \
-        libfftw3-doc \
-        libfreetype6-dev \
-        pkg-config \
-        libopenblas-dev \
-        gfortran \
-        python-scipy \
-        python-numpy \
-        time \
-        cmake \
-        make \
-        opencl-headers \
-        ocl-icd-opencl-dev \
-        libboost-all-dev \
-        pocl-opencl-icd && \
+    python2.7 \
+    python2.7-dev \
+    git \
+    wget \
+    gcc \
+    g++ \
+    libfftw3-dev \
+    libfftw3-doc \
+    libfreetype6-dev \
+    pkg-config \
+    libopenblas-dev \
+    gfortran \
+    python-scipy \
+    python-numpy \
+    time \
+    cmake \
+    make \
+    opencl-headers \
+    ocl-icd-opencl-dev \
+    libboost-all-dev \
+    pocl-opencl-icd && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
@@ -38,8 +40,8 @@ WORKDIR /src
 RUN wget https://bootstrap.pypa.io/pip/2.7/get-pip.py && \
     python2 get-pip.py && \
     python2.7 -mpip install \
-        Cython==0.29.33 pyfftw==0.12.0 pybind11 setuptools \
-        numpy==1.16.6 pyopencl==2020.2 backports.weakref==1.0.post1
+    Cython==0.29.33 pyfftw==0.12.0 pybind11 setuptools \
+    numpy==1.16.6 pyopencl==2020.2 backports.weakref==1.0.post1
 
 RUN git clone https://github.com/clMathLibraries/clFFT.git && \
     cd clFFT/src && \
@@ -49,13 +51,15 @@ RUN git clone https://github.com/clMathLibraries/clFFT.git && \
 
 RUN git clone https://github.com/haddocking/powerfit && \
     cd powerfit && \
+    git checkout ${POWERFIT_VERSION} && \
     python2.7 setup.py install
 
 RUN git clone https://github.com/geggo/gpyfft.git && \
     cd gpyfft && \
     sed -i \
-        -e "s|CLFFT_DIR = r'/home/gregor/devel/clFFT'|CLFFT_DIR = '/src/clFFT'|" \
-        -e "s|CL_INCL_DIRS = \['/opt/AMDAPPSDK-3.0/include'\]|CL_INCL_DIRS = ['/usr/local/include']|" \
+    -e "s|CLFFT_DIR = r'/home/gregor/devel/clFFT'|CLFFT_DIR = '/src/clFFT'|" \
+    -e "s|CL_INCL_DIRS = \['/opt/AMDAPPSDK-3.0/include'\]|CL_INCL_DIRS = ['/usr/local/include']|" \
     setup.py && \
     python2.7 setup.py install
 
+ENTRYPOINT [ "powerfit" ]
