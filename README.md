@@ -17,7 +17,6 @@ further be hardware-accelerated by leveraging multi-core CPU machines out of
 the box or by GPU via the OpenCL framework. PowerFit is Free Software and has
 been succesfully installed and used on Linux and MacOSX machines.
 
-
 ## Requirements
 
 Minimal requirements for the CPU version:
@@ -44,7 +43,6 @@ Recommended for installation
 * git
 * pip
 
-
 ## Installation
 
 If you already have fulfilled the requirements, the installation should be as
@@ -58,8 +56,18 @@ If you are starting from a clean system, follow the instructions for your
 particular operating system as described below, they should get you up and
 running in no time.
 
+### Docker
 
-### Linux 
+First install [docker](https://docs.docker.com/engine/install/) by following the
+instructions.
+
+A docker container comprised of PowerFit and its CPU/GPU
+dependencies can be created for your compute platform as follows
+
+    docker build -t haddocking/powerfit:v2.1.0 -f Dockerfile .
+    docker run haddocking/powerfit:v2.1.0 <map> <resolution> <pdb>
+
+### Linux
 
 Linux systems usually already include a Python2.7 distribution. First make
 sure the Python header files, NumPy, SciPy, and *git* are available by
@@ -67,14 +75,13 @@ opening up a terminal and typing for Debian and Ubuntu systems
 
     sudo apt-get install python-dev python-numpy python-scipy git
 
-If you are working on Fedora, this should be replaced by 
+If you are working on Fedora, this should be replaced by
 
     sudo yum install python-devel numpy scipy git
 
 Sit back and wait till the compilation and installation is finished. Your
 system is now prepared, follow the general instructions above to install
 **PowerFit**.
-
 
 ### MacOSX
 
@@ -85,7 +92,7 @@ instructions on their website, or using a package manager such as *brew*
 
 Next install [*pip*](https://pip.pypa.io/en/latest/installing.html), the
 Python package manager, by following the installation instructions on the
-website or open a terminal and type 
+website or open a terminal and type
 
     sudo easy_install pip
 
@@ -101,7 +108,6 @@ Installing pyFFTW for faster CPU version can be done as follows using *brew*
     brew install fftw
     sudo pip install pyfftw
 
-
 ### Windows
 
 First install *git* for Windows, as it comes with a handy bash shell. Go to
@@ -110,7 +116,6 @@ install a Python distribution with NumPy and Scipy included such as
 [Anaconda](http://continuum.io/downloads). After installation, open up the
 bash shell shipped with *git* and follow the general instructions written
 above.
-
 
 ## Usage
 
@@ -126,6 +131,11 @@ cross-correlation score on a single CPU-core. During the search, *powerfit*
 will update you about the progress of the search if you are using it
 interactively in the shell.
 
+Running PowerFit in a docker container named powerfit on data located at
+a hypothetical `/path/to/data` on your machine can be done as follows
+
+    docker run --rm -v /path/to/data:/data powerfit \
+        powerfit /data/<map> <resolution> /data/<pdb> -d /data
 
 ### Options
 
@@ -153,7 +163,6 @@ and write out the top 15 solutions
 Note that all options can be combined except for the `-g` and `-p` flag:
 calculations are either performed on the CPU or GPU.
 
-
 ### Output
 
 When the search is finished, several output files are created
@@ -169,7 +178,6 @@ rotation matrix values.
 correlation score found during the rotational search.
 * *powerfit.log*: a log file, including the input parameters with date and
 timing information.
-
 
 ## Creating an image-pyramid
 
@@ -190,29 +198,25 @@ To see the other options type
 
     image-pyramid --help
 
-
 ## Licensing
 
 If this software was useful to your research, please cite us
 
-**G.C.P. van Zundert and A.M.J.J. Bonvin**. 
+**G.C.P. van Zundert and A.M.J.J. Bonvin**.
 Fast and sensitive rigid-body fitting into cryo-EM density maps with PowerFit.
 *AIMS Biophysics* 2, 73-87 (2015).
 
-
 For the use of image-pyramids and reliability measures for fitting, please cite
 
-**G.C.P van Zundert and A.M.J.J. Bonvin**. 
+**G.C.P van Zundert and A.M.J.J. Bonvin**.
 Defining the limits and reliability of rigid-body fitting in cryo-EM maps using
-multi-scale image pyramids. 
+multi-scale image pyramids.
 *J. Struct. Biol.* 195, 252-258 (2016).
 
 Apache License Version 2.0
 
 The elements.py module is licensed under MIT License (see header).
 Copyright (c) 2005-2015, Christoph Gohlke
-
-
 
 ## Tested platforms
 
@@ -223,5 +227,6 @@ Copyright (c) 2005-2015, Christoph Gohlke
 |Windows          | Yes        | Fail      | No  |
 
 The GPU version has been tested on:
+
 * NVIDIA GeForce GTX 680 and AMD Radeon HD 7730M for Linux
 * NVIDIA GeForce GTX 775M for MacOSX 10.10
