@@ -12,7 +12,7 @@ def fsc_curve(np.ndarray[np.complex128_t, ndim=3] f1,
         double zmax, ymax, xmax
         np.ndarray[np.float64_t] f_1_2, f_1_1, f_2_2
 
-    rmax = <int> np.max([f1.shape[n] for n in range(3)]) / 2
+    rmax = int(round(np.max([f1.shape[n] for n in range(3)]) / 2))
     f_1_2 = <np.ndarray[np.float64_t]> np.zeros(rmax)
     f_1_1 = <np.ndarray[np.float64_t]> np.zeros(rmax)
     f_2_2 = <np.ndarray[np.float64_t]> np.zeros(rmax)
