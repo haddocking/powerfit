@@ -1,4 +1,4 @@
-from __future__ import division, absolute_import
+
 from argparse import ArgumentParser, FileType
 from os.path import splitext
 
@@ -36,20 +36,20 @@ def parse_em2em():
 def em2em():
     args = parse_em2em()
 
-    print 'Reading input file ...'
+    print('Reading input file ...')
     v = Volume.fromfile(args.infile, args.input_format)
 
     if args.resample is not None:
-        print 'Resampling ...'
+        print('Resampling ...')
         v = resample(v, v.voxelspacing / args.resample)
 
     if args.trim:
-        print 'Trimming ...'
+        print('Trimming ...')
         if args.trim_cutoff is None:
             args.trim_cutoff = 0.1 * v.array.max()
         v = trim(v, args.trim_cutoff)
 
-    print 'Writing to file ...'
+    print('Writing to file ...')
     v.tofile(args.outfile, args.output_format)
 
 

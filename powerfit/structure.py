@@ -1,5 +1,5 @@
-from __future__ import absolute_import
-from collections import defaultdict, Sequence, OrderedDict
+
+from collections import defaultdict, OrderedDict
 import operator
 from string import capwords
 
@@ -80,13 +80,13 @@ def tofile(pdb, out):
     natoms = len(pdb['id'])
     natoms_per_model = natoms / nmodels
 
-    for nmodel in xrange(nmodels):
+    for nmodel in range(nmodels):
         offset = nmodel * natoms_per_model
         # write MODEL record
         if nmodels > 1:
             f.write(MODEL_LINE.format(nmodel + 1))
         prev_chain = pdb['chain'][offset]
-        for natom in xrange(natoms_per_model):
+        for natom in range(natoms_per_model):
             index = offset + natom
 
             # write TER record
@@ -219,7 +219,7 @@ class Structure(object):
         else:
             raise ValueError('Logic operator not recognized.')
 
-        if not isinstance(values, Sequence) or isinstance(values, basestring):
+        if not isinstance(values, Sequence) or isinstance(values, str):
             values = (values,)
 
         selection = oper(self.data[identifier], values[0])
