@@ -190,7 +190,7 @@ fail:
     // Clean up objects
     Py_XDECREF(py_grid);
     Py_XDECREF(py_rotmat);
-    PyArray_XDECREF_ERR(py_out);
+    Py_XDECREF(py_out);
     return NULL;
 }
 
@@ -241,7 +241,7 @@ fail:
     // Clean up objects
     Py_XDECREF(py_in1);
     Py_XDECREF(py_in2);
-    PyArray_XDECREF_ERR(py_out);
+    Py_XDECREF(py_out);
     return NULL;
 }
 
@@ -252,11 +252,22 @@ static PyMethodDef mymethods[] = {
     {NULL, NULL, 0, NULL}
 };
 
+static struct PyModuleDef moduledef = {
+    PyModuleDef_HEAD_INIT,
+    "_extensions",    /* name of module */
+    NULL,            /* module documentation */
+    -1,              /* size of per-interpreter state of the module, or -1 if the module keeps state in global variables. */
+    mymethods
+};
 
 PyMODINIT_FUNC
-init_extensions(void)
+PyInit__extensions(void)
 {
-    (void) Py_InitModule("_extensions", mymethods);
+    PyObject *m;
+    m = PyModule_Create(&moduledef);
+    if (!m)
+        return NULL;
     import_array();
+    return m;
 };
 
