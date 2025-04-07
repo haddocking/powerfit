@@ -29,7 +29,7 @@ def parse_args():
                  'Data should either be in CCP4 or MRC format')
     p.add_argument('resolution', type=float,
             help='Resolution of map in angstrom')
-    p.add_argument('template', type=file,
+    p.add_argument('template', type=FileType('r'),
             help='Atomic model to be fitted in the density. '
                  'Format should either be PDB or mmCIF')
 

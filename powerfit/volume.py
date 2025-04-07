@@ -1,4 +1,5 @@
 
+from io import BufferedReader
 from struct import unpack as _unpack, pack as _pack
 import os.path
 from sys import byteorder as _BYTEORDER
@@ -87,7 +88,7 @@ def trim(volume, cutoff, margin=2):
                 high = min(tmp.shape[0], tmp.shape[0] - n + margin)
                 break
         extent.append(slice(low, high))
-    sub_array = volume.array[extent]
+    sub_array = volume.array[tuple(extent)]
     origin = [coor_origin + volume.voxelspacing * ext.start
             for coor_origin, ext in zip(volume.origin, extent[::-1])]
     return Volume(sub_array, volume.voxelspacing, origin)
@@ -96,7 +97,7 @@ def trim(volume, cutoff, margin=2):
 def extend(volume, shape):
     new_volume = zeros(shape, volume.voxelspacing, volume.origin)
     ind = [slice(x) for x in volume.shape]
-    new_volume.array[ind] = volume.array
+    new_volume.array[tuple(ind)] = volume.array
     return new_volume
 
 
@@ -233,7 +234,7 @@ def parse_volume(fid, fmt=None):
     if fmt is None:
         fmt = os.path.splitext(fname)[-1][1:]
     if fmt in ('ccp4', 'map'):
-        p = CCP4Parser(fname)
+        p = CCP4Parser(fid)
     elif fmt == 'mrc':
         p = MRCParser(fname)
     elif fmt in ('xplor', 'cns'):
@@ -260,7 +261,7 @@ class CCP4Parser(object):
 
         if isinstance(fid, str):
             fhandle = open(fid)
-        elif isinstance(fid, file):
+        elif isinstance(fid, BufferedReader):
             fhandle = fid
         else:
             raise ValueError("Input should either be a file or filename.")
@@ -333,7 +334,15 @@ class CCP4Parser(object):
             else:
                 self.header[field] = header[index]
             index = end
-        self.header['label'] = ''.join(self.header['label'])
+        self.header['label'] = ''.join(
+            [c.decode('ascii') for c in self.header['label']]
+        )
+        self.header['map'] = ''.join(
+            [c.decode('ascii') for c in self.header['map']]
+        )
+        self.header['machst'] = ''.join(
+            [c.decode('ascii') for c in self.header['machst']]
+        )
 
     def _get_origin(self):
         start_fields = 'nsstart nrstart ncstart'.split()
@@ -423,14 +432,14 @@ def to_mrc(fid, volume, labels=[], fmt=None):
         origin = volume.origin
     else:
         origin = [0, 0, 0]
-    str_map = list('MAP ')
+    str_map = b'MAP '
     if _BYTEORDER == 'little':
-        machst = list('\x44\x41\x00\x00')
+        machst = b'\x44\x41\x00\x00'
     elif _BYTEORDER == 'big':
-        machst = list('\x44\x41\x00\x00')
+        machst = b'\x44\x41\x00\x00'
     else:
-        raise ValueError("Byteorder {:} is not recognized".format(byteorder))
-    labels = [' '] * 800
+        raise ValueError("Byteorder {:} is not recognized".format(_BYTEORDER))
+    labels = b''.join([b' '] * 800)
     nlabels = 0
     min_density = volume.array.min()
     max_density = volume.array.max()
@@ -471,10 +480,8 @@ def to_mrc(fid, volume, labels=[], fmt=None):
             out.write(_pack('f', f))
         for f in origin:
             out.write(_pack('f', f))
-        for c in str_map:
-            out.write(_pack('c', c))
-        for c in machst:
-            out.write(_pack('c', c))
+        out.write(str_map)
+        out.write(machst)
         out.write(_pack('f', std_density))
         # max 10 labels
         # nlabels = min(len(labels), 10)
@@ -487,8 +494,7 @@ def to_mrc(fid, volume, labels=[], fmt=None):
         #     # max 80 characters
         #     label = min(len(label), 80)
         out.write(_pack('i', nlabels))
-        for c in labels:
-            out.write(_pack('c', c))
+        out.write(labels)
         # write density
         modes = [np.int8, np.int16, np.float32]
         volume.array.astype(modes[mode]).tofile(out)

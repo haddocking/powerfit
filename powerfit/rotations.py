@@ -116,7 +116,7 @@ def proportional_orientations(angle):
     for s, n in rot_sets.items():
         alpha = n[1]
         diff = abs(angle - alpha)
-        if diff < smallestdiff or smallestdiff is None:
+        if smallestdiff is None or diff < smallestdiff:
             smallestdiff = diff
             fname = s
 

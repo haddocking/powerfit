@@ -1,5 +1,6 @@
 
 from collections import defaultdict, OrderedDict
+from io import TextIOWrapper
 import operator
 from string import capwords
 
@@ -29,7 +30,7 @@ TER_DATA = 'id resn chain resi i'.split()
 
 def parse_pdb(infile):
 
-    if isinstance(infile, file):
+    if isinstance(infile, TextIOWrapper):
         f = infile
     elif isinstance(infile, str):
         f = open(infile)
@@ -78,16 +79,16 @@ def tofile(pdb, out):
 
     nmodels = len(set(pdb['model']))
     natoms = len(pdb['id'])
-    natoms_per_model = natoms / nmodels
+    natoms_per_model = natoms // nmodels
 
     for nmodel in range(nmodels):
-        offset = nmodel * natoms_per_model
+        offset = int(nmodel * natoms_per_model)
         # write MODEL record
         if nmodels > 1:
             f.write(MODEL_LINE.format(nmodel + 1))
         prev_chain = pdb['chain'][offset]
         for natom in range(natoms_per_model):
-            index = offset + natom
+            index = int(offset + natom)
 
             # write TER record
             current_chain = pdb['chain'][index]
