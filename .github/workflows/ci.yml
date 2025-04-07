@@ -1,0 +1,38 @@
+name: ci
+
+on: push
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: build deps
+        run: pip install numpy setuptools wheel
+
+      - name: build
+        run: python setup.py build_ext --inplace
+
+      - name: install
+        run: pip install -e . --no-use-pep517
+
+      - name: test deps
+        run: pip install pytest pytest-cov
+
+      - name: test
+        run: >-
+          pytest --cov --cov-report xml:coverage.xml -vvv
+
+      - uses: codacy/codacy-coverage-reporter-action@v1
+        if: >-
+          ${{ github.event_name != 'pull_request' ||
+          github.event.pull_request.head.repo.full_name == github.repository }}
+        with:
+          project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
+          coverage-reports: ./coverage.xml
