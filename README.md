@@ -281,19 +281,6 @@ pip install --no-use-pep517 gpyfft@git+https://github.com/geggo/gpyfft@v0.8.0
 powerfit ribosome-KsgA.map 13 KsgA.pdb -a 20 -p 2 -l --gpu -d run-KsgA-py3-gpu
 ...
 Using GPU-accelerated search.
-Starting search
-Traceback (most recent call last):
-  File "/home/stefanv/git/protein-detective/powerfit/.venv/bin/powerfit", line 8, in <module>
-    sys.exit(main())
-  File "/home/stefanv/git/protein-detective/powerfit/powerfit/powerfit.py", line 198, in main
-    pf.scan()
-  File "/home/stefanv/git/protein-detective/powerfit/powerfit/powerfitter.py", line 80, in scan
-    self._gpu_scan()
-  File "/home/stefanv/git/protein-detective/powerfit/powerfit/powerfitter.py", line 83, in _gpu_scan
-    self._corr = GPUCorrelator(self._target.array, self._queues[0],
-  File "/home/stefanv/git/protein-detective/powerfit/powerfit/powerfitter.py", line 421, in __init__
-    list(self._target.shape) + [np.product(self._target.shape)],
-  File "/home/stefanv/git/protein-detective/powerfit/.venv/lib/python3.10/site-packages/numpy/__init__.py", line 414, in __getattr__
-    raise AttributeError("module {!r} has no attribute "
-AttributeError: module 'numpy' has no attribute 'product'
+...
+Total time: 0m 19s
 ```

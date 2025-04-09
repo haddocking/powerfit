@@ -418,7 +418,7 @@ if OPENCL:
             self._rfftn(self._target2, self._ft_target2)
 
             self._gshape = np.asarray(
-                    list(self._target.shape) + [np.product(self._target.shape)],
+                    list(self._target.shape) + [np.prod(self._target.shape)],
                     dtype=np.int32)
 
         def _allocate_arrays(self):
