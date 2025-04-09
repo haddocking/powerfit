@@ -4,7 +4,7 @@ packages/
 test-cases/
 analysis/
 
-*.c
+src/_powerfit.c
 *.pyc
 
 .venv/
