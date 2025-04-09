@@ -150,10 +150,6 @@ class TestCLKernels(TestCase):
         gws = tuple([2 * self.values["llength"] + 1] * 3)
         k(self.queue, gws, None, *args)
 
-        print([
-            self.cl_grid.get(),
-            self.cl_out.get(),
-        ])
         npt.assert_allclose(
             self.cl_grid.get(),
             self.cl_out.get(),
