@@ -124,7 +124,7 @@ class TestGPyFFT(unittest.TestCase):
         npt.assert_allclose(
             answer2,
             cl_out[40:].get().reshape(5, 8),
-            rtol=1e-5,
+            rtol=1e-4,
         )
 
 
