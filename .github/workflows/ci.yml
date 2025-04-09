@@ -23,7 +23,7 @@ jobs:
 
       - name: install gpyfft
         run: |
-          pip install cython
+          pip install -U cython wheel setuptools
           pip install --no-use-pep517 gpyfft@git+https://github.com/geggo/gpyfft@v0.8.0
 
       - name: OpenCL platform and device test
