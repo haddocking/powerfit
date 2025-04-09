@@ -9,10 +9,15 @@ description = "Rigid body fitting of high-resolution structures in low-resolutio
 authors = [
     {name = "Gydo C.P. van Zundert", email = "g.c.p.vanzundert@uu.nl"},
 ]
+requires-python = ">=3.10"
+dynamic = ["readme"]
 license = "Apache-2.0"
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Intended Audience :: Science/Research", 
     "Topic :: Scientific/Engineering :: Bio-Informatics"
 ]
@@ -33,3 +38,6 @@ em2em = "powerfit.scripts:em2em"
 packages = ["powerfit"]
 package-data = {"powerfit" = ["data/*.npy", "kernels.cl"]}
 # ext_modules is still in setup.py as numpy.get_include() can not be used here
+
+[tool.setuptools.dynamic]
+readme = {file = "README.md", content-type = "text/markdown"}
