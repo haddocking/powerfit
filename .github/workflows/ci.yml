@@ -16,6 +16,9 @@ jobs:
       - name: install
         run: pip install -e .[dev,fftw,opencl]
 
+      - name: OpenCL import check
+        run: python -c 'import pyopencl as cl;import pyopencl.array as cl_array;from gpyfft import GpyFFT; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
+
       - name: test
         run: >-
           pytest --cov --cov-report xml:coverage.xml -vvv
