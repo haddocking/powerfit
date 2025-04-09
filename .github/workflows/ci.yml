@@ -13,10 +13,20 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: install
+      - name: install python deps from pypi
         run: pip install -e .[dev,fftw,opencl]
 
-      - name: OpenCL import check
+      - name: install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libfftw3-dev
+
+      - name: install gpyfft
+        run: |
+          pip install cython
+          pip install --no-use-pep517 gpyfft@git+https://github.com/geggo/gpyfft@v0.8.0
+
+      - name: OpenCL platform and device test
         run: python -c 'import pyopencl as cl;import pyopencl.array as cl_array;from gpyfft import GpyFFT; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
 
       - name: test
