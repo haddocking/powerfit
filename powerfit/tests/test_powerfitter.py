@@ -190,8 +190,13 @@ class TestCLKernels(unittest.TestCase):
         devs = p.get_devices()
         self.ctx = cl.Context(devices=devs)
         self.queue = cl.CommandQueue(self.ctx, device=devs[0])
-        self.k = CLKernels(self.ctx)
-        self.k = CLKernels(self.ctx)
+        values = {
+            'shape_x': 10,
+            'shape_y': 0,
+            'shape_z': 0,
+            'llength': 5,                 
+        }
+        self.k = CLKernels(self.ctx, values=values)
         self.s_linear = cl.Sampler(
             self.ctx, False, cl.addressing_mode.CLAMP, cl.filter_mode.LINEAR
         )
@@ -232,8 +237,16 @@ class TestCLKernels(unittest.TestCase):
     # def test_take_best(self):
     #    pass
 
+    @unittest.skip("kernel does not have rotate_template")
     def test_rotate_template_mask(self):
         shape = (5, 5, 5)
+        values = {
+            'shape_x': 5,
+            'shape_y': 5,
+            'shape_z': 5,
+            'llength': 2,
+        }
+        self.k = CLKernels(self.ctx, values=values)
         template = np.zeros(shape, dtype=np.float32)
         template[2, 2, 1:4] = 1
         template[2, 1:4, 2] = 1
@@ -265,8 +278,17 @@ class TestCLKernels(unittest.TestCase):
 
         self.assertTrue(np.allclose(cl_out.get(), answer))
 
+    @unittest.skip("kernel does not have rotate_grids_and_multiply")
     def test_rotate_grids_and_multiply(self):
         shape = (5, 5, 5)
+        values = {
+            'shape_x': 5,
+            'shape_y': 5,
+            'shape_z': 5,
+            'llength': 2,
+        }
+        self.k = CLKernels(self.ctx, values=values)
+
         template = np.zeros(shape, dtype=np.float32)
         template[2, 2, 1:4] = 1
         template[2, 1:4, 2] = 1

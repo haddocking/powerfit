@@ -1,6 +1,7 @@
 from unittest import TestCase, main, skipIf
 
 import numpy as np
+import numpy.testing as npt
 
 from powerfit.helpers import get_queue
 from powerfit._extensions import rotate_grid3d
@@ -149,7 +150,10 @@ class TestCLKernels(TestCase):
         gws = tuple([2 * self.values["llength"] + 1] * 3)
         k(self.queue, gws, None, *args)
 
-        self.assertTrue(np.allclose(self.cl_grid.get(), self.cl_out.get()))
+        npt.assert_allclose(
+            self.cl_grid.get(),
+            self.cl_out.get(),
+        )
 
         # 90' rotation around z-axis
         self.cl_out.fill(0)

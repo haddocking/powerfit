@@ -2,6 +2,7 @@
 import unittest
 
 import numpy as np
+import numpy.testing as npt
 from numpy import fft
 try:
     import pyopencl as cl
@@ -29,8 +30,11 @@ class TestGPyFFT(unittest.TestCase):
         cls.CLFFT_HERMITIAN_PLANAR = 3
         cls.CLFFT_REAL = 5
 
+    
     def test_simple_plan_1d(self):
         """Test 1D plan with multiple batches"""
+        if self.dev[0].type == cl.device_type.CPU:
+            self.skipTest("Skip when OpenCL runtime is CPU, core dumps on CPU")
         shape = (10,)
         plan = self.G.create_plan(self.ctx, shape)
         plan.bake(self.queue)
@@ -117,7 +121,12 @@ class TestGPyFFT(unittest.TestCase):
         cl_out = cl_array.to_device(self.queue, np_out)
         plan.enqueue_transform(self.queue, cl_in.data, cl_out.data)
         self.assertTrue(np.allclose(answer1, cl_out[:40].get().reshape(5, 8)))
-        self.assertTrue(np.allclose(answer2, cl_out[40:].get().reshape(5, 8)))
+        npt.assert_allclose(
+            answer2,
+            cl_out[40:].get().reshape(5, 8),
+            rtol=1e-5,
+        )
+
 
 
 if __name__ == '__main__':
