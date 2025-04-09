@@ -230,3 +230,40 @@ The GPU version has been tested on:
 
 * NVIDIA GeForce GTX 680 and AMD Radeon HD 7730M for Linux
 * NVIDIA GeForce GTX 775M for MacOSX 10.10
+
+## Development
+
+To develop PowerFit, you need to install the development version of it using.
+
+```shell
+pip install -e .[dev,fftw]
+```
+
+Extras:
+- dev: for development
+- fftw: for FFTW support, will install pyFFTW which includes FFTW3 C library, so no need to install it separately.
+
+Tests can be run using
+
+```shell
+pytest
+```
+
+Docker build
+
+```shell
+docker build -t ghcr.io/haddocking/powerfit:py3 -f Dockerfile.cpu .
+```
+
+Docker run
+
+```shell
+docker run --rm --user $(id -u):$(id -g) -v $PWD:/data ghcr.io/haddocking/powerfit:py3 \
+    /data/<map> <resolution> /data/<pdb> \
+    -d /data/<results-dir>
+# Example from powerfit-tutorial repo
+docker run --rm --user $(id -u):$(id -g) -v $PWD:/data ghcr.io/haddocking/powerfit:py3 \
+    /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
+    -a 20 -p 2 -l -d /data/run-KsgA-docker-py3
+```
+For `<map>`, `<pdb>`, `<results-dir>` use paths relative to current working directory.

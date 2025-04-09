@@ -13,17 +13,8 @@ jobs:
         with:
           python-version: "3.13"
 
-      - name: build deps
-        run: pip install numpy setuptools wheel
-
-      - name: build
-        run: python setup.py build_ext --inplace
-
       - name: install
-        run: pip install -e . --no-use-pep517
-
-      - name: test deps
-        run: pip install pytest pytest-cov
+        run: pip install -e .[dev,fftw]
 
       - name: test
         run: >-

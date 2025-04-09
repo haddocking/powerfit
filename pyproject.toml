@@ -26,6 +26,13 @@ dependencies = [
     "scipy"
 ]
 
+[project.optional-dependencies]
+fftw = ["pyfftw>=0.12.0"]
+dev = [
+    "pytest",
+    "pytest-cov",
+]
+
 [project.urls]
 Homepage = "https://github.com/haddocking/powerfit"
 
