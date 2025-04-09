@@ -23,7 +23,8 @@ try:
     from pyopencl.elementwise import ElementwiseKernel
     from gpyfft import GpyFFT
     OPENCL = True
-except:
+except Exception as e:
+    print(e)
     OPENCL = False
 
 from ._powerfit import conj_multiply, calc_lcc, dilate_points
