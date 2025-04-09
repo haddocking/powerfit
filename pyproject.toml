@@ -9,6 +9,7 @@ description = "Rigid body fitting of high-resolution structures in low-resolutio
 authors = [
     {name = "Gydo C.P. van Zundert", email = "g.c.p.vanzundert@uu.nl"},
 ]
+maintainers = [{ name = "BonvinLab" }, { email = "bonvinlab.support@uu.nl" }]
 requires-python = ">=3.10"
 dynamic = ["readme"]
 license = "Apache-2.0"
