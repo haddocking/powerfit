@@ -24,15 +24,13 @@ classifiers = [
 ]
 dependencies = [
     "numpy>=1.8",
+    "pyfftw>=0.12.0",
     "scipy"
 ]
 
 [project.optional-dependencies]
-fftw = ["pyfftw>=0.12.0"]
-# TODO install pyopencl without CPU runtime
-# aka just "pyopencl"
-# and test on nvidida and AMD GPUs
-opencl = ["pyopencl[pocl]", "siphash24"]
+opencl = ["pyopencl", "siphash24"]
+pocl= ["pyopencl[pocl]", "siphash24"]
 dev = [
     "pytest",
     "pytest-cov",

@@ -25,9 +25,6 @@ Minimal requirements for the CPU version:
 * NumPy 1.8+
 * SciPy
 * GCC (or another C-compiler)
-
-Optional requirement for faster CPU version:
-
 * FFTW3
 * pyFFTW 0.10+
 
@@ -50,7 +47,7 @@ easy as opening up a shell and typing
 
     git clone https://github.com/haddocking/powerfit.git
     cd powerfit
-    sudo python setup.py install
+    pip install .[opencl]
 
 If you are starting from a clean system, follow the instructions for your
 particular operating system as described below, they should get you up and
@@ -236,12 +233,13 @@ The GPU version has been tested on:
 To develop PowerFit, you need to install the development version of it using.
 
 ```shell
-pip install -e .[dev,fftw]
+pip install -e .[dev]
 ```
 
-Extras:
+Available extras:
 - dev: for development
-- fftw: for FFTW support, will install pyFFTW which includes FFTW3 C library, so no need to install it separately.
+- opencl: for OpenCL support
+- pocl: for OpenCL on CPU support
 
 Tests can be run using
 
@@ -272,7 +270,7 @@ For `<map>`, `<pdb>`, `<results-dir>` use paths relative to current working dire
 
 Install deps with
 ```shell
-pip install -e .[opencl,dev,fftw]
+pip install -e .[opencl,dev]
 # Install gpyfft
 sudo apt install -y libclfft-dev
 pip install cython
@@ -284,3 +282,5 @@ Using GPU-accelerated search.
 ...
 Total time: 0m 19s
 ```
+
+To run OpenCL on **C**PU install using `pip install -e .[pocl]`.
