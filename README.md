@@ -283,4 +283,4 @@ Using GPU-accelerated search.
 Total time: 0m 19s
 ```
 
-To run OpenCL on **C**PU install using `pip install -e .[pocl]`.
+To run OpenCL on **C**PU install using `pip install -e .[pocl]` and make sure no other OpenCL platforms, like 'AMD Accelerated Parallel Processing' or 'NVIDIA CUDA', are installed.
