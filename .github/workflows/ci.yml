@@ -27,7 +27,7 @@ jobs:
           pip install --no-use-pep517 gpyfft@git+https://github.com/geggo/gpyfft@v0.8.0
 
       - name: OpenCL platform and device test
-        run: python -c 'import pyopencl as cl;import pyopencl.array as cl_array;from gpyfft import GpyFFT; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
+        run: python -c 'import pyopencl as cl;from gpyfft import GpyFFT; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
 
       - name: test
         run: >-
