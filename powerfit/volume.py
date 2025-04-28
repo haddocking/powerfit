@@ -260,7 +260,7 @@ class CCP4Parser(object):
     def __init__(self, fid):
 
         if isinstance(fid, str):
-            fhandle = open(fid)
+            fhandle = open(fid, 'rb')
         elif isinstance(fid, BufferedReader):
             fhandle = fid
         else:
