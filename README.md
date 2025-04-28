@@ -82,10 +82,8 @@ If you are working on Fedora, this should be replaced by
 sudo yum install python3-devel python3-pip git development-c development-tools
 ```
 
-Your system is now prepared, follow the general instructions above to install
-**PowerFit**.
-
-### Linux with GPU
+<details>
+<summary>Steps for running on GPU</summary>
 
 If you want to use the GPU version of PowerFit, you need to install the
 drivers for your GPU. 
@@ -117,6 +115,10 @@ Check that the OpenCL installation is working by running
 python -c 'import pyopencl as cl;from gpyfft import GpyFFT; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
 # Should print the name of your GPU
 ```
+</details>
+
+Your system is now prepared, follow the general instructions above to install
+**PowerFit**.
 
 ### MacOSX
 
@@ -163,7 +165,8 @@ cross-correlation score on a single CPU-core. During the search, *powerfit*
 will update you about the progress of the search if you are using it
 interactively in the shell.
 
-### Usage in Docker
+<details>
+<summary>Usage in Docker</summary>
 
 The Docker images of powerfit are available in the [GitHub Container Registry](https://github.com/haddocking/powerfit/pkgs/container/powerfit).
 
@@ -171,7 +174,8 @@ Running PowerFit in a Docker container with data located at
 a hypothetical `/path/to/data` on your machine can be done as follows
 
 ```shell
-docker run --rm -ti --user $(id -u):$(id -g) -v /path/to/data:/data ghcr.io/haddocking/powerfit:v3.0.0 \
+docker run --rm -ti --user $(id -u):$(id -g) \
+    -v /path/to/data:/data ghcr.io/haddocking/powerfit:v3.0.0 \
     /data/<map> <resolution> /data/<pdb> \
     -d /data/<results-dir>
 ```
@@ -180,12 +184,13 @@ For `<map>`, `<pdb>`, `<results-dir>` use paths relative to `/path/to/data`.
 To run tutorial example use
 ```shell
 # cd into powerfit-tutorial repo
-docker run --rm -ti --user $(id -u):$(id -g) -v $PWD:/data ghcr.io/haddocking/powerfit:v3.0.0 \
+docker run --rm -ti --user $(id -u):$(id -g) \
+    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.0.0 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
     -a 20 -p 2 -l -d /data/run-KsgA-docker
 ```
 
-To run on NVIDIA GPU using [NVIVIA container toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/index.html) use
+To run on NVIDIA GPU using [NVIDIA container toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/index.html) use
 ```shell
 docker run --rm -ti \
     --runtime=nvidia --gpus all -v /etc/OpenCL:/etc/OpenCL \
@@ -203,8 +208,10 @@ sudo docker run --rm -ti \
     --group-add video --ipc=host \
     -v $PWD:/data ghcr.io/haddocking/powerfit-rocm:v3.0.0 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
-    -a 20 -p 2 -l -d /data/run-KsgA-docker-namd--gpu
+    -a 20 -p 2 -l -d /data/run-KsgA-docker-amd--gpu
 ```
+
+</details>
 
 ### Options
 
@@ -243,7 +250,7 @@ calculations are either performed on the CPU or GPU.
 To run on GPU
 
 ```shell
-powerfit <map> <resolution> <pdb --gpu
+powerfit <map> <resolution> <pdb> --gpu
 ...
 Using GPU-accelerated search.
 ...
@@ -337,7 +344,7 @@ Tests can be run using
 pytest
 ```
 
-To run OpenCL on **C**PU install use `pip install -e .[pocl]` and make sure no other OpenCL platforms, like 'AMD Accelerated Parallel Processing' or 'NVIDIA CUDA', are installed.
+To run OpenCL on **C**PU install use `pip install -e .[pocl]` and make sure no other OpenCL platforms, like 'AMD Accelerated Parallel Processing' or 'NVIDIA CUDA', are installed .
 
 The Docker container, that works for cpu and NVIDIA gpus, can be build with
 
