@@ -56,7 +56,7 @@ def em2em():
 def parse_image_pyramid():
     p = ArgumentParser()
 
-    p.add_argument('map', type=file, 
+    p.add_argument('map', type=FileType('rb'), 
             help='Initial density data.')
     p.add_argument('resolution', type=float, 
             help='Resolution of initial data.')
