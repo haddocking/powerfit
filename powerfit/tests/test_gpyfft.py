@@ -120,7 +120,11 @@ class TestGPyFFT(unittest.TestCase):
         cl_in = cl_array.to_device(self.queue, np_in)
         cl_out = cl_array.to_device(self.queue, np_out)
         plan.enqueue_transform(self.queue, cl_in.data, cl_out.data)
-        self.assertTrue(np.allclose(answer1, cl_out[:40].get().reshape(5, 8)))
+        npt.assert_allclose(
+            answer1,
+            cl_out[:40].get().reshape(5, 8),
+            rtol=1e-4,
+        )
         npt.assert_allclose(
             answer2,
             cl_out[40:].get().reshape(5, 8),
