@@ -1,0 +1,53 @@
+[build-system]
+requires = ["setuptools", "numpy>=1.8", "cython"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "powerfit"
+version = "3.0.0"
+description = "Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps"
+authors = [
+    {name = "Gydo C.P. van Zundert", email = "g.c.p.vanzundert@uu.nl"},
+]
+maintainers = [{ name = "BonvinLab" }, { email = "bonvinlab.support@uu.nl" }]
+requires-python = ">=3.10"
+dynamic = ["readme"]
+license = "Apache-2.0"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Intended Audience :: Science/Research", 
+    "Topic :: Scientific/Engineering :: Bio-Informatics"
+]
+dependencies = [
+    "numpy>=1.8",
+    "pyfftw>=0.12.0",
+    "scipy"
+]
+
+[project.optional-dependencies]
+opencl = ["pyopencl", "siphash24"]
+pocl= ["pyopencl[pocl]", "siphash24"]
+dev = [
+    "pytest",
+    "pytest-cov",
+]
+
+[project.urls]
+Homepage = "https://github.com/haddocking/powerfit"
+
+[project.scripts]
+powerfit = "powerfit.powerfit:main"
+image-pyramid = "powerfit.scripts:image_pyramid"
+em2em = "powerfit.scripts:em2em"
+
+[tool.setuptools]
+packages = ["powerfit"]
+package-data = {"powerfit" = ["data/*.npy", "kernels.cl"]}
+# ext_modules is still in setup.py as numpy.get_include() can not be used here
+
+[tool.setuptools.dynamic]
+readme = {file = "README.md", content-type = "text/markdown"}

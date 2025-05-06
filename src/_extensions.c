@@ -1,3 +1,4 @@
+#define NPY_NO_DEPRECATED_API NPY_1_7_API_VERSION
 #include "Python.h"
 #include "numpy/arrayobject.h"
 #include <complex.h>
@@ -190,7 +191,7 @@ fail:
     // Clean up objects
     Py_XDECREF(py_grid);
     Py_XDECREF(py_rotmat);
-    PyArray_XDECREF_ERR(py_out);
+    PyArray_XDECREF(py_out);
     return NULL;
 }
 
@@ -241,7 +242,7 @@ fail:
     // Clean up objects
     Py_XDECREF(py_in1);
     Py_XDECREF(py_in2);
-    PyArray_XDECREF_ERR(py_out);
+    PyArray_XDECREF(py_out);
     return NULL;
 }
 
@@ -253,10 +254,25 @@ static PyMethodDef mymethods[] = {
 };
 
 
-PyMODINIT_FUNC
-init_extensions(void)
-{
-    (void) Py_InitModule("_extensions", mymethods);
-    import_array();
+// NEW: Module definition struct for Python 3
+static struct PyModuleDef moduledef = {
+    PyModuleDef_HEAD_INIT,
+    "_extensions",        // name of module
+    NULL,                 // docstring (or NULL)
+    -1,                   // size of per-interpreter module state (-1 = global)
+    mymethods             // your function table
 };
 
+// NEW: Module init function for Python 3
+PyMODINIT_FUNC PyInit__extensions(void) {
+    import_array();       // numpy setup
+    return PyModule_Create(&moduledef);
+}
+
+// PyMODINIT_FUNC
+// init_extensions(void)
+// {
+//     (void) Py_InitModule("_extensions", mymethods);
+//     import_array();
+// };
+//

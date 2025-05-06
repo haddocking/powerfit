@@ -4,5 +4,11 @@ packages/
 test-cases/
 analysis/
 
-*.c
+src/_powerfit.c
 *.pyc
+
+.venv/
+dist/
+powerfit.egg-info/
+powerfit/_extensions.*
+powerfit/_powerfit.*

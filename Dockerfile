@@ -1,65 +1,26 @@
-FROM ubuntu:18.04
-
-ARG POWERFIT_VERSION=v2.1.0
-
-ENV LD_LIBRARY_PATH=/usr/local/lib64
-ENV CLFFT_DIR=/src/clFFT
-ENV CLFFT_LIB_DIRS=/usr/local/lib64
-ENV CLFFT_INCL_DIRS=/src/clFFT/src/include
-ENV CL_INCL_DIRS=/usr/local/include
-ENV LD_LIBRARY_PATH=/usr/local/lib64:/usr/local/lib
-
-RUN apt-get update --fix-missing && \
-    apt-get install -y \
-    python2.7 \
-    python2.7-dev \
-    git \
-    wget \
-    gcc \
-    g++ \
-    libfftw3-dev \
-    libfftw3-doc \
-    libfreetype6-dev \
-    pkg-config \
-    libopenblas-dev \
-    gfortran \
-    python-scipy \
-    python-numpy \
-    time \
-    cmake \
-    make \
-    opencl-headers \
-    ocl-icd-opencl-dev \
-    libboost-all-dev \
-    pocl-opencl-icd && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+FROM python:3.12 AS build
+# Downgraded to python 3.12 so binary wheel for siphash24 is available
 
 WORKDIR /src
 
-RUN wget https://bootstrap.pypa.io/pip/2.7/get-pip.py && \
-    python2 get-pip.py && \
-    python2.7 -mpip install \
-    Cython==0.29.33 pyfftw==0.12.0 pybind11 setuptools \
-    numpy==1.16.6 pyopencl==2020.2 backports.weakref==1.0.post1
+RUN apt update && \
+apt install -y libclfft-dev git && \
+pip install build setuptools wheel cython
 
-RUN git clone https://github.com/clMathLibraries/clFFT.git && \
-    cd clFFT/src && \
-    cmake . && \
-    make && \
-    make install
+COPY . .
 
-RUN git clone https://github.com/haddocking/powerfit && \
-    cd powerfit && \
-    git checkout ${POWERFIT_VERSION} && \
-    python2.7 setup.py install
+RUN python -m build --wheel
 
-RUN git clone https://github.com/geggo/gpyfft.git && \
-    cd gpyfft && \
-    sed -i \
-    -e "s|CLFFT_DIR = r'/home/gregor/devel/clFFT'|CLFFT_DIR = '/src/clFFT'|" \
-    -e "s|CL_INCL_DIRS = \['/opt/AMDAPPSDK-3.0/include'\]|CL_INCL_DIRS = ['/usr/local/include']|" \
-    setup.py && \
-    python2.7 setup.py install
+RUN pip wheel -w dist --no-deps --no-use-pep517 gpyfft@git+https://github.com/geggo/gpyfft@v0.8.0
+
+FROM python:3.12-slim
+
+RUN apt update && apt install -y libclfft2
+
+COPY --from=build /src/dist/*.whl /opt/
+
+RUN PFWHL_FILE=$(find /opt -name "powerfit*.whl" | head -n 1) && \
+    GFWHL_FILE=$(find /opt -name "gpyfft*.whl" | head -n 1) && \
+    pip install "${PFWHL_FILE}[opencl]" "${GFWHL_FILE}"
 
 ENTRYPOINT [ "powerfit" ]

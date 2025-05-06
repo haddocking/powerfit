@@ -145,9 +145,12 @@ void rotate_grid3d(
 
                     c0 = c00 * dy1 + c10 * dy;
                     c1 = c01 * dy1 + c11 * dy;
+                    // TODO fix why nan = 1 * 1 + 0 * 0, instead of 1
+                    printf("c1 = c01 * dy1 + c11 * dy: %f = %f * %f + %f * %f\n", c1, c01, dy1, c11, dy);
 
                     c = c0 * dz1 + c1 * dz;
 
+                    //printf("c = c0 * dz1 + c1 * dz: %f = %f * %f + %f * %f\n", c, c0, dz1, c1, dz);
                     out[out_ind.s2] = c;
                 }
             }

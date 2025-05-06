@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division
+
 import os
 import errno
 from math import sqrt, pi
@@ -37,10 +37,11 @@ def determine_core_indices(mask):
 def get_queue(platformid=0, deviceid=0):
     try:
         platform = cl.get_platforms()[platformid]
-        devices = platform.get_devices(device_type=cl.device_type.GPU)
+        devices = platform.get_devices()
         context = cl.Context(devices=devices)
         queue = cl.CommandQueue(context, device=devices[deviceid])
-    except:
+    except Exception as e:
+        raise e
         queue = None
 
     return queue

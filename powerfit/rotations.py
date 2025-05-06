@@ -1,4 +1,4 @@
-from __future__ import absolute_import, division
+
 import os.path
 from math import sqrt
 from random import random
@@ -113,10 +113,10 @@ def proportional_orientations(angle):
 
     # determine the apropiate set to use
     smallestdiff = None
-    for s, n in rot_sets.iteritems():
+    for s, n in rot_sets.items():
         alpha = n[1]
         diff = abs(angle - alpha)
-        if diff < smallestdiff or smallestdiff is None:
+        if smallestdiff is None or diff < smallestdiff:
             smallestdiff = diff
             fname = s
 
