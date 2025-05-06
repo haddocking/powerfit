@@ -55,7 +55,7 @@ readme = {file = "README.md", content-type = "text/markdown"}
 
 [tool.cibuildwheel]
 # Skip Pypy and older Alpine versions
-skip = "pp* cp310-musllinux_x86_64 cp311-musllinux_x86_64 cp312-musllinux_x86_64"
+skip = "pp* cp310-musllinux* cp311-musllinux* cp312-musllinux* *universal2"
 archs = ["auto64"]
 test-command = "powerfit --help"
 
