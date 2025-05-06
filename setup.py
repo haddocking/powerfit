@@ -1,4 +1,5 @@
 #! env/bin/python
+import os
 import os.path
 
 import numpy
@@ -8,6 +9,11 @@ from Cython.Build import cythonize
 
 
 def main():
+    extra_compile_args = ['-ffast-math']
+    if os.name == 'nt':
+        # Disable extra compile args on Windows
+        extra_compile_args = []
+
     ext_modules = [Extension("powerfit._powerfit",
                              [os.path.join("src", "_powerfit.pyx")],
                              include_dirs=[numpy.get_include()],
@@ -15,7 +21,7 @@ def main():
                    Extension("powerfit._extensions",
                              [os.path.join("src", "_extensions.c")],
                              include_dirs=[numpy.get_include()],
-                             extra_compile_args=['-ffast-math'],
+                             extra_compile_args=extra_compile_args,
                              ),
                    ]
 
