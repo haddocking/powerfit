@@ -327,8 +327,8 @@ Copyright (c) 2005-2015, Christoph Gohlke
 
 The GPU version has been tested on:
 
-* NVIDIA GeForce GTX 1050 Ti and AMD Radeon RX 7900 XTX on Linux 
-* NVIDIA GeForce GTX 1050 Ti and AMD Radeon RX 7900 XTX in Docker container
+* NVIDIA GeForce GTX 1050 Ti, GeForce RTX 4070 and AMD Radeon RX 7900 XTX on Linux 
+* NVIDIA GeForce GTX 1050 Ti, AMD Radeon RX 7800 XT and AMD Radeon RX 7900 XTX in Docker container
 
 ## Development
 
