@@ -8,16 +8,6 @@ from powerfit.rotations import euler
 from powerfit.powerfitter import OPENCL
 
 
-# try:
-#     from powerfit.powerfitter import CLKernels
-#     import pyopencl as cl
-#     import pyopencl.array as cl_array
-#
-#     HAS_CL = True
-# except ImportError:
-#     HAS_CL = False
-
-
 class Test_Powerfit(unittest.TestCase):
 
     def test_conj_multiply(self):
