@@ -1,0 +1,29 @@
+# YAML 1.2
+---
+cff-version: "1.2.0"
+title: "powerfit"
+authors:
+  - family-names: Zundert
+    name-particle: van
+    given-names: Gydo
+    affiliation: '@UtrechtUniversity'
+    orcid: "https://orcid.org/0000-0001-9924-3317"
+  - given-names: Rodrigo
+    family-names: Honorato
+    name-particle: Vargas
+    orcid: "https://orcid.org/0000-0001-5267-3002"
+    affiliation: '@UtrechtUniversity'
+  - given-names: Alexandre
+    family-names: Bonvin
+    affiliation: '@UtrechtUniversity'    
+    orcid: "https://orcid.org/0000-0001-7369-1322"
+  - affiliation: "Netherlands eScience Center"
+    family-names: Verhoeven
+    given-names: Stefan
+    orcid: "https://orcid.org/0000-0002-5821-2060"
+repository-code: "https://github.com/haddocking/powerfit"
+message: "If you use this software, please cite it using these metadata."
+identifiers:
+  - description: Latest version of software
+    type: doi
+    value: 10.5281/zenodo.1037227
