@@ -51,3 +51,20 @@ package-data = {"powerfit" = ["data/*.npy", "kernels.cl"]}
 
 [tool.setuptools.dynamic]
 readme = {file = "README.md", content-type = "text/markdown"}
+
+[tool.cibuildwheel]
+# Skip Pypy and older Alpine versions
+skip = "pp* cp310-musllinux_x86_64 cp311-musllinux_x86_64 cp312-musllinux_x86_64"
+archs = ["auto64"]
+test-command = "powerfit --help"
+
+# For some reason the source wheel for pyfftw is used instead of the binary wheel
+# so we install its compilation dependencies manually
+# Outside cibuildwheel images it installs the binary wheel
+[[tool.cibuildwheel.overrides]]
+select = "cp*-manylinux*"
+before-test = "yum install -y fftw-devel"
+
+[[tool.cibuildwheel.overrides]]
+select = "*-musllinux*"
+before-all = "apk add fftw-dev"
