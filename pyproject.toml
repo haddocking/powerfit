@@ -24,7 +24,7 @@ classifiers = [
 ]
 dependencies = [
     "numpy>=1.8",
-    "pyfftw>=0.12.0",
+    "pyfftw>=0.12.0; platform_machine != 'wasm32'",
     "scipy"
 ]
 
@@ -47,7 +47,8 @@ em2em = "powerfit.scripts:em2em"
 [tool.setuptools]
 packages = ["powerfit"]
 package-data = {"powerfit" = ["data/*.npy", "kernels.cl"]}
-# ext_modules is still in setup.py as numpy.get_include() can not be used here
+# ext_modules is still in setup.py as numpy.get_include() 
+# and cythonize() can not be used here
 
 [tool.setuptools.dynamic]
 readme = {file = "README.md", content-type = "text/markdown"}
