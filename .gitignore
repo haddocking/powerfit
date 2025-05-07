@@ -4,11 +4,14 @@ packages/
 test-cases/
 analysis/
 
-src/_powerfit.c
 *.pyc
 
 .venv/
 dist/
-powerfit.egg-info/
-powerfit/_extensions.*
-powerfit/_powerfit.*
+powerfit_em.egg-info/
+src/powerfit_em/_powerfit.c
+src/powerfit_em/_extensions.*.so
+src/powerfit_em/_powerfit.*.so
+
+.coverage
+coverage.xml
