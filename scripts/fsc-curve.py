@@ -13,12 +13,12 @@ ft_vol1 = fftn(vol1.array)
 ft_vol2 = fftn(vol2.array)
 
 fsc = fsc_curve(ft_vol1, ft_vol2)
-res = [n / vol1.dimensions[0] for n in xrange(fsc.size)]
+res = [n / vol1.dimensions[0] for n in range(fsc.size)]
 inv_res = [1 / r for r in res[1:]]
 
-print fsc
-print
-print res
-print
-print inv_res
+print(fsc)
+print()
+print(res)
+print()
+print(inv_res)
 
