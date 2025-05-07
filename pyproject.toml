@@ -45,8 +45,6 @@ image-pyramid = "powerfit.scripts:image_pyramid"
 em2em = "powerfit.scripts:em2em"
 
 [tool.setuptools]
-packages = ["powerfit"]
-package-data = {"powerfit" = ["data/*.npy", "kernels.cl"]}
 # ext_modules is still in setup.py as numpy.get_include() can not be used here
 
 [tool.setuptools.dynamic]

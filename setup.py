@@ -9,11 +9,11 @@ from Cython.Build import cythonize
 
 def main():
     ext_modules = [Extension("powerfit._powerfit",
-                             [os.path.join("src", "_powerfit.pyx")],
+                             [os.path.join("src", "powerfit", "_powerfit.pyx")],
                              include_dirs=[numpy.get_include()],
                              ),
                    Extension("powerfit._extensions",
-                             [os.path.join("src", "_extensions.c")],
+                             [os.path.join("src", "powerfit", "_extensions.c")],
                              include_dirs=[numpy.get_include()],
                              extra_compile_args=['-ffast-math'],
                              ),
