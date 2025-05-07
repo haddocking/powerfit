@@ -3,11 +3,11 @@ from unittest import TestCase, main, skipIf
 import numpy as np
 import numpy.testing as npt
 
-from powerfit.helpers import get_queue
-from powerfit._extensions import rotate_grid3d
+from powerfit_em.helpers import get_queue
+from powerfit_em._extensions import rotate_grid3d
 
 try:
-    from powerfit.powerfitter import CLKernels
+    from powerfit_em.powerfitter import CLKernels
     import pyopencl as cl
     import pyopencl.array as cl_array
 
@@ -130,7 +130,9 @@ class TestCLKernels(TestCase):
         answer[-1, 0, 0] = 1
         self.assertTrue(np.allclose(answer, self.cl_out.get()))
 
-    @skipIf(True, "rotate_grid3d not executed by powerfit cli with --gpu, ignoring test")
+    @skipIf(
+        True, "rotate_grid3d not executed by powerfit cli with --gpu, ignoring test"
+    )
     def test_rotate_grid3d_linear(self):
         """Test rotate_grid3d kernel using nearest interpolation."""
         k = self.k._program.rotate_grid3d

@@ -6,9 +6,9 @@ import os
 import numpy as np
 from scipy.ndimage import laplace
 
-from powerfit import Volume, Structure, quat_to_rotmat, proportional_orientations, determine_core_indices
-from powerfit._powerfit import rotate_grid
-from powerfit.volume import zeros_like, res_to_sigma, structure_to_shape
+from powerfit_em import Volume, Structure, quat_to_rotmat, proportional_orientations, determine_core_indices
+from powerfit_em._powerfit import rotate_grid
+from powerfit_em.volume import zeros_like, res_to_sigma, structure_to_shape
 
 
 def parse_args():
@@ -94,5 +94,5 @@ def main():
 
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
