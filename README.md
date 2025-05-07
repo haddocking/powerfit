@@ -356,3 +356,7 @@ The Docker container, that works for AMD gpus, can be build with
 ```shell
 docker build -t ghcr.io/haddocking/powerfit-rocm:v3.0.0 -f Dockerfile.rocm .
 ```
+
+The binary wheels can be build for all supported platforms by running the
+https://github.com/haddocking/powerfit/actions/workflows/pypi-publish.yml GitHub action and downloading the artifacts.
+The workflow is triggered by a push to the main branch, a release or can be manually triggered.

@@ -12,3 +12,4 @@ dist/
 powerfit.egg-info/
 powerfit/_extensions.*
 powerfit/_powerfit.*
+wheelhouse/

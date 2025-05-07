@@ -2,10 +2,15 @@ name: Build and upload to PyPI
 
 on:
   workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Reference to checkout'
+        required: true
+        default: 'master'
   pull_request:
   push:
     branches:
-      - main
+      - master
   release:
     types:
       - published
@@ -27,12 +32,14 @@ jobs:
           - os: macos-arm
             # macos-14+ (including latest) are ARM64 runners
             runs-on: macos-latest
-            archs: auto,universal2
+            archs: auto64
           - os: pyodide
             runs-on: ubuntu-latest
             platform: pyodide
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref }}
       - name: Build wheels
         uses: pypa/cibuildwheel@v2.23.3
         env:
@@ -48,6 +55,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.ref }}
       - name: Setup Python
         uses: actions/setup-python@v5
         with:
@@ -67,7 +76,8 @@ jobs:
     runs-on: ubuntu-latest
     environment:
         name: pypi
-        url: https://pypi.org/p/powerfit # TODO rename see https://github.com/haddocking/powerfit/issues/24
+        # TODO rename see https://github.com/haddocking/powerfit/issues/24
+        url: https://pypi.org/p/powerfit
     permissions:
         id-token: write
     if: github.event_name == 'release' && github.event.action == 'published'
