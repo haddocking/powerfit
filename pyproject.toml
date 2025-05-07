@@ -34,6 +34,7 @@ pocl= ["pyopencl[pocl]", "siphash24"]
 dev = [
     "pytest",
     "pytest-cov",
+    "ruff",
 ]
 
 [project.urls]
@@ -51,3 +52,26 @@ package-data = {"powerfit" = ["data/*.npy", "kernels.cl"]}
 
 [tool.setuptools.dynamic]
 readme = {file = "README.md", content-type = "text/markdown"}
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+pydocstyle.convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["powerfit"]
