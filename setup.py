@@ -11,12 +11,12 @@ def main():
     ext_modules = [
         Extension(
             "powerfit_em._powerfit",
-            [os.path.join("src", "powerfit", "_powerfit.pyx")],
+            [os.path.join("src", "powerfit_em", "_powerfit.pyx")],
             include_dirs=[numpy.get_include()],
         ),
         Extension(
             "powerfit_em._extensions",
-            [os.path.join("src", "powerfit", "_extensions.c")],
+            [os.path.join("src", "powerfit_em", "_extensions.c")],
             include_dirs=[numpy.get_include()],
             extra_compile_args=["-ffast-math"],
         ),

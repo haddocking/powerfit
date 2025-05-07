@@ -34,9 +34,9 @@ Homepage = "https://github.com/haddocking/powerfit"
 powerfit = "powerfit_em.powerfit:main"
 image-pyramid = "powerfit_em.scripts:image_pyramid"
 em2em = "powerfit_em.scripts:em2em"
-rot-search = "powerfit.scripts.rot_search:main"
-fsc-curve = "powerfit.scripts.fsc_curve:main"
-atom2dens = "powerfit.scripts.atom2dens:main"
+rot-search = "powerfit_em.scripts.rot_search:main"
+fsc-curve = "powerfit_em.scripts.fsc_curve:main"
+atom2dens = "powerfit_em.scripts.atom2dens:main"
 
 [tool.setuptools]
 # ext_modules is still in setup.py as numpy.get_include() can not be used here

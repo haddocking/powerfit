@@ -8,7 +8,10 @@ analysis/
 
 .venv/
 dist/
-powerfit.egg-info/
-src/powerfit/_powerfit.c
-src/powerfit/_extensions.*.so
-src/powerfit/_powerfit.*.so
+powerfit_em.egg-info/
+src/powerfit_em/_powerfit.c
+src/powerfit_em/_extensions.*.so
+src/powerfit_em/_powerfit.*.so
+
+.coverage
+coverage.xml
