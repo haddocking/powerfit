@@ -376,18 +376,18 @@ ruff format
 To check Cython code, run
 
 ```shell
-cython-lint src/_powerfit.pyx
+cython-lint src/powerfit_em/_powerfit.pyx
 ```
 
 To format the C code, run
 
 ```shell
-clang-format -i src/_extensions.c
+clang-format -i src/powerfit_em/_extensions.c
 ```
 
 To lint the C code, run
 
 ```shell
-clang-tidy src/_extensions.c -- -I/usr/include/python3.10 -I.venv/lib/python3.10/site-packages/numpy/_core/include
+clang-tidy src/powerfit_em/_extensions.c -- -I/usr/include/python3.10 -I.venv/lib/python3.10/site-packages/numpy/_core/include
 ```
 (adjust the include paths to your Python installation)
