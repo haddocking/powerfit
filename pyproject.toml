@@ -25,7 +25,6 @@ dependencies = [
     "pyfftw>=0.12.0; platform_machine != 'wasm32'",
     "scipy"
 ]
-dependencies = ["numpy>=1.8", "pyfftw>=0.12.0", "scipy"]
 
 [project.optional-dependencies]
 opencl = ["pyopencl", "siphash24"]
@@ -41,9 +40,8 @@ image-pyramid = "powerfit_em.scripts:image_pyramid"
 em2em = "powerfit_em.scripts:em2em"
 
 [tool.setuptools]
-<<<<<<< HEAD
-packages = ["powerfit"]
-package-data = {"powerfit" = ["data/*.npy", "kernels.cl"]}
+packages = ["powerfit_em"]
+package-data = { "powerfit_em" = ["data/*.npy", "kernels.cl"] }
 # ext_modules is still in setup.py as numpy.get_include() 
 # and cythonize() can not be used here
 
@@ -66,11 +64,3 @@ before-test = "yum install -y fftw-devel"
 [[tool.cibuildwheel.overrides]]
 select = "*-musllinux*"
 before-all = "apk add fftw-dev"
-=======
-packages = ["powerfit_em"]
-package-data = { "powerfit_em" = ["data/*.npy", "kernels.cl"] }
-# ext_modules is still in setup.py as numpy.get_include() can not be used here
-
-[tool.setuptools.dynamic]
-readme = { file = "README.md", content-type = "text/markdown" }
->>>>>>> origin/master
