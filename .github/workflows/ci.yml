@@ -54,3 +54,5 @@ lint:
         run: |
           ruff check
           ruff format --check
+      - name: Check cython code
+        run: cython-lint src/_powerfit.pyx

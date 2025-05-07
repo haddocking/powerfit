@@ -371,3 +371,9 @@ To format the Python code, run
 ```shell
 ruff format
 ```
+
+To check Cython code, run
+
+```shell
+cython-lint src/_powerfit.pyx
+```

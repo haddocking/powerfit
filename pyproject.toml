@@ -35,6 +35,7 @@ dev = [
     "pytest",
     "pytest-cov",
     "ruff",
+    "cython-lint",
 ]
 
 [project.urls]
