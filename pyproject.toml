@@ -38,10 +38,11 @@ Homepage = "https://github.com/haddocking/powerfit"
 powerfit = "powerfit_em.powerfit:main"
 image-pyramid = "powerfit_em.scripts:image_pyramid"
 em2em = "powerfit_em.scripts:em2em"
+rot-search = "powerfit_em.scripts.rot_search:main"
+fsc-curve = "powerfit_em.scripts.fsc_curve:main"
+atom2dens = "powerfit_em.scripts.atom2dens:main"
 
 [tool.setuptools]
-packages = ["powerfit_em"]
-package-data = { "powerfit_em" = ["data/*.npy", "kernels.cl"] }
 # ext_modules is still in setup.py as numpy.get_include() 
 # and cythonize() can not be used here
 
