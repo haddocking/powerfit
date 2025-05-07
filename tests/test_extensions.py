@@ -2,7 +2,7 @@ from unittest import TestCase, main
 
 import numpy as np
 
-from powerfit._extensions import rotate_grid3d
+from powerfit_em._extensions import rotate_grid3d
 
 
 class TestExtensions(TestCase):
@@ -37,6 +37,5 @@ class TestExtensions(TestCase):
         self.assertTrue(np.allclose(answer, out))
 
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

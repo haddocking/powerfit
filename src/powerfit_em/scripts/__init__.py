@@ -2,7 +2,7 @@
 from argparse import ArgumentParser, FileType
 from os.path import splitext
 
-from .volume import Volume, trim, resample, lower_resolution
+from powerfit_em.volume import Volume, trim, resample, lower_resolution
 
 EM2EM_DESCRIPTION = "Convert, trim, and resample cryo-EM data."
 

@@ -1,4 +1,4 @@
-from __future__ import division
+
 from argparse import ArgumentParser, FileType
 from time import time
 import os
@@ -6,9 +6,9 @@ import os
 import numpy as np
 from scipy.ndimage import laplace
 
-from powerfit import Volume, Structure, quat_to_rotmat, proportional_orientations, determine_core_indices
-from powerfit._powerfit import rotate_grid
-from powerfit.volume import zeros_like, res_to_sigma, structure_to_shape
+from powerfit_em import Volume, Structure, quat_to_rotmat, proportional_orientations, determine_core_indices
+from powerfit_em._powerfit import rotate_grid
+from powerfit_em.volume import zeros_like, res_to_sigma, structure_to_shape
 
 
 def parse_args():
@@ -83,16 +83,16 @@ def main():
         rotate_grid(mask.array, rot, center, radius, rotmask.array, nearest=True)
         lcc = calc_lcc(target.array, rottemplate.array, rotmask.array, N)
         lcc_list.append(lcc)
-        print '{:d}              \r'.format(n),
+        print('{:d}              \r'.format(n), end=' ')
 
-    print 'Searching took: {:.0f}m {:.0f}s'.format(*divmod(time() - time0, 60))
+    print('Searching took: {:.0f}m {:.0f}s'.format(*divmod(time() - time0, 60)))
     ind = np.argsort(lcc_list)[::-1]
     with open(os.path.join(args.directory, args.outfile), 'w') as f:
         line = ' '.join(['{:.4f}'] + ['{:7.4f}'] * 9) + '\n'
-        for n in xrange(min(args.nsolutions, len(lcc_list))):
+        for n in range(min(args.nsolutions, len(lcc_list))):
             f.write(line.format(lcc_list[ind[n]], *rotmat[ind[n]].ravel()))
 
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

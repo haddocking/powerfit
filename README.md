@@ -1,6 +1,7 @@
 # PowerFit
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1037228.svg)](https://doi.org/10.5281/zenodo.1037228)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1037227.svg)](https://doi.org/10.5281/zenodo.1037227)
+[![Research Software Directory Badge](https://img.shields.io/badge/rsd-powerfit-00a3e3.svg)](https://www.research-software.nl/software/powerfit)
 
 ## About PowerFit
 
@@ -303,14 +304,14 @@ If this software was useful to your research, please cite us
 
 **G.C.P. van Zundert and A.M.J.J. Bonvin**.
 Fast and sensitive rigid-body fitting into cryo-EM density maps with PowerFit.
-*AIMS Biophysics* 2, 73-87 (2015).
+*AIMS Biophysics* 2, 73-87 (2015) [https://doi.org/10.3934/biophy.2015.2.73](https://doi.org/10.3934/biophy.2015.2.73).
 
 For the use of image-pyramids and reliability measures for fitting, please cite
 
 **G.C.P van Zundert and A.M.J.J. Bonvin**.
 Defining the limits and reliability of rigid-body fitting in cryo-EM maps using
 multi-scale image pyramids.
-*J. Struct. Biol.* 195, 252-258 (2016).
+*J. Struct. Biol.* 195, 252-258 (2016) [https://doi.org/10.1016/j.jsb.2016.06.011](https://doi.org/10.1016/j.jsb.2016.06.011).
 
 Apache License Version 2.0
 
