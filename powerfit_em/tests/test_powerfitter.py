@@ -17,11 +17,11 @@ try:
 except ImportError:
     PYOPENCL = False
 
-from powerfit.powerfitter import BaseCorrelator, CPUCorrelator
-from powerfit.rotations import euler
+from powerfit_em.powerfitter import BaseCorrelator, CPUCorrelator
+from powerfit_em.rotations import euler
 
 if PYOPENCL:
-    from powerfit.powerfitter import CLKernels
+    from powerfit_em.powerfitter import CLKernels
 
 
 class TestCPUCorrelator(unittest.TestCase):
@@ -191,10 +191,10 @@ class TestCLKernels(unittest.TestCase):
         self.ctx = cl.Context(devices=devs)
         self.queue = cl.CommandQueue(self.ctx, device=devs[0])
         values = {
-            'shape_x': 10,
-            'shape_y': 0,
-            'shape_z': 0,
-            'llength': 5,                 
+            "shape_x": 10,
+            "shape_y": 0,
+            "shape_z": 0,
+            "llength": 5,
         }
         self.k = CLKernels(self.ctx, values=values)
         self.s_linear = cl.Sampler(
@@ -241,10 +241,10 @@ class TestCLKernels(unittest.TestCase):
     def test_rotate_template_mask(self):
         shape = (5, 5, 5)
         values = {
-            'shape_x': 5,
-            'shape_y': 5,
-            'shape_z': 5,
-            'llength': 2,
+            "shape_x": 5,
+            "shape_y": 5,
+            "shape_z": 5,
+            "llength": 2,
         }
         self.k = CLKernels(self.ctx, values=values)
         template = np.zeros(shape, dtype=np.float32)
@@ -282,10 +282,10 @@ class TestCLKernels(unittest.TestCase):
     def test_rotate_grids_and_multiply(self):
         shape = (5, 5, 5)
         values = {
-            'shape_x': 5,
-            'shape_y': 5,
-            'shape_z': 5,
-            'llength': 2,
+            "shape_x": 5,
+            "shape_y": 5,
+            "shape_z": 5,
+            "llength": 2,
         }
         self.k = CLKernels(self.ctx, values=values)
 

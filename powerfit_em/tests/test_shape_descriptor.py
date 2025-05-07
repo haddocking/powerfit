@@ -2,7 +2,7 @@ from unittest import TestCase, main
 
 import numpy as np
 
-from powerfit.shape_descriptor import ShapeDescriptor
+from powerfit_em.shape_descriptor import ShapeDescriptor
 
 
 class TestShapeDescriptor(TestCase):
@@ -23,5 +23,5 @@ class TestShapeDescriptor(TestCase):
         self.assertAlmostEqual(sd.relative_shape_anisotropy, 0)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

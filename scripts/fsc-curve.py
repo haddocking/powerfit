@@ -3,8 +3,8 @@ import sys
 import numpy as np
 from numpy.fft import fftn
 
-from powerfit import Volume
-from powerfit._powerfit import fsc_curve
+from powerfit_em import Volume
+from powerfit_em._powerfit import fsc_curve
 
 vol1 = Volume.fromfile(sys.argv[1])
 vol2 = Volume.fromfile(sys.argv[2])
