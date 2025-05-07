@@ -357,3 +357,37 @@ The Docker container, that works for AMD gpus, can be build with
 ```shell
 docker build -t ghcr.io/haddocking/powerfit-rocm:v3.0.0 -f Dockerfile.rocm .
 ```
+
+### Linting & formatting
+
+To lint the Python code, run
+
+```shell
+ruff check
+```
+Use `--fix` to automatically fix some of the issues.
+
+To format the Python code, run
+
+```shell
+ruff format
+```
+
+To check Cython code, run
+
+```shell
+cython-lint src/powerfit_em/_powerfit.pyx
+```
+
+To format the C code, run
+
+```shell
+clang-format -i src/powerfit_em/_extensions.c
+```
+
+To lint the C code, run
+
+```shell
+clang-tidy src/powerfit_em/_extensions.c -- -I/usr/include/python3.10 -I.venv/lib/python3.10/site-packages/numpy/_core/include
+```
+(adjust the include paths to your Python installation)

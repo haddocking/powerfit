@@ -24,8 +24,13 @@ dependencies = ["numpy>=1.8", "pyfftw>=0.12.0", "scipy"]
 
 [project.optional-dependencies]
 opencl = ["pyopencl", "siphash24"]
-pocl = ["pyopencl[pocl]", "siphash24"]
-dev = ["pytest", "pytest-cov"]
+pocl= ["pyopencl[pocl]", "siphash24"]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "ruff",
+    "cython-lint",
+]
 
 [project.urls]
 Homepage = "https://github.com/haddocking/powerfit"
@@ -42,4 +47,27 @@ atom2dens = "powerfit_em.scripts.atom2dens:main"
 # ext_modules is still in setup.py as numpy.get_include() can not be used here
 
 [tool.setuptools.dynamic]
-readme = { file = "README.md", content-type = "text/markdown" }
+readme = {file = "README.md", content-type = "text/markdown"}
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+pydocstyle.convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["powerfit"]
