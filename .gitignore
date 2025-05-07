@@ -12,3 +12,6 @@ powerfit.egg-info/
 src/powerfit/_powerfit.c
 src/powerfit/_extensions.*.so
 src/powerfit/_powerfit.*.so
+
+.coverage
+coverage.xml
