@@ -1,6 +1,6 @@
 # PowerFit
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1037228.svg)](https://doi.org/10.5281/zenodo.1037228)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1037227.svg)](https://doi.org/10.5281/zenodo.1037227)
 [![Research Software Directory Badge](https://img.shields.io/badge/rsd-powerfit-00a3e3.svg)](https://www.research-software.nl/software/powerfit)
 
 ## About PowerFit
