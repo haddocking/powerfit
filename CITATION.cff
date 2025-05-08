@@ -13,6 +13,10 @@ authors:
     name-particle: Vargas
     orcid: "https://orcid.org/0000-0001-5267-3002"
     affiliation: '@UtrechtUniversity'
+  - given-names: Anna
+    family-names: Engel
+    affiliation: '@UtrechtUniversity'
+    orcid: "https://orcid.org/0009-0002-1806-7951"
   - given-names: Alexandre
     family-names: Bonvin
     affiliation: '@UtrechtUniversity'    
