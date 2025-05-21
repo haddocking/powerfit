@@ -130,13 +130,16 @@ instructions on their website, or using a package manager such as *brew*
 brew install git
 ```
 
-Next install [*pip*](https://pip.pypa.io/en/latest/installing.html), the
+Next install [*pip*](https://pip.pypa.io/en/latest/installation/), the
 Python package manager, by following the installation instructions on the
 website or open a terminal and type
 
 ```shell
-sudo easy_install pip
+python -m ensurepip --upgrade
 ```
+
+To get faster score calculation, install the pyFTTW Python package in your conda environment
+with `conda install -c conda-forge pyfftw`.
 
 Follow the general instructions above to
 install **PowerFit**.
