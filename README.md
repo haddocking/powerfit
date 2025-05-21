@@ -1,5 +1,6 @@
 # PowerFit
 
+![PyPI - Version](https://img.shields.io/pypi/v/powerfit-em)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1037227.svg)](https://doi.org/10.5281/zenodo.1037227)
 [![Research Software Directory Badge](https://img.shields.io/badge/rsd-powerfit-00a3e3.svg)](https://www.research-software.nl/software/powerfit)
 
@@ -47,12 +48,10 @@ If you already have fulfilled the requirements, the installation should be as
 easy as opening up a shell and typing
 
 ```shell
-git clone https://github.com/haddocking/powerfit.git
-cd powerfit
 # To run on CPU
-pip install .
+pip install powerfit-em
 # To run on GPU
-pip install .[opencl]
+pip install powerfit-em[opencl]
 ```
 
 If you are starting from a clean system, follow the instructions for your
@@ -130,13 +129,16 @@ instructions on their website, or using a package manager such as *brew*
 brew install git
 ```
 
-Next install [*pip*](https://pip.pypa.io/en/latest/installing.html), the
+Next install [*pip*](https://pip.pypa.io/en/latest/installation/), the
 Python package manager, by following the installation instructions on the
 website or open a terminal and type
 
 ```shell
-sudo easy_install pip
+python -m ensurepip --upgrade
 ```
+
+To get faster score calculation, install the pyFTTW Python package in your conda environment
+with `conda install -c conda-forge pyfftw`.
 
 Follow the general instructions above to
 install **PowerFit**.
@@ -357,3 +359,7 @@ The Docker container, that works for AMD gpus, can be build with
 ```shell
 docker build -t ghcr.io/haddocking/powerfit-rocm:v3.0.0 -f Dockerfile.rocm .
 ```
+
+The binary wheels can be build for all supported platforms by running the
+https://github.com/haddocking/powerfit/actions/workflows/pypi-publish.yml GitHub action and downloading the artifacts.
+The workflow is triggered by a push to the main branch, a release or can be manually triggered.

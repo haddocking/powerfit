@@ -12,15 +12,20 @@ requires-python = ">=3.10"
 dynamic = ["readme"]
 license = "Apache-2.0"
 classifiers = [
-  "Development Status :: 3 - Alpha",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
-  "Intended Audience :: Science/Research",
-  "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Intended Audience :: Science/Research", 
+    "Topic :: Scientific/Engineering :: Bio-Informatics"
 ]
-dependencies = ["numpy>=1.8", "pyfftw>=0.12.0", "scipy"]
+dependencies = [
+    "numpy>=1.8",
+    # pyfftw binary wheel is not available on wasm or on macOS <14 arm, so fallback to numpy for wasm and macOS
+    "pyfftw>=0.12.0; platform_machine != 'wasm32' and sys_platform != 'darwin'",
+    "scipy"
+]
 
 [project.optional-dependencies]
 opencl = ["pyopencl", "siphash24"]
@@ -28,7 +33,10 @@ pocl = ["pyopencl[pocl]", "siphash24"]
 dev = ["pytest", "pytest-cov"]
 
 [project.urls]
-Homepage = "https://github.com/haddocking/powerfit"
+issues = "https://github.com/haddocking/powerfit"
+homepage = "https://github.com/haddocking/powerfit"
+source = "https://github.com/haddocking/powerfit"
+tutorial = "https://www.bonvinlab.org/education/Others/"
 
 [project.scripts]
 powerfit = "powerfit_em.powerfit:main"
@@ -39,7 +47,25 @@ fsc-curve = "powerfit_em.scripts.fsc_curve:main"
 atom2dens = "powerfit_em.scripts.atom2dens:main"
 
 [tool.setuptools]
-# ext_modules is still in setup.py as numpy.get_include() can not be used here
+# ext_modules is still in setup.py as numpy.get_include() 
+# and cythonize() can not be used here
 
 [tool.setuptools.dynamic]
-readme = { file = "README.md", content-type = "text/markdown" }
+readme = {file = "README.md", content-type = "text/markdown"}
+
+[tool.cibuildwheel]
+# Skip Pypy and older Alpine versions
+skip = "pp* cp310-musllinux* cp311-musllinux* cp312-musllinux* *universal2"
+archs = ["auto64"]
+test-command = "powerfit --help"
+
+# For some reason the source wheel for pyfftw is used instead of the binary wheel
+# so we install its compilation dependencies manually
+# Outside cibuildwheel images it installs the binary wheel
+[[tool.cibuildwheel.overrides]]
+select = "cp*-manylinux*"
+before-test = "yum install -y fftw-devel"
+
+[[tool.cibuildwheel.overrides]]
+select = "*-musllinux*"
+before-all = "apk add fftw-dev"

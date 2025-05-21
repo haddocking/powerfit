@@ -7,6 +7,7 @@ import os.path
 from time import time, sleep
 from multiprocessing import RawValue, Lock, Process, cpu_count
 from string import Template
+import warnings
 
 import numpy as np
 from numpy.fft import irfftn as np_irfftn, rfftn as np_rfftn
@@ -308,6 +309,7 @@ class CPUCorrelator(BaseCorrelator):
             self._rfftn = rfftn_builder(self._gcc)
             self._irfftn = irfftn_builder(self._ft_gcc, s=self._target.shape)
         else:
+            warnings.warn("Using numpy for calculating score. Install pyFFTW for faster calculation.")
             # monkey patch the numpy fft interface
             self._rfftn = np_rfftn
             self._irfftn = np_irfftn
