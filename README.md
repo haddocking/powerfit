@@ -1,5 +1,6 @@
 # PowerFit
 
+![PyPI - Version](https://img.shields.io/pypi/v/powerfit-em)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1037227.svg)](https://doi.org/10.5281/zenodo.1037227)
 [![Research Software Directory Badge](https://img.shields.io/badge/rsd-powerfit-00a3e3.svg)](https://www.research-software.nl/software/powerfit)
 
@@ -47,12 +48,10 @@ If you already have fulfilled the requirements, the installation should be as
 easy as opening up a shell and typing
 
 ```shell
-git clone https://github.com/haddocking/powerfit.git
-cd powerfit
 # To run on CPU
-pip install .
+pip install powerfit-em
 # To run on GPU
-pip install .[opencl]
+pip install powerfit-em[opencl]
 ```
 
 If you are starting from a clean system, follow the instructions for your

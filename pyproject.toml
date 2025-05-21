@@ -33,7 +33,10 @@ pocl = ["pyopencl[pocl]", "siphash24"]
 dev = ["pytest", "pytest-cov"]
 
 [project.urls]
-Homepage = "https://github.com/haddocking/powerfit"
+issues = "https://github.com/haddocking/powerfit"
+homepage = "https://github.com/haddocking/powerfit"
+source = "https://github.com/haddocking/powerfit"
+tutorial = "https://www.bonvinlab.org/education/Others/"
 
 [project.scripts]
 powerfit = "powerfit_em.powerfit:main"
