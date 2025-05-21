@@ -76,8 +76,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
         name: pypi
-        # TODO rename see https://github.com/haddocking/powerfit/issues/24
-        url: https://pypi.org/p/powerfit
+        url: https://pypi.org/p/powerfit-em
     permissions:
         id-token: write
     if: github.event_name == 'release' && github.event.action == 'published'
