@@ -273,7 +273,6 @@ class CPUCorrelator(BaseCorrelator):
             self._rfftn(target, self._ft_target)
             self._rfftn(target**2, self._ft_target2)
         else:
-            warnings.warn("Using numpy for FFTs. Install pyfttw get faster FFTs.")
             self._ft_target = self._rfftn(target)
             self._ft_target2 = self._rfftn(target**2)
 
@@ -310,6 +309,7 @@ class CPUCorrelator(BaseCorrelator):
             self._rfftn = rfftn_builder(self._gcc)
             self._irfftn = irfftn_builder(self._ft_gcc, s=self._target.shape)
         else:
+            warnings.warn("Using numpy for calculating score. Install pyFFTW for faster calculation.")
             # monkey patch the numpy fft interface
             self._rfftn = np_rfftn
             self._irfftn = np_irfftn
