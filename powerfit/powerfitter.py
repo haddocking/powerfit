@@ -7,6 +7,7 @@ import os.path
 from time import time, sleep
 from multiprocessing import RawValue, Lock, Process, cpu_count
 from string import Template
+import warnings
 
 import numpy as np
 from numpy.fft import irfftn as np_irfftn, rfftn as np_rfftn
@@ -272,6 +273,7 @@ class CPUCorrelator(BaseCorrelator):
             self._rfftn(target, self._ft_target)
             self._rfftn(target**2, self._ft_target2)
         else:
+            warnings.warn("Using numpy for FFTs. Install pyfttw get faster FFTs.")
             self._ft_target = self._rfftn(target)
             self._ft_target2 = self._rfftn(target**2)
 
