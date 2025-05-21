@@ -3,9 +3,9 @@ from unittest import skipIf
 
 import numpy as np
 
-from powerfit import _powerfit
-from powerfit.rotations import euler
-from powerfit.powerfitter import OPENCL
+from powerfit_em import _powerfit
+from powerfit_em.rotations import euler
+from powerfit_em.powerfitter import OPENCL
 
 
 class Test_Powerfit(unittest.TestCase):

@@ -3,12 +3,10 @@ requires = ["setuptools", "numpy>=1.8", "cython"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "powerfit"
+name = "powerfit-em"
 version = "3.0.0"
 description = "Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps"
-authors = [
-    {name = "Gydo C.P. van Zundert", email = "g.c.p.vanzundert@uu.nl"},
-]
+authors = [{ name = "Gydo C.P. van Zundert", email = "g.c.p.vanzundert@uu.nl" }]
 maintainers = [{ name = "BonvinLab" }, { email = "bonvinlab.support@uu.nl" }]
 requires-python = ">=3.10"
 dynamic = ["readme"]
@@ -30,23 +28,21 @@ dependencies = [
 
 [project.optional-dependencies]
 opencl = ["pyopencl", "siphash24"]
-pocl= ["pyopencl[pocl]", "siphash24"]
-dev = [
-    "pytest",
-    "pytest-cov",
-]
+pocl = ["pyopencl[pocl]", "siphash24"]
+dev = ["pytest", "pytest-cov"]
 
 [project.urls]
 Homepage = "https://github.com/haddocking/powerfit"
 
 [project.scripts]
-powerfit = "powerfit.powerfit:main"
-image-pyramid = "powerfit.scripts:image_pyramid"
-em2em = "powerfit.scripts:em2em"
+powerfit = "powerfit_em.powerfit:main"
+image-pyramid = "powerfit_em.scripts:image_pyramid"
+em2em = "powerfit_em.scripts:em2em"
+rot-search = "powerfit_em.scripts.rot_search:main"
+fsc-curve = "powerfit_em.scripts.fsc_curve:main"
+atom2dens = "powerfit_em.scripts.atom2dens:main"
 
 [tool.setuptools]
-packages = ["powerfit"]
-package-data = {"powerfit" = ["data/*.npy", "kernels.cl"]}
 # ext_modules is still in setup.py as numpy.get_include() 
 # and cythonize() can not be used here
 

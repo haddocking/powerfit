@@ -4,7 +4,7 @@ import numpy as np
 import numpy.testing as npt
 import pytest
 
-from powerfit.volume import Volume
+from powerfit_em.volume import Volume
 
 
 @pytest.fixture
