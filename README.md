@@ -1,7 +1,7 @@
 # PowerFit
 
 ![PyPI - Version](https://img.shields.io/pypi/v/powerfit-em)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1037227.svg)](https://doi.org/10.5281/zenodo.1037227)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14185749.svg)](https://doi.org/10.5281/zenodo.14185749)
 [![Research Software Directory Badge](https://img.shields.io/badge/rsd-powerfit-00a3e3.svg)](https://www.research-software.nl/software/powerfit)
 
 ## About PowerFit
@@ -314,6 +314,9 @@ For the use of image-pyramids and reliability measures for fitting, please cite
 Defining the limits and reliability of rigid-body fitting in cryo-EM maps using
 multi-scale image pyramids.
 *J. Struct. Biol.* 195, 252-258 (2016) [https://doi.org/10.1016/j.jsb.2016.06.011](https://doi.org/10.1016/j.jsb.2016.06.011).
+
+If you used PowerFit v1, please cite [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1037227.svg)](https://doi.org/10.5281/zenodo.1037227).
+For newer version v2 and v2, please cite [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14185749.svg)](https://doi.org/10.5281/zenodo.14185749).
 
 Apache License Version 2.0
 
