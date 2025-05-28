@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "powerfit-em"
-version = "3.0.0"
+version = "3.0.1"
 description = "Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps"
 authors = [{ name = "Gydo C.P. van Zundert", email = "g.c.p.vanzundert@uu.nl" }]
 maintainers = [{ name = "BonvinLab" }, { email = "bonvinlab.support@uu.nl" }]

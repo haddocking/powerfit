@@ -178,7 +178,7 @@ a hypothetical `/path/to/data` on your machine can be done as follows
 
 ```shell
 docker run --rm -ti --user $(id -u):$(id -g) \
-    -v /path/to/data:/data ghcr.io/haddocking/powerfit:v3.0.0 \
+    -v /path/to/data:/data ghcr.io/haddocking/powerfit:v3.0.1 \
     /data/<map> <resolution> /data/<pdb> \
     -d /data/<results-dir>
 ```
@@ -188,7 +188,7 @@ To run tutorial example use
 ```shell
 # cd into powerfit-tutorial repo
 docker run --rm -ti --user $(id -u):$(id -g) \
-    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.0.0 \
+    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.0.1 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
     -a 20 -p 2 -l -d /data/run-KsgA-docker
 ```
@@ -197,7 +197,7 @@ To run on NVIDIA GPU using [NVIDIA container toolkit](https://docs.nvidia.com/da
 ```shell
 docker run --rm -ti \
     --runtime=nvidia --gpus all -v /etc/OpenCL:/etc/OpenCL \
-    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.0.0 \
+    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.0.1 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
     -a 20 -p 2 -l -d /data/run-KsgA-docker-nv --gpu
 ```
@@ -209,7 +209,7 @@ sudo docker run --rm -ti \
     --device=/dev/kfd --device=/dev/dri \
     --security-opt seccomp=unconfined \
     --group-add video --ipc=host \
-    -v $PWD:/data ghcr.io/haddocking/powerfit-rocm:v3.0.0 \
+    -v $PWD:/data ghcr.io/haddocking/powerfit-rocm:v3.0.1 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
     -a 20 -p 2 -l -d /data/run-KsgA-docker-amd--gpu
 ```
@@ -355,12 +355,12 @@ To run OpenCL on **C**PU install use `pip install -e .[pocl]` and make sure no o
 The Docker container, that works for cpu and NVIDIA gpus, can be build with
 
 ```shell
-docker build -t ghcr.io/haddocking/powerfit:v3.0.0 .
+docker build -t ghcr.io/haddocking/powerfit:v3.0.1 .
 ```
 The Docker container, that works for AMD gpus, can be build with
 
 ```shell
-docker build -t ghcr.io/haddocking/powerfit-rocm:v3.0.0 -f Dockerfile.rocm .
+docker build -t ghcr.io/haddocking/powerfit-rocm:v3.0.1 -f Dockerfile.rocm .
 ```
 
 The binary wheels can be build for all supported platforms by running the
