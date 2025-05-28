@@ -1,6 +1,6 @@
 # PowerFit
 
-![PyPI - Version](https://img.shields.io/pypi/v/powerfit-em)
+[![PyPI - Version](https://img.shields.io/pypi/v/powerfit-em)](https://pypi.org/project/powerfit-em/)
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14185749.svg)](https://doi.org/10.5281/zenodo.14185749)
 [![Research Software Directory Badge](https://img.shields.io/badge/rsd-powerfit-00a3e3.svg)](https://www.research-software.nl/software/powerfit)
 
