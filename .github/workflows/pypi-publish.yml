@@ -87,4 +87,24 @@ jobs:
           pattern: cibw-*
           path: dist
           merge-multiple: true
+      - name: Remove wasm wheel, not supported by PyPI
+        run: rm -f dist/powerfit_em-*wasm32.whl
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  upload_wasm_github_release:
+    needs: [build_wheels]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'release' && github.event.action == 'published'
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          # unpacks all pyodide CIBW artifacts into dist/
+          pattern: cibw-wheels-pyodide-*
+          path: dist
+          merge-multiple: true
+      - name: Upload wasm wheel to just created GitHub release
+        uses: shogo82148/actions-upload-release-asset@v1
+        with:
+          asset_path: "dist/*.whl"
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_content_type: "application/zip"
