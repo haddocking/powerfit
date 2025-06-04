@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "powerfit-em"
-version = "3.0.1"
+version = "3.0.2"
 description = "Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps"
 authors = [{ name = "Gydo C.P. van Zundert", email = "g.c.p.vanzundert@uu.nl" }]
 maintainers = [{ name = "BonvinLab" }, { email = "bonvinlab.support@uu.nl" }]
@@ -49,6 +49,12 @@ atom2dens = "powerfit_em.scripts.atom2dens:main"
 [tool.setuptools]
 # ext_modules is still in setup.py as numpy.get_include() 
 # and cythonize() can not be used here
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+powerfit_em = ["data/*.npy", "kernels.cl", "_powerfit.pyx"]
 
 [tool.setuptools.dynamic]
 readme = {file = "README.md", content-type = "text/markdown"}
