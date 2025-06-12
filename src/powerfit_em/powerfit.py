@@ -2,11 +2,11 @@
 
 
 from os.path import splitext, join, abspath
-from os import makedirs
-from sys import stdout, argv
 from time import time
-from argparse import ArgumentParser, FileType
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, FileType
 import logging
+
+from rich.logging import RichHandler
 
 from powerfit_em import (
     Volume,
@@ -22,10 +22,12 @@ from powerfit_em.helpers import mkdir_p, write_fits_to_pdb, fisher_sigma
 from powerfit_em.volume import extend, nearest_multiple2357, trim, resample
 
 
-def parse_args():
-    """Parse command-line options."""
+logger = logging.getLogger(__name__)
 
-    p = ArgumentParser()
+
+def make_parser():
+    """Create the command-line argument parser."""
+    p = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
 
     # Positional arguments
     p.add_argument(
@@ -146,6 +148,8 @@ def parse_args():
         "-g",
         "--gpu",
         dest="gpu",
+        # On machine with multiple GPUs then each powerfit needs its own GPU.
+        # TODO add optional value for GPU device selection
         action="store_true",
         help="Off-load the intensive calculations to the GPU. ",
     )
@@ -160,7 +164,20 @@ def parse_args():
         "The number will be capped at the total number "
         "of available processors on your machine.",
     )
+    p.add_argument(
+        "--log-level",
+        dest="log_level",
+        type=str,
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Set the logging level.",
+    )
 
+    return p
+
+def parse_args():
+    """Parse command-line options."""
+    p = make_parser()
     args = p.parse_args()
 
     return args
@@ -178,26 +195,25 @@ def get_filetype_template(fname):
         raise IOError(msg)
     return ft
 
+def configure_logging(log_file, log_level= "INFO"):
+    if log_file:
+        logging.basicConfig(
+            filename=log_file,
+            level=logging.INFO,
+            format="%(asctime)s %(message)s",
+        )
+    console_handler = RichHandler(show_time=False, show_path=False, show_level=False)
+    console_handler.setLevel(log_level)
+    logging.getLogger().addHandler(console_handler)
 
-def write(line):
-    """Write line to stdout and logfile."""
-    if stdout.isatty():
-        print(line)
-    logging.info(line)
 
 
 def main():
-
     time0 = time()
     args = parse_args()
+
     mkdir_p(args.directory)
-    # Configure logging file
-    logging.basicConfig(
-        filename=join(args.directory, "powerfit.log"),
-        level=logging.INFO,
-        format="%(asctime)s %(message)s",
-    )
-    logging.info(" ".join(argv))
+    configure_logging(join(args.directory, "powerfit.log"), args.log_level)
 
     # Get GPU queue if requested
     queues = None
@@ -210,33 +226,33 @@ def main():
         # For clFFT each queue should have its own Context
         queues = [cl.CommandQueue(context, device=dev) for dev in devs]
 
-    write("Target file read from: {:s}".format(abspath(args.target.name)))
+    logger.info("Target file read from: {:s}".format(abspath(args.target.name)))
     target = Volume.fromfile(args.target)
-    write("Target resolution: {:.2f}".format(args.resolution))
+    logger.info("Target resolution: {:.2f}".format(args.resolution))
     resolution = args.resolution
-    write(("Initial shape of density:" + " {:d}" * 3).format(*target.shape))
+    logger.info(("Initial shape of density:" + " {:d}" * 3).format(*target.shape))
     # Resample target density if requested
     if not args.no_resampling:
         factor = 2 * args.resampling_rate * target.voxelspacing / resolution
         if factor < 0.9:
             target = resample(target, factor)
-            write(("Shape after resampling:" + " {:d}" * 3).format(*target.shape))
+            logger.info(("Shape after resampling:" + " {:d}" * 3).format(*target.shape))
     # Trim target density if requested
     if not args.no_trimming:
         if args.trimming_cutoff is None:
             args.trimming_cutoff = target.array.max() / 10
         target = trim(target, args.trimming_cutoff)
-        write(("Shape after trimming:" + " {:d}" * 3).format(*target.shape))
+        logger.info(("Shape after trimming:" + " {:d}" * 3).format(*target.shape))
     # Extend the density to a multiple of 2, 3, 5, and 7 for clFFT
     extended_shape = [nearest_multiple2357(n) for n in target.shape]
     target = extend(target, extended_shape)
-    write(("Shape after extending:" + " {:d}" * 3).format(*target.shape))
+    logger.info(("Shape after extending:" + " {:d}" * 3).format(*target.shape))
 
     # Read in structure or high-resolution map
-    write("Template file read from: {:s}".format(abspath(args.template.name)))
+    logger.info("Template file read from: {:s}".format(abspath(args.template.name)))
     structure = Structure.fromfile(args.template)
     if args.chain is not None:
-        write("Selecting chains: " + args.chain)
+        logger.info("Selecting chains: " + args.chain)
         structure = structure.select("chain", args.chain.split(","))
     if structure.data.size == 0:
         raise ValueError("No atoms were selected.")
@@ -255,15 +271,15 @@ def main():
     )
 
     # Read in the rotations to sample
-    write("Reading in rotations.")
+    logger.info("Reading in rotations.")
     q, w, degree = proportional_orientations(args.angle)
     rotmat = quat_to_rotmat(q)
-    write("Requested rotational sampling density: {:.2f}".format(args.angle))
-    write("Real rotational sampling density: {:}".format(degree))
+    logger.info("Requested rotational sampling density: {:.2f}".format(args.angle))
+    logger.info("Real rotational sampling density: {:}".format(degree))
 
     # Apply core-weighted mask if requested
     if args.core_weighted:
-        write("Calculating core-weighted mask.")
+        logger.info("Calculating core-weighted mask.")
         mask.array = determine_core_indices(mask.array)
 
     pf = PowerFitter(target, laplace=args.laplace)
@@ -274,15 +290,15 @@ def main():
     pf.directory = args.directory
     pf._queues = queues
     if args.gpu:
-        write("Using GPU-accelerated search.")
+        logger.info("Using GPU-accelerated search.")
     else:
-        write("Requested number of processors: {:d}".format(args.nproc))
-    write("Starting search")
+        logger.info("Requested number of processors: {:d}".format(args.nproc))
+    logger.info("Starting search")
     time1 = time()
     pf.scan()
-    write("Time for search: {:.0f}m {:.0f}s".format(*divmod(time() - time1, 60)))
+    logger.info("Time for search: {:.0f}m {:.0f}s".format(*divmod(time() - time1, 60)))
 
-    write("Analyzing results")
+    logger.info("Analyzing results")
     # calculate the molecular volume of the structure
     mv = (
         structure_to_shape_like(
@@ -304,19 +320,19 @@ def main():
         z_sigma=z_sigma,
     )
 
-    write("Writing solutions to file.")
+    logger.info("Writing solutions to file.")
     Volume(pf._lcc, target.voxelspacing, target.origin).tofile(
         join(args.directory, "lcc.mrc")
     )
     analyzer.tofile(join(args.directory, "solutions.out"))
 
-    write("Writing PDBs to file.")
+    logger.info("Writing PDBs to file.")
     n = min(args.num, len(analyzer.solutions))
     write_fits_to_pdb(
         structure, analyzer.solutions[:n], basename=join(args.directory, "fit")
     )
 
-    write("Total time: {:.0f}m {:.0f}s".format(*divmod(time() - time0, 60)))
+    logger.info("Total time: {:.0f}m {:.0f}s".format(*divmod(time() - time0, 60)))
 
 
 if __name__ == "__main__":

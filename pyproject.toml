@@ -24,7 +24,9 @@ dependencies = [
     "numpy>=1.8",
     # pyfftw binary wheel is not available on wasm or on macOS <14 arm, so fallback to numpy for wasm and macOS
     "pyfftw>=0.12.0; platform_machine != 'wasm32' and sys_platform != 'darwin'",
-    "scipy"
+    "scipy",
+    "tqdm",
+    "rich",
 ]
 
 [project.optional-dependencies]

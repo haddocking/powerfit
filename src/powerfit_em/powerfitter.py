@@ -9,6 +9,9 @@ from multiprocessing import RawValue, Lock, Process, cpu_count
 from string import Template
 import warnings
 
+from tqdm import TqdmExperimentalWarning
+from tqdm.rich import tqdm
+
 import numpy as np
 from numpy.fft import irfftn as np_irfftn, rfftn as np_rfftn
 from scipy.ndimage import binary_erosion, laplace
@@ -113,20 +116,14 @@ class PowerFitter(object):
                         self._queues, self._directory)
                   ))
 
-        time0 = time()
         for n in range(self._njobs):
             processes[n].start()
 
-        while self._counter.value() < nrot:
-            n = self._counter.value()
-            p_done = (n + 1) / float(nrot) * 100
-            now = time()
-            eta = ((now - time0) / p_done) * (100 - p_done)
-            total = (now - time0) / p_done * (100)
-            stdout.write('{:7.2%} {:.0f}s {:.0f}s       \r'.format(n / float(nrot), eta, total))
-            stdout.flush()
-            sleep(0.5)
-        stdout.write('\n')
+        with tqdm(total=nrot, desc="Processing rotations", unit="rot") as pbar:
+            while self._counter.value() < nrot:
+                current_count = self._counter.value()
+                pbar.update(current_count - pbar.n)
+        
         for n in range(self._njobs):
             processes[n].join()
         self._combine()
@@ -532,6 +529,7 @@ if OPENCL:
 
                 self._queue.finish()
 
+                # TODO replace with tqdm
                 self._print_progress(n, self._rotations.shape[0], time0)
             self._glcc.get(ary=self._lcc)
             self._grot.get(ary=self._rot)
