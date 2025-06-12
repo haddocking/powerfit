@@ -5,6 +5,7 @@ from os.path import splitext, join, abspath
 from time import time
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, FileType
 import logging
+from typing import BinaryIO, Literal, TextIO
 
 from rich.logging import RichHandler
 
@@ -206,18 +207,52 @@ def configure_logging(log_file, log_level= "INFO"):
     console_handler.setLevel(log_level)
     logging.getLogger().addHandler(console_handler)
 
-
-
 def main():
-    time0 = time()
     args = parse_args()
 
-    mkdir_p(args.directory)
-    configure_logging(join(args.directory, "powerfit.log"), args.log_level)
+    powerfit(
+        target_volume=args.target,
+        resolution=args.resolution,
+        template_structure=args.template,
+        angle=args.angle,
+        laplace=args.laplace,
+        core_weighted=args.core_weighted,
+        no_resampling=args.no_resampling,
+        resampling_rate=args.resampling_rate,
+        no_trimming=args.no_trimming,
+        trimming_cutoff=args.trimming_cutoff,
+        chain=args.chain,
+        directory=args.directory,
+        num=args.num,
+        gpu=args.gpu,
+        nproc=args.nproc,
+        log_level=args.log_level,
+    )
+
+
+def powerfit(target_volume: BinaryIO,
+             resolution: float,
+             template_structure: TextIO,
+             angle: float=10,
+             laplace: bool=False,
+             core_weighted: bool=False,
+             no_resampling: bool=False,
+             resampling_rate: float=2,
+             no_trimming: bool=False,
+             trimming_cutoff: float | None=None,
+             chain: str | None =None,
+             directory: str='.',
+             num: int=10,
+             gpu: bool=False, 
+             nproc: int=1, 
+             log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] ="INFO"):
+    time0 = time()
+    mkdir_p(directory)
+    configure_logging(join(directory, "powerfit.log"), log_level)
 
     # Get GPU queue if requested
     queues = None
-    if args.gpu:
+    if gpu:
         import pyopencl as cl
 
         p = cl.get_platforms()[0]
@@ -226,22 +261,21 @@ def main():
         # For clFFT each queue should have its own Context
         queues = [cl.CommandQueue(context, device=dev) for dev in devs]
 
-    logger.info("Target file read from: {:s}".format(abspath(args.target.name)))
-    target = Volume.fromfile(args.target)
-    logger.info("Target resolution: {:.2f}".format(args.resolution))
-    resolution = args.resolution
+    logger.info("Target file read from: {:s}".format(abspath(target_volume.name)))
+    target = Volume.fromfile(target_volume)
+    logger.info("Target resolution: {:.2f}".format(resolution))
     logger.info(("Initial shape of density:" + " {:d}" * 3).format(*target.shape))
     # Resample target density if requested
-    if not args.no_resampling:
-        factor = 2 * args.resampling_rate * target.voxelspacing / resolution
+    if not no_resampling:
+        factor = 2 * resampling_rate * target.voxelspacing / resolution
         if factor < 0.9:
             target = resample(target, factor)
             logger.info(("Shape after resampling:" + " {:d}" * 3).format(*target.shape))
     # Trim target density if requested
-    if not args.no_trimming:
-        if args.trimming_cutoff is None:
-            args.trimming_cutoff = target.array.max() / 10
-        target = trim(target, args.trimming_cutoff)
+    if not no_trimming:
+        if trimming_cutoff is None:
+            trimming_cutoff = target.array.max() / 10
+        target = trim(target, trimming_cutoff)
         logger.info(("Shape after trimming:" + " {:d}" * 3).format(*target.shape))
     # Extend the density to a multiple of 2, 3, 5, and 7 for clFFT
     extended_shape = [nearest_multiple2357(n) for n in target.shape]
@@ -249,11 +283,11 @@ def main():
     logger.info(("Shape after extending:" + " {:d}" * 3).format(*target.shape))
 
     # Read in structure or high-resolution map
-    logger.info("Template file read from: {:s}".format(abspath(args.template.name)))
-    structure = Structure.fromfile(args.template)
-    if args.chain is not None:
-        logger.info("Selecting chains: " + args.chain)
-        structure = structure.select("chain", args.chain.split(","))
+    logger.info("Template file read from: {:s}".format(abspath(template_structure.name)))
+    structure = Structure.fromfile(template_structure)
+    if chain is not None:
+        logger.info("Selecting chains: " + chain)
+        structure = structure.select("chain", chain.split(","))
     if structure.data.size == 0:
         raise ValueError("No atoms were selected.")
 
@@ -272,27 +306,27 @@ def main():
 
     # Read in the rotations to sample
     logger.info("Reading in rotations.")
-    q, w, degree = proportional_orientations(args.angle)
+    q, w, degree = proportional_orientations(angle)
     rotmat = quat_to_rotmat(q)
-    logger.info("Requested rotational sampling density: {:.2f}".format(args.angle))
+    logger.info("Requested rotational sampling density: {:.2f}".format(angle))
     logger.info("Real rotational sampling density: {:}".format(degree))
 
     # Apply core-weighted mask if requested
-    if args.core_weighted:
+    if core_weighted:
         logger.info("Calculating core-weighted mask.")
         mask.array = determine_core_indices(mask.array)
 
-    pf = PowerFitter(target, laplace=args.laplace)
+    pf = PowerFitter(target, laplace=laplace)
     pf._rotations = rotmat
     pf._template = template
     pf._mask = mask
-    pf._nproc = args.nproc
-    pf.directory = args.directory
+    pf._nproc = nproc
+    pf.directory = directory
     pf._queues = queues
-    if args.gpu:
+    if gpu:
         logger.info("Using GPU-accelerated search.")
     else:
-        logger.info("Requested number of processors: {:d}".format(args.nproc))
+        logger.info("Requested number of processors: {:d}".format(nproc))
     logger.info("Starting search")
     time1 = time()
     pf.scan()
@@ -322,14 +356,14 @@ def main():
 
     logger.info("Writing solutions to file.")
     Volume(pf._lcc, target.voxelspacing, target.origin).tofile(
-        join(args.directory, "lcc.mrc")
+        join(directory, "lcc.mrc")
     )
-    analyzer.tofile(join(args.directory, "solutions.out"))
+    analyzer.tofile(join(directory, "solutions.out"))
 
     logger.info("Writing PDBs to file.")
-    n = min(args.num, len(analyzer.solutions))
+    n = min(num, len(analyzer.solutions))
     write_fits_to_pdb(
-        structure, analyzer.solutions[:n], basename=join(args.directory, "fit")
+        structure, analyzer.solutions[:n], basename=join(directory, "fit")
     )
 
     logger.info("Total time: {:.0f}m {:.0f}s".format(*divmod(time() - time0, 60)))
