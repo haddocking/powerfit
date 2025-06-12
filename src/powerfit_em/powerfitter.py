@@ -34,6 +34,9 @@ from ._powerfit import conj_multiply, calc_lcc, dilate_points
 from ._extensions import rotate_grid3d
 
 
+warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
+
+
 class _Counter(object):
     """Thread-safe counter object to follow PowerFit progress"""
 
