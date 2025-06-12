@@ -260,6 +260,7 @@ def powerfit(target_volume: BinaryIO,
     queues = None
     if gpu:
         import pyopencl as cl
+        # TODO allow to omit platform, so gpu='4' runs 5th device on first platform
         if isinstance(gpu, str) and ':' in gpu:
             platform_idx, device_idx = map(int, gpu.split(':'))
         else:
