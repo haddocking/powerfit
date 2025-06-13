@@ -172,6 +172,15 @@ def make_parser():
         choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
         help="Set the logging level.",
     )
+    p.add_argument(
+        "-del",
+        "--delimiter",
+        dest="delimiter",
+        type=str,
+        default=None,
+        metavar="<str>",
+        help="Delimiter used in the 'solutions.out' file. For example use ',' or '\\t'. Defaults to fixed width.",
+    )
 
     return p
 
@@ -235,6 +244,7 @@ def main():
         num=args.num,
         gpu=args.gpu,
         nproc=args.nproc,
+        delimiter=args.delimiter,
     )
 
 
@@ -252,7 +262,9 @@ def powerfit(target_volume: BinaryIO,
              directory: str='.',
              num: int=10,
              gpu: str | None =None, 
-             nproc: int=1):
+             nproc: int=1,
+             delimiter: str = None,
+             ):
     time0 = time()
     mkdir_p(directory)
 
@@ -372,7 +384,7 @@ def powerfit(target_volume: BinaryIO,
     Volume(pf._lcc, target.voxelspacing, target.origin).tofile(
         join(directory, "lcc.mrc")
     )
-    analyzer.tofile(join(directory, "solutions.out"))
+    analyzer.tofile(join(directory, "solutions.out"), delimiter=delimiter)
 
     logger.info("Writing PDBs to file.")
     n = min(num, len(analyzer.solutions))
