@@ -100,7 +100,7 @@ class Analyzer(object):
         Arguments:
             out: str, output file name (default: 'solutions.out')
             delimiter: str, delimiter for the output file. Defaults to fixed width output.
-                Can be ',' or '\t'.
+                Can be ',' or '\t'. With delimiter set the header will not have leading '#'.
         """
 
         if self._solutions is None:
@@ -116,6 +116,7 @@ class Analyzer(object):
                     f.write(line.format(n + 1, *sol))
             else:
                 # Write header
+                headers[0] = headers[0].lstrip('#')
                 f.write(delimiter.join(headers) + '\n')
                 for n, sol in enumerate(self._solutions):
                     row = [n + 1] + sol
