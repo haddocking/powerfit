@@ -2,11 +2,12 @@
 
 
 from os.path import splitext, join, abspath
-from os import makedirs
-from sys import stdout, argv
 from time import time
-from argparse import ArgumentParser, FileType
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, FileType
 import logging
+from typing import BinaryIO, TextIO
+
+from rich.logging import RichHandler
 
 from powerfit_em import (
     Volume,
@@ -21,11 +22,11 @@ from powerfit_em.analyzer import Analyzer
 from powerfit_em.helpers import mkdir_p, write_fits_to_pdb, fisher_sigma
 from powerfit_em.volume import extend, nearest_multiple2357, trim, resample
 
+logger = logging.getLogger(__name__)
 
-def parse_args():
-    """Parse command-line options."""
-
-    p = ArgumentParser()
+def make_parser():
+    """Create the command-line argument parser."""
+    p = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
 
     # Positional arguments
     p.add_argument(
@@ -146,8 +147,11 @@ def parse_args():
         "-g",
         "--gpu",
         dest="gpu",
-        action="store_true",
-        help="Off-load the intensive calculations to the GPU. ",
+        nargs="?",
+        const="0:0",
+        default=None,
+        metavar="[<platform>:<device>]",
+        help="Off-load the intensive calculations to the GPU. Optionally specify platform and device as <platform>:<device> (e.g., --gpu 0:3). If not specified, uses first device in first platform. If omitted, does not use GPU.",
     )
     p.add_argument(
         "-p",
@@ -160,7 +164,28 @@ def parse_args():
         "The number will be capped at the total number "
         "of available processors on your machine.",
     )
+    p.add_argument(
+        "--log-level",
+        dest="log_level",
+        type=str,
+        default="INFO",
+        choices=["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"],
+        help="Set the logging level.",
+    )
+    p.add_argument(
+        "--delimiter",
+        dest="delimiter",
+        type=str,
+        default=None,
+        metavar="<str>",
+        help="Delimiter used in the 'solutions.out' file. For example use ',' or '\\t'. Defaults to fixed width.",
+    )
 
+    return p
+
+def parse_args():
+    """Parse command-line options."""
+    p = make_parser()
     args = p.parse_args()
 
     return args
@@ -178,66 +203,116 @@ def get_filetype_template(fname):
         raise IOError(msg)
     return ft
 
+def configure_logging(log_file, log_level= "INFO"):
+    for handler in logging.root.handlers:
+        logging.root.removeHandler(handler)
 
-def write(line):
-    """Write line to stdout and logfile."""
-    if stdout.isatty():
-        print(line)
-    logging.info(line)
+    # Write log messages to a file
+    if log_file:
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(log_level)
+        file_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
+        logging.root.addHandler(file_handler)
+    
+    # Write to console with rich formatting
+    console_handler = RichHandler(show_time=False, show_path=False, show_level=False)
+    console_handler.setLevel(log_level)
+    logging.root.addHandler(console_handler)
+    logger.setLevel(log_level)
 
 
 def main():
-
-    time0 = time()
     args = parse_args()
+    
     mkdir_p(args.directory)
-    # Configure logging file
-    logging.basicConfig(
-        filename=join(args.directory, "powerfit.log"),
-        level=logging.INFO,
-        format="%(asctime)s %(message)s",
+    configure_logging(join(args.directory, "powerfit.log"), args.log_level)
+    
+    powerfit(
+        target_volume=args.target,
+        resolution=args.resolution,
+        template_structure=args.template,
+        angle=args.angle,
+        laplace=args.laplace,
+        core_weighted=args.core_weighted,
+        no_resampling=args.no_resampling,
+        resampling_rate=args.resampling_rate,
+        no_trimming=args.no_trimming,
+        trimming_cutoff=args.trimming_cutoff,
+        chain=args.chain,
+        directory=args.directory,
+        num=args.num,
+        gpu=args.gpu,
+        nproc=args.nproc,
+        delimiter=args.delimiter,
     )
-    logging.info(" ".join(argv))
+
+
+def powerfit(target_volume: BinaryIO,
+             resolution: float,
+             template_structure: TextIO,
+             angle: float=10,
+             laplace: bool=False,
+             core_weighted: bool=False,
+             no_resampling: bool=False,
+             resampling_rate: float=2,
+             no_trimming: bool=False,
+             trimming_cutoff: float | None=None,
+             chain: str | None =None,
+             directory: str='.',
+             num: int=10,
+             gpu: str | None =None, 
+             nproc: int=1,
+             delimiter: str = None,
+             ):
+    time0 = time()
+    mkdir_p(directory)
 
     # Get GPU queue if requested
     queues = None
-    if args.gpu:
+    if gpu:
         import pyopencl as cl
+        # TODO allow to omit platform, so gpu='4' runs 5th device on first platform
+        if isinstance(gpu, str) and ':' in gpu:
+            platform_idx, device_idx = map(int, gpu.split(':'))
+        else:
+            platform_idx, device_idx = 0, 0
+        platforms = cl.get_platforms()
+        if platform_idx >= len(platforms):
+            raise RuntimeError(f"Requested OpenCL platform {platform_idx} not found.")
+        platform = platforms[platform_idx]
+        devices = platform.get_devices()
+        if device_idx >= len(devices):
+            raise RuntimeError(f"Requested OpenCL device {device_idx} not found on platform {platform_idx}.")
+        context = cl.Context(devices=[devices[device_idx]])
+        queues = [cl.CommandQueue(context, device=devices[device_idx])]
 
-        p = cl.get_platforms()[0]
-        devs = p.get_devices()
-        context = cl.Context(devices=devs)
-        # For clFFT each queue should have its own Context
-        queues = [cl.CommandQueue(context, device=dev) for dev in devs]
-
-    write("Target file read from: {:s}".format(abspath(args.target.name)))
-    target = Volume.fromfile(args.target)
-    write("Target resolution: {:.2f}".format(args.resolution))
-    resolution = args.resolution
-    write(("Initial shape of density:" + " {:d}" * 3).format(*target.shape))
+    logger.info("Target file read from: {:s}".format(abspath(target_volume.name)))
+    target = Volume.fromfile(target_volume)
+    logger.info("Target resolution: {:.2f}".format(resolution))
+    logger.info(("Initial shape of density:" + " {:d}" * 3).format(*target.shape))
     # Resample target density if requested
-    if not args.no_resampling:
-        factor = 2 * args.resampling_rate * target.voxelspacing / resolution
+    if not no_resampling:
+        factor = 2 * resampling_rate * target.voxelspacing / resolution
         if factor < 0.9:
             target = resample(target, factor)
-            write(("Shape after resampling:" + " {:d}" * 3).format(*target.shape))
+            logger.info(("Shape after resampling:" + " {:d}" * 3).format(*target.shape))
     # Trim target density if requested
-    if not args.no_trimming:
-        if args.trimming_cutoff is None:
-            args.trimming_cutoff = target.array.max() / 10
-        target = trim(target, args.trimming_cutoff)
-        write(("Shape after trimming:" + " {:d}" * 3).format(*target.shape))
+    if not no_trimming:
+        if trimming_cutoff is None:
+            trimming_cutoff = target.array.max() / 10
+        target = trim(target, trimming_cutoff)
+        logger.info(("Shape after trimming:" + " {:d}" * 3).format(*target.shape))
     # Extend the density to a multiple of 2, 3, 5, and 7 for clFFT
     extended_shape = [nearest_multiple2357(n) for n in target.shape]
     target = extend(target, extended_shape)
-    write(("Shape after extending:" + " {:d}" * 3).format(*target.shape))
+    logger.info(("Shape after extending:" + " {:d}" * 3).format(*target.shape))
 
     # Read in structure or high-resolution map
-    write("Template file read from: {:s}".format(abspath(args.template.name)))
-    structure = Structure.fromfile(args.template)
-    if args.chain is not None:
-        write("Selecting chains: " + args.chain)
-        structure = structure.select("chain", args.chain.split(","))
+    logger.info("Template file read from: {:s}".format(abspath(template_structure.name)))
+    structure = Structure.fromfile(template_structure)
+    if chain is not None:
+        logger.info("Selecting chains: " + chain)
+        structure = structure.select("chain", chain.split(","))
     if structure.data.size == 0:
         raise ValueError("No atoms were selected.")
 
@@ -255,34 +330,34 @@ def main():
     )
 
     # Read in the rotations to sample
-    write("Reading in rotations.")
-    q, w, degree = proportional_orientations(args.angle)
+    logger.info("Reading in rotations.")
+    q, w, degree = proportional_orientations(angle)
     rotmat = quat_to_rotmat(q)
-    write("Requested rotational sampling density: {:.2f}".format(args.angle))
-    write("Real rotational sampling density: {:}".format(degree))
+    logger.info("Requested rotational sampling density: {:.2f}".format(angle))
+    logger.info("Real rotational sampling density: {:}".format(degree))
 
     # Apply core-weighted mask if requested
-    if args.core_weighted:
-        write("Calculating core-weighted mask.")
+    if core_weighted:
+        logger.info("Calculating core-weighted mask.")
         mask.array = determine_core_indices(mask.array)
 
-    pf = PowerFitter(target, laplace=args.laplace)
+    pf = PowerFitter(target, laplace=laplace)
     pf._rotations = rotmat
     pf._template = template
     pf._mask = mask
-    pf._nproc = args.nproc
-    pf.directory = args.directory
+    pf._nproc = nproc
+    pf.directory = directory
     pf._queues = queues
-    if args.gpu:
-        write("Using GPU-accelerated search.")
+    if gpu:
+        logger.info("Using GPU-accelerated search.")
     else:
-        write("Requested number of processors: {:d}".format(args.nproc))
-    write("Starting search")
+        logger.info("Requested number of processors: {:d}".format(nproc))
+    logger.info("Starting search")
     time1 = time()
     pf.scan()
-    write("Time for search: {:.0f}m {:.0f}s".format(*divmod(time() - time1, 60)))
+    logger.info("Time for search: {:.0f}m {:.0f}s".format(*divmod(time() - time1, 60)))
 
-    write("Analyzing results")
+    logger.info("Analyzing results")
     # calculate the molecular volume of the structure
     mv = (
         structure_to_shape_like(
@@ -304,19 +379,19 @@ def main():
         z_sigma=z_sigma,
     )
 
-    write("Writing solutions to file.")
+    logger.info("Writing solutions to file.")
     Volume(pf._lcc, target.voxelspacing, target.origin).tofile(
-        join(args.directory, "lcc.mrc")
+        join(directory, "lcc.mrc")
     )
-    analyzer.tofile(join(args.directory, "solutions.out"))
+    analyzer.tofile(join(directory, "solutions.out"), delimiter=delimiter)
 
-    write("Writing PDBs to file.")
-    n = min(args.num, len(analyzer.solutions))
+    logger.info("Writing PDBs to file.")
+    n = min(num, len(analyzer.solutions))
     write_fits_to_pdb(
-        structure, analyzer.solutions[:n], basename=join(args.directory, "fit")
+        structure, analyzer.solutions[:n], basename=join(directory, "fit")
     )
 
-    write("Total time: {:.0f}m {:.0f}s".format(*divmod(time() - time0, 60)))
+    logger.info("Total time: {:.0f}m {:.0f}s".format(*divmod(time() - time0, 60)))
 
 
 if __name__ == "__main__":
