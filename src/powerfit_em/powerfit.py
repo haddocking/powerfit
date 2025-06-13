@@ -173,7 +173,6 @@ def make_parser():
         help="Set the logging level.",
     )
     p.add_argument(
-        "-del",
         "--delimiter",
         dest="delimiter",
         type=str,
