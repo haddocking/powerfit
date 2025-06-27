@@ -1,13 +1,18 @@
 #! ../env/bin/python
 
 
+from functools import partial
 from os.path import splitext, join, abspath
 from time import time
-from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, FileType
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, BooleanOptionalAction, FileType
 import logging
 from typing import BinaryIO, TextIO
+import warnings
 
 from rich.logging import RichHandler
+from tqdm import TqdmExperimentalWarning
+from tqdm.rich import tqdm as rich_tqdm
+from tqdm.auto import tqdm
 
 from powerfit_em import (
     Volume,
@@ -23,6 +28,9 @@ from powerfit_em.helpers import mkdir_p, write_fits_to_pdb, fisher_sigma
 from powerfit_em.volume import extend, nearest_multiple2357, trim, resample
 
 logger = logging.getLogger(__name__)
+
+warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
+
 
 def make_parser():
     """Create the command-line argument parser."""
@@ -180,6 +188,13 @@ def make_parser():
         metavar="<str>",
         help="Delimiter used in the 'solutions.out' file. For example use ',' or '\\t'. Defaults to fixed width.",
     )
+    p.add_argument(
+        "--progressbar",
+        dest="progressbar",
+        action=BooleanOptionalAction,
+        default=True,
+        help="Show a progress bar during the search.",
+    )
 
     return p
 
@@ -227,6 +242,8 @@ def main():
     mkdir_p(args.directory)
     configure_logging(join(args.directory, "powerfit.log"), args.log_level)
     
+    progress = partial(rich_tqdm, desc="Processing rotations", unit="rot", disable=not args.progressbar)
+
     powerfit(
         target_volume=args.target,
         resolution=args.resolution,
@@ -244,6 +261,7 @@ def main():
         gpu=args.gpu,
         nproc=args.nproc,
         delimiter=args.delimiter,
+        progress=progress
     )
 
 
@@ -263,6 +281,7 @@ def powerfit(target_volume: BinaryIO,
              gpu: str | None =None, 
              nproc: int=1,
              delimiter: str = None,
+             progress: partial[tqdm] = tqdm
              ):
     time0 = time()
     mkdir_p(directory)
@@ -354,7 +373,7 @@ def powerfit(target_volume: BinaryIO,
         logger.info("Requested number of processors: {:d}".format(nproc))
     logger.info("Starting search")
     time1 = time()
-    pf.scan()
+    pf.scan(progress=progress)
     logger.info("Time for search: {:.0f}m {:.0f}s".format(*divmod(time() - time1, 60)))
 
     logger.info("Analyzing results")

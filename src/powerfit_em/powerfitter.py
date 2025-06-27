@@ -1,20 +1,17 @@
 
 
-from sys import stdout
+from functools import partial
 from os import remove
 from os.path import join, abspath, isdir
 import os.path
-from time import time, sleep
 from multiprocessing import RawValue, Lock, Process, cpu_count
 from string import Template
 import warnings
 
-from tqdm import TqdmExperimentalWarning
-from tqdm.rich import tqdm
-
 import numpy as np
 from numpy.fft import irfftn as np_irfftn, rfftn as np_rfftn
 from scipy.ndimage import binary_erosion, laplace
+from tqdm.auto import tqdm
 try:
     from pyfftw import zeros_aligned, simd_alignment
     from pyfftw.builders import rfftn as rfftn_builder, irfftn as irfftn_builder
@@ -32,9 +29,6 @@ except:
 
 from ._powerfit import conj_multiply, calc_lcc, dilate_points
 from ._extensions import rotate_grid3d
-
-
-warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
 
 
 class _Counter(object):
@@ -80,24 +74,27 @@ class PowerFitter(object):
         else:
             raise ValueError("Directory does not exist.")
 
-    def scan(self):
+    def scan(self, progress: partial[tqdm]):
         if self._queues is None:
-            self._cpu_scan()
+            if self._nproc == 1:
+                self._single_cpu_scan(progress)
+            else:
+                self._multi_cpu_scan(progress)
         else:
-            self._gpu_scan()
+            self._gpu_scan(progress)
 
-    def _gpu_scan(self):
+    def _gpu_scan(self, progress: partial[tqdm]):
         self._corr = GPUCorrelator(self._target.array, self._queues[0],
                 laplace=self._laplace)
 
         self._corr.template = self._template.array
         self._corr.mask = self._mask.array
         self._corr.rotations = self._rotations
-        self._corr.scan()
+        self._corr.scan(progress)
         self._lcc = self._corr.lcc
         self._rot = self._corr.rot
 
-    def _cpu_scan(self):
+    def _multi_cpu_scan(self, progress: partial[tqdm]):
         nrot = self._rotations.shape[0]
         self._nrot_per_job = nrot // self._nproc
         processes = []
@@ -122,7 +119,7 @@ class PowerFitter(object):
         for n in range(self._njobs):
             processes[n].start()
 
-        with tqdm(total=nrot, desc="Processing rotations", unit="rot") as pbar:
+        with progress(total=nrot) as pbar:
             while self._counter.value() < nrot:
                 current_count = self._counter.value()
                 pbar.update(current_count - pbar.n)
@@ -130,6 +127,18 @@ class PowerFitter(object):
         for n in range(self._njobs):
             processes[n].join()
         self._combine()
+
+    def _single_cpu_scan(self, progress):
+        target = self._target
+        laplace = self._laplace
+        correlator = CPUCorrelator(target.array, laplace=laplace)
+        correlator.template = self._template.array
+        correlator.mask = self._mask.array
+        correlator.rotations = self._rotations
+        correlator.scan(progress)
+        self._lcc = correlator.lcc
+        self._rot = correlator.rot
+
 
     @staticmethod
     def _run_correlator_instance(target, template, mask, rotations, laplace,
@@ -314,13 +323,13 @@ class CPUCorrelator(BaseCorrelator):
             self._rfftn = np_rfftn
             self._irfftn = np_irfftn
 
-    def scan(self):
+    def scan(self, progress):
         super(CPUCorrelator, self).scan()
 
         self._lcc.fill(0)
         self._rot.fill(0)
 
-        for n in range(self._rotations.shape[0]):
+        for n in progress(range(self._rotations.shape[0])):
             # rotate template and mask
             self._translational_scan(self._rotations[n])
             # get the indices where the scanned lcc is greater
@@ -510,13 +519,12 @@ if OPENCL:
             self._irfftn(self._ft_ave2, self._ave2)
             self._queue.finish()
 
-        def scan(self):
+        def scan(self, progress: partial[tqdm] = lambda x: x):
             super(GPUCorrelator, self).scan()
 
             self._glcc.fill(0)
             self._grot.fill(0)
-            time0 = time()
-            for n in range(0, self._rotations.shape[0]):
+            for n in progress(range(0, self._rotations.shape[0])):
 
                 rotmat = self._cl_rotations[n]
 
@@ -532,20 +540,9 @@ if OPENCL:
 
                 self._queue.finish()
 
-                # TODO replace with tqdm
-                self._print_progress(n, self._rotations.shape[0], time0)
             self._glcc.get(ary=self._lcc)
             self._grot.get(ary=self._rot)
             self._queue.finish()
-
-        @staticmethod
-        def _print_progress(n, nrot, time0):
-            p_done = (n + 1) / float(nrot) * 100
-            now = time()
-            eta = ((now - time0) / p_done) * (100 - p_done)
-            total = (now - time0) / p_done * (100)
-            stdout.write('{:7.2%} {:.0f}s {:.0f}s       \r'.format(n / float(nrot), eta, total))
-            stdout.flush()
 
         def _generate_kernels(self):
             kernel_values = {'shape_x': self._shape[2],
