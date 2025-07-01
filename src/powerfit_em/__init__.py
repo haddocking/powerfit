@@ -1,4 +1,4 @@
-__version__ = "3.0.2"
+__version__ = "3.0.3"
 
 from .volume import Volume, structure_to_shape_like
 from .structure import Structure
