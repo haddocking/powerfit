@@ -4,12 +4,11 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "powerfit-em"
-version = "3.0.2"
 description = "Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps"
 authors = [{ name = "Gydo C.P. van Zundert", email = "g.c.p.vanzundert@uu.nl" }]
 maintainers = [{ name = "BonvinLab" }, { email = "bonvinlab.support@uu.nl" }]
 requires-python = ">=3.10"
-dynamic = ["readme"]
+dynamic = ["readme", "version"]
 license = "Apache-2.0"
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -24,7 +23,9 @@ dependencies = [
     "numpy>=1.8",
     # pyfftw binary wheel is not available on wasm or on macOS <14 arm, so fallback to numpy for wasm and macOS
     "pyfftw>=0.12.0; platform_machine != 'wasm32' and sys_platform != 'darwin'",
-    "scipy"
+    "scipy",
+    "tqdm",
+    "rich",
 ]
 
 [project.optional-dependencies]
@@ -58,6 +59,7 @@ powerfit_em = ["data/*.npy", "kernels.cl", "_powerfit.pyx"]
 
 [tool.setuptools.dynamic]
 readme = {file = "README.md", content-type = "text/markdown"}
+version = {attr = "powerfit_em.__version__"}
 
 [tool.cibuildwheel]
 # Skip Pypy and older Alpine versions

@@ -507,7 +507,7 @@ class XPLORParser(object):
 
     def __init__(self, fid):
 
-        if isinstance(fid, file):
+        if isinstance(fid, BufferedReader):
             fname = fid.name
         elif isinstance(fid, str):
             fname = fid
