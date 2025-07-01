@@ -15,6 +15,7 @@ from tqdm.rich import tqdm as rich_tqdm
 from tqdm.auto import tqdm
 
 from powerfit_em import (
+    __version__,
     Volume,
     Structure,
     structure_to_shape_like,
@@ -35,6 +36,10 @@ warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
 def make_parser():
     """Create the command-line argument parser."""
     p = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
+
+    p.add_argument(
+        "--version", action="version", version=f"%(prog)s {__version__}"
+    )
 
     # Positional arguments
     p.add_argument(

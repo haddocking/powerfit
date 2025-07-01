@@ -45,7 +45,7 @@ In case you feel like you've made a valuable contribution, but you don't know ho
 To create a release you need write permission on the repository.
 
 1. Check the author list in [`CITATION.cff`](CITATION.cff)
-1. Bump the version in [pyproject.toml](pyproject.toml).
+1. Bump the version in [src/powerfit_em/__init__.py](src/powerfit_em/__init__.py)
 1. Go to the [GitHub release page](https://github.com/haddocking/powerfit/releases)
 1. Press draft a new release button
 1. Fill tag, title and description field. For tag use version from pyproject.toml and prepend with "v" character. For description use "Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps." line plus press "Generate release notes" button.
