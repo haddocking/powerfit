@@ -586,6 +586,7 @@ if OPENCL:
                 t = Template(f.read()).substitute(**values)
 
             self._program = cl.Program(ctx, t).build()
+            self._rotate_image3d = self._program.rotate_image3d
             self._gws_rotate_grid3d = (96, 64, 1)
 
         def rotate_grid3d(self, queue, grid, rotmat, out, nearest=False):
@@ -597,7 +598,7 @@ if OPENCL:
                 args = (image, self.sampler_nearest, rotmat, out.data)
             else:
                 args = (image, self.sampler_linear, rotmat, out.data)
-            self._program.rotate_image3d(queue, self._gws_rotate_grid3d, None, *args)
+            self._rotate_image3d(queue, self._gws_rotate_grid3d, None, *args)
 
 
     class grfftn_builder(object):
