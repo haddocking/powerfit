@@ -532,6 +532,7 @@ if OPENCL:
                 self._k.calc_lcc_and_take_best(self._gcc, self._ave,
                         self._ave2, self._lcc_mask, self._norm_factor,
                         np.int32(n), self._glcc, self._grot)
+                self._queue.finish() # only necessary if we want to track it/s accuratly
 
             self._glcc.get(ary=self._lcc)
             self._grot.get(ary=self._rot)
