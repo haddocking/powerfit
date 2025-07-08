@@ -529,13 +529,9 @@ if OPENCL:
                 self._cl_get_gcc()
                 self._cl_get_ave()
                 self._cl_get_ave2()
-                self._queue.finish()
-
                 self._k.calc_lcc_and_take_best(self._gcc, self._ave,
                         self._ave2, self._lcc_mask, self._norm_factor,
                         np.int32(n), self._glcc, self._grot)
-
-                self._queue.finish()
 
             self._glcc.get(ary=self._lcc)
             self._grot.get(ary=self._rot)
