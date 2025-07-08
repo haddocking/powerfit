@@ -498,26 +498,22 @@ if OPENCL:
                     self._rot_template)
             self._k.rotate_image3d(self._queue, self._gmask, rotmat,
                     self._rot_mask, nearest=True)
-            self._queue.finish()
 
         def _cl_get_gcc(self):
             self._rfftn(self._rot_template, self._ft_template)
             self._k.conj_multiply(self._ft_template, self._ft_target, self._ft_gcc)
             self._irfftn(self._ft_gcc, self._gcc)
-            self._queue.finish()
 
         def _cl_get_ave(self):
             self._rfftn(self._rot_mask, self._ft_mask)
             self._k.conj_multiply(self._ft_mask, self._ft_target, self._ft_ave)
             self._irfftn(self._ft_ave, self._ave)
-            self._queue.finish()
 
         def _cl_get_ave2(self):
             self._k.multiply(self._rot_mask, self._rot_mask, self._rot_mask2)
             self._rfftn(self._rot_mask2, self._ft_mask2)
             self._k.conj_multiply(self._ft_mask2, self._ft_target2, self._ft_ave2)
             self._irfftn(self._ft_ave2, self._ave2)
-            self._queue.finish()
 
         def scan(self, progress: partial[tqdm] = lambda x: x):
             super(GPUCorrelator, self).scan()
@@ -533,6 +529,7 @@ if OPENCL:
                 self._cl_get_gcc()
                 self._cl_get_ave()
                 self._cl_get_ave2()
+                self._queue.finish()
 
                 self._k.calc_lcc_and_take_best(self._gcc, self._ave,
                         self._ave2, self._lcc_mask, self._norm_factor,
