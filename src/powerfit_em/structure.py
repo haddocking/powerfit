@@ -1,5 +1,6 @@
 
 from collections import defaultdict, OrderedDict
+from collections.abc import Sequence
 from io import TextIOWrapper
 import operator
 from string import capwords
@@ -257,7 +258,7 @@ class Structure(object):
 
 
 def parse_mmcif(infile):
-    if isinstance(infile, file):
+    if isinstance(infile, TextIOWrapper):
         pass
     elif isinstance(infile, str):
         infile = open(infile)
