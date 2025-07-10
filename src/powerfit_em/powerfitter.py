@@ -148,7 +148,7 @@ class PowerFitter(object):
         correlator.mask = mask.array
         correlator.rotations = rotations
         correlator._counter = counter
-        correlator.scan()
+        correlator.scan(lambda x: x)
         np.save(join(directory, '_lcc_part_{:d}.npy').format(jobid), correlator._lcc)
         np.save(join(directory, '_rot_part_{:d}.npy').format(jobid), correlator._rot)
 
