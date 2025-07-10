@@ -199,7 +199,7 @@ docker run --rm -ti \
     --runtime=nvidia --gpus all -v /etc/OpenCL:/etc/OpenCL \
     -v $PWD:/data ghcr.io/haddocking/powerfit:v3.0.3 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
-    -a 20 -p 2 -l -d /data/run-KsgA-docker-nv --gpu
+    -a 20 -l -d /data/run-KsgA-docker-nv --gpu
 ```
 
 To run on [AMD GPU](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/docker.html) use
@@ -211,7 +211,7 @@ sudo docker run --rm -ti \
     --group-add video --ipc=host \
     -v $PWD:/data ghcr.io/haddocking/powerfit-rocm:v3.0.3 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
-    -a 20 -p 2 -l -d /data/run-KsgA-docker-amd--gpu
+    -a 20 -l -d /data/run-KsgA-docker-amd --gpu
 ```
 
 </details>
