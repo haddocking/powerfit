@@ -498,26 +498,22 @@ if OPENCL:
                     self._rot_template)
             self._k.rotate_image3d(self._queue, self._gmask, rotmat,
                     self._rot_mask, nearest=True)
-            self._queue.finish()
 
         def _cl_get_gcc(self):
             self._rfftn(self._rot_template, self._ft_template)
             self._k.conj_multiply(self._ft_template, self._ft_target, self._ft_gcc)
             self._irfftn(self._ft_gcc, self._gcc)
-            self._queue.finish()
 
         def _cl_get_ave(self):
             self._rfftn(self._rot_mask, self._ft_mask)
             self._k.conj_multiply(self._ft_mask, self._ft_target, self._ft_ave)
             self._irfftn(self._ft_ave, self._ave)
-            self._queue.finish()
 
         def _cl_get_ave2(self):
             self._k.multiply(self._rot_mask, self._rot_mask, self._rot_mask2)
             self._rfftn(self._rot_mask2, self._ft_mask2)
             self._k.conj_multiply(self._ft_mask2, self._ft_target2, self._ft_ave2)
             self._irfftn(self._ft_ave2, self._ave2)
-            self._queue.finish()
 
         def scan(self, progress: partial[tqdm] = lambda x: x):
             super(GPUCorrelator, self).scan()
@@ -533,12 +529,10 @@ if OPENCL:
                 self._cl_get_gcc()
                 self._cl_get_ave()
                 self._cl_get_ave2()
-
                 self._k.calc_lcc_and_take_best(self._gcc, self._ave,
                         self._ave2, self._lcc_mask, self._norm_factor,
                         np.int32(n), self._glcc, self._grot)
-
-                self._queue.finish()
+                self._queue.finish() # only necessary if we want to track it/s accuratly
 
             self._glcc.get(ary=self._lcc)
             self._grot.get(ary=self._rot)
@@ -586,6 +580,7 @@ if OPENCL:
                 t = Template(f.read()).substitute(**values)
 
             self._program = cl.Program(ctx, t).build()
+            self._rotate_image3d = self._program.rotate_image3d
             self._gws_rotate_grid3d = (96, 64, 1)
 
         def rotate_grid3d(self, queue, grid, rotmat, out, nearest=False):
@@ -597,7 +592,7 @@ if OPENCL:
                 args = (image, self.sampler_nearest, rotmat, out.data)
             else:
                 args = (image, self.sampler_linear, rotmat, out.data)
-            self._program.rotate_image3d(queue, self._gws_rotate_grid3d, None, *args)
+            self._rotate_image3d(queue, self._gws_rotate_grid3d, None, *args)
 
 
     class grfftn_builder(object):
