@@ -21,13 +21,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libclfft-dev
 
-      - name: install gpyfft
+      - name: install VkFFT
         run: |
-          pip install -U cython wheel setuptools
-          pip install --no-use-pep517 gpyfft@git+https://github.com/geggo/gpyfft@v0.8.0
+          pip install pyvkfft
 
       - name: OpenCL platform and device test
-        run: python -c 'import pyopencl as cl;from gpyfft import GpyFFT; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
+        run: python -c 'import pyopencl as cl;from pyvkfft.fft import rfftn; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
 
       - name: test
         run: >-

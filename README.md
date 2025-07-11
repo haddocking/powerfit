@@ -35,7 +35,7 @@ To offload computations to the GPU the following is also required
 * OpenCL1.1+
 * pyopencl
 * clFFT
-* gpyfft
+* pyvkfft
 
 Recommended for installation
 
@@ -102,17 +102,16 @@ sudo dnf install opencl-headers ocl-icd-devel
 # Manually install clFFT from https://github.com/clMathLibraries/clFFT
 ```
 
-Install gpyfft, a Python wrapper for OpenCL fft library, using
+Install pyvkfft, a Python wrapper for the VkFFT library, using
 
 ```shell
-pip install cython
-pip install --no-use-pep517 gpyfft@git+https://github.com/geggo/gpyfft@v0.8.0
+pip install pyvkfft
 ```
 
 Check that the OpenCL installation is working by running
 
 ```shell
-python -c 'import pyopencl as cl;from gpyfft import GpyFFT; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
+python -c 'import pyopencl as cl;from pyvkfft.fft import rfftn; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
 # Should print the name of your GPU
 ```
 </details>
