@@ -10,7 +10,7 @@ COPY . .
 
 RUN python3 -m build --wheel
 
-RUN pip install pyvkfft
+RUN pip wheel -w dist --no-deps pyvkfft
 
 FROM rocm/dev-ubuntu-24.04:latest
 

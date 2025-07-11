@@ -11,7 +11,7 @@ COPY . .
 
 RUN python -m build --wheel
 
-RUN pip install pyvkfft
+RUN pip wheel -w dist --no-deps pyvkfft
 
 FROM python:3.12-slim
 
