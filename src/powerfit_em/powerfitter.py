@@ -22,7 +22,7 @@ try:
     import pyopencl as cl
     import pyopencl.array as cl_array
     from pyopencl.elementwise import ElementwiseKernel
-    from gpyfft import GpyFFT
+    from pyvkfft.fft import rfftn, irfftn
     OPENCL = True
 except:
     OPENCL = False
@@ -411,9 +411,7 @@ if OPENCL:
             self._ctx = self._queue.context
             self._gpu = self._queue.device
 
-
             self._allocate_arrays()
-            self._build_ffts()
             self._generate_kernels()
 
             target = self._target
@@ -424,21 +422,18 @@ if OPENCL:
             self._lcc_mask = cl_array.to_device(self._queue,
                     self._lcc_mask.astype(np.int32))
             # Do some one-time precalculations
-            self._rfftn(self._gtarget, self._ft_target)
+            self._ft_target = rfftn(self._gtarget)
             self._k.multiply(self._gtarget, self._gtarget, self._target2)
-            self._rfftn(self._target2, self._ft_target2)
+            rfftn(self._target2, self._ft_target2)
 
             self._gshape = np.asarray(
                     list(self._target.shape) + [np.prod(self._target.shape)],
                     dtype=np.int32)
 
         def _allocate_arrays(self):
-
             # Determine the required shape and size of an array
-            self._ft_shape = tuple(
-                    [self._target.shape[0] // 2 + 1] + list(self._target.shape[1:])
-                    )
             self._shape = self._target.shape
+            self._ft_shape = self._shape[:-1] + (self._shape[-1] // 2 + 1,)
 
             # Allocate arrays on CPU
             self._lcc = np.zeros(self._target.shape, dtype=np.float32)
@@ -459,14 +454,6 @@ if OPENCL:
                         cl_array.to_device(self._queue,
                             np.zeros(self._ft_shape, dtype=np.complex64))
                         )
-
-        def _build_ffts(self, batch_size=1):
-            self._rfftn = grfftn_builder(self._ctx, self._target.shape,
-                    batch_size=batch_size)
-            self._irfftn = grfftn_builder(self._ctx, self._target.shape,
-                    forward=False, batch_size=batch_size)
-            self._rfftn.bake(self._queue)
-            self._irfftn.bake(self._queue)
 
         @property
         def mask(self):
@@ -500,20 +487,20 @@ if OPENCL:
                     self._rot_mask, nearest=True)
 
         def _cl_get_gcc(self):
-            self._rfftn(self._rot_template, self._ft_template)
+            rfftn(self._rot_template, self._ft_template)
             self._k.conj_multiply(self._ft_template, self._ft_target, self._ft_gcc)
-            self._irfftn(self._ft_gcc, self._gcc)
+            irfftn(self._ft_gcc, self._gcc)
 
         def _cl_get_ave(self):
-            self._rfftn(self._rot_mask, self._ft_mask)
+            rfftn(self._rot_mask, self._ft_mask)
             self._k.conj_multiply(self._ft_mask, self._ft_target, self._ft_ave)
-            self._irfftn(self._ft_ave, self._ave)
+            irfftn(self._ft_ave, self._ave)
 
         def _cl_get_ave2(self):
             self._k.multiply(self._rot_mask, self._rot_mask, self._rot_mask2)
-            self._rfftn(self._rot_mask2, self._ft_mask2)
+            rfftn(self._rot_mask2, self._ft_mask2)
             self._k.conj_multiply(self._ft_mask2, self._ft_target2, self._ft_ave2)
-            self._irfftn(self._ft_ave2, self._ave2)
+            irfftn(self._ft_ave2, self._ave2)
 
         def scan(self, progress: partial[tqdm] = lambda x: x):
             super(GPUCorrelator, self).scan()
@@ -593,40 +580,3 @@ if OPENCL:
             else:
                 args = (image, self.sampler_linear, rotmat, out.data)
             self._rotate_image3d(queue, self._gws_rotate_grid3d, None, *args)
-
-
-    class grfftn_builder(object):
-        _G = GpyFFT()
-        CLFFT_HERMITIAN_INTERLEAVED = 3
-        CLFFT_REAL = 5
-
-        def __init__(self, ctx, shape, forward=True, batch_size=1):
-            self.ctx = ctx
-            self.shape = shape
-            self.plan = self._G.create_plan(self.ctx, shape)
-            if forward:
-                layouts = (self.CLFFT_REAL, self.CLFFT_HERMITIAN_INTERLEAVED)
-            else:
-                layouts = (self.CLFFT_HERMITIAN_INTERLEAVED, self.CLFFT_REAL)
-            self.plan.layouts = layouts
-            self.plan.inplace = False
-            size = np.prod(shape)
-            ft_size = np.prod([shape[0] // 2 + 1] + list(shape)[1:])
-            if forward:
-                self.distances = (size, ft_size)
-            else:
-                self.distances = (ft_size, size)
-            self.plan.batch_size = batch_size
-            strides = (shape[-2] * shape[-1], shape[-1], 1)
-            self.plan.strides_in = strides
-            self.plan.strides_out = strides
-            self.forward = forward
-
-        def bake(self, queue):
-            self.queue = queue
-            self.plan.bake(queue)
-
-        def __call__(self, inarray, outarray):
-            self.plan.enqueue_transform(self.queue, inarray.data,
-                    outarray.data, direction_forward=self.forward)
-
