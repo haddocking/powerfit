@@ -87,18 +87,16 @@ sudo yum install python3-devel python3-pip git development-c development-tools
 If you want to use the GPU version of PowerFit, you need to install the
 drivers for your GPU. 
 
-After installing
-the drivers, you need to install the OpenCL development libraries and [OpenCL fft library](https://github.com/clMathLibraries/clFFT). For
-Debian/Ubuntu, this can be done by running
+After installing the drivers, you need to install the OpenCL development libraries.
+For Debian/Ubuntu, this can be done by running
 
 ```shell
-sudo apt install opencl-headers ocl-icd-opencl-dev libclfft-dev
+sudo apt install ocl-icd-opencl-dev and ocl-icd-libopencl1
 ```
 For Fedora, this can be done by running
 
 ```shell
 sudo dnf install opencl-headers ocl-icd-devel
-# Manually install clFFT from https://github.com/clMathLibraries/clFFT
 ```
 
 Install pyvkfft, a Python wrapper for the VkFFT library, using
