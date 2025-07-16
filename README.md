@@ -34,7 +34,6 @@ To offload computations to the GPU the following is also required
 
 * OpenCL1.1+
 * pyopencl
-* clFFT
 * pyvkfft
 
 Recommended for installation
