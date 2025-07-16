@@ -91,7 +91,7 @@ After installing the drivers, you need to install the OpenCL development librari
 For Debian/Ubuntu, this can be done by running
 
 ```shell
-sudo apt install ocl-icd-opencl-dev and ocl-icd-libopencl1
+sudo apt install ocl-icd-opencl-dev ocl-icd-libopencl1
 ```
 For Fedora, this can be done by running
 
