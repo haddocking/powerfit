@@ -30,7 +30,7 @@ dependencies = [
 
 [project.optional-dependencies]
 opencl = ["pyopencl", "siphash24", "pyvkfft"]
-pocl = ["pyopencl[pocl]", "siphash24"]
+pocl = ["pyopencl[pocl]", "siphash24", "pyvkfft"]
 dev = ["pytest", "pytest-cov"]
 
 [project.urls]
