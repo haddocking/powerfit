@@ -3,24 +3,19 @@ FROM python:3.12 AS build
 
 WORKDIR /src
 
-RUN apt update && \
-apt install -y libclfft-dev git && \
-pip install build setuptools wheel cython
+RUN pip install build setuptools wheel cython
 
 COPY . .
 
 RUN python -m build --wheel
 
-RUN pip wheel -w dist --no-deps pyvkfft
-
 FROM python:3.12-slim
 
-RUN apt update && apt install -y libclfft2
+RUN apt update && apt install -y g++ ocl-icd-opencl-dev ocl-icd-libopencl1
 
 COPY --from=build /src/dist/*.whl /opt/
 
 RUN PFWHL_FILE=$(find /opt -name "powerfit*.whl" | head -n 1) && \
-    GFWHL_FILE=$(find /opt -name "pyvkfft*.whl" | head -n 1) && \
-    pip install "${PFWHL_FILE}[opencl]" "${GFWHL_FILE}"
+    pip install "${PFWHL_FILE}[opencl]"
 
 ENTRYPOINT [ "powerfit" ]
