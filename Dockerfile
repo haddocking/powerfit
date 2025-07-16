@@ -1,21 +1,30 @@
+
+
 FROM python:3.12 AS build
 # Downgraded to python 3.12 so binary wheel for siphash24 is available
 
 WORKDIR /src
 
-RUN pip install build setuptools wheel cython
+RUN apt update && apt install -y ocl-icd-opencl-dev
+
+RUN pip install build
 
 COPY . .
 
 RUN python -m build --wheel
 
+# Build wheel for pyvkfft in build container to reduce final image size
+RUN pip wheel -w dist --no-deps pyvkfft
+
 FROM python:3.12-slim
 
-RUN apt update && apt install -y g++ ocl-icd-opencl-dev ocl-icd-libopencl1
+# Adding pocl allows for opencl-accelerated fit on AMD CPUs
+RUN apt update && apt install -y ocl-icd-libopencl1 pocl-opencl-icd
 
 COPY --from=build /src/dist/*.whl /opt/
 
 RUN PFWHL_FILE=$(find /opt -name "powerfit*.whl" | head -n 1) && \
-    pip install "${PFWHL_FILE}[opencl]"
+    FTTWHL_FILE=$(find /opt -name "pyvkfft*.whl" | head -n 1) && \
+    pip install "${PFWHL_FILE}[opencl]" "${FTTWHL_FILE}"
 
 ENTRYPOINT [ "powerfit" ]
