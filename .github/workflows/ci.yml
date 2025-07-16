@@ -19,7 +19,7 @@ jobs:
       - name: install system deps
         run: |
           sudo apt-get update
-          sudo apt-get install -y libclfft-dev
+          sudo apt-get install -y ocl-icd-opencl-dev ocl-icd-libopencl1
 
       - name: install VkFFT
         run: |
