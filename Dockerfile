@@ -18,8 +18,7 @@ RUN pip wheel -w dist --no-deps pyvkfft
 
 FROM python:3.12-slim
 
-# Adding pocl allows for opencl-accelerated fit on AMD CPUs
-RUN apt update && apt install -y ocl-icd-libopencl1 pocl-opencl-icd
+RUN apt update && apt install -y ocl-icd-libopencl1
 
 COPY --from=build /src/dist/*.whl /opt/
 
