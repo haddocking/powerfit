@@ -34,8 +34,7 @@ To offload computations to the GPU the following is also required
 
 * OpenCL1.1+
 * pyopencl
-* clFFT
-* gpyfft
+* pyvkfft
 
 Recommended for installation
 
@@ -88,31 +87,28 @@ sudo yum install python3-devel python3-pip git development-c development-tools
 If you want to use the GPU version of PowerFit, you need to install the
 drivers for your GPU. 
 
-After installing
-the drivers, you need to install the OpenCL development libraries and [OpenCL fft library](https://github.com/clMathLibraries/clFFT). For
-Debian/Ubuntu, this can be done by running
+After installing the drivers, you need to install the OpenCL development libraries.
+For Debian/Ubuntu, this can be done by running
 
 ```shell
-sudo apt install opencl-headers ocl-icd-opencl-dev libclfft-dev
+sudo apt install ocl-icd-opencl-dev ocl-icd-libopencl1
 ```
 For Fedora, this can be done by running
 
 ```shell
 sudo dnf install opencl-headers ocl-icd-devel
-# Manually install clFFT from https://github.com/clMathLibraries/clFFT
 ```
 
-Install gpyfft, a Python wrapper for OpenCL fft library, using
+Install pyvkfft, a Python wrapper for the VkFFT library, using
 
 ```shell
-pip install cython
-pip install --no-use-pep517 gpyfft@git+https://github.com/geggo/gpyfft@v0.8.0
+pip install pyvkfft
 ```
 
 Check that the OpenCL installation is working by running
 
 ```shell
-python -c 'import pyopencl as cl;from gpyfft import GpyFFT; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
+python -c 'import pyopencl as cl;from pyvkfft.fft import rfftn; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
 # Should print the name of your GPU
 ```
 </details>
@@ -178,7 +174,7 @@ a hypothetical `/path/to/data` on your machine can be done as follows
 
 ```shell
 docker run --rm -ti --user $(id -u):$(id -g) \
-    -v /path/to/data:/data ghcr.io/haddocking/powerfit:v3.0.4 \
+    -v /path/to/data:/data ghcr.io/haddocking/powerfit:v3.0.5 \
     /data/<map> <resolution> /data/<pdb> \
     -d /data/<results-dir>
 ```
@@ -188,7 +184,7 @@ To run tutorial example use
 ```shell
 # cd into powerfit-tutorial repo
 docker run --rm -ti --user $(id -u):$(id -g) \
-    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.0.4 \
+    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.0.5 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
     -a 20 -p 2 -l -d /data/run-KsgA-docker
 ```
@@ -197,7 +193,7 @@ To run on NVIDIA GPU using [NVIDIA container toolkit](https://docs.nvidia.com/da
 ```shell
 docker run --rm -ti \
     --runtime=nvidia --gpus all -v /etc/OpenCL:/etc/OpenCL \
-    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.0.4 \
+    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.0.5 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
     -a 20 -l -d /data/run-KsgA-docker-nv --gpu
 ```
@@ -209,7 +205,7 @@ sudo docker run --rm -ti \
     --device=/dev/kfd --device=/dev/dri \
     --security-opt seccomp=unconfined \
     --group-add video --ipc=host \
-    -v $PWD:/data ghcr.io/haddocking/powerfit-rocm:v3.0.4 \
+    -v $PWD:/data ghcr.io/haddocking/powerfit-rocm:v3.0.5 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
     -a 20 -l -d /data/run-KsgA-docker-amd --gpu
 ```
@@ -355,12 +351,12 @@ To run OpenCL on **C**PU install use `pip install -e .[pocl]` and make sure no o
 The Docker container, that works for cpu and NVIDIA gpus, can be build with
 
 ```shell
-docker build -t ghcr.io/haddocking/powerfit:v3.0.4 .
+docker build -t ghcr.io/haddocking/powerfit:v3.0.5 .
 ```
 The Docker container, that works for AMD gpus, can be build with
 
 ```shell
-docker build -t ghcr.io/haddocking/powerfit-rocm:v3.0.4 -f Dockerfile.rocm .
+docker build -t ghcr.io/haddocking/powerfit-rocm:v3.0.5 -f Dockerfile.rocm .
 ```
 
 The binary wheels can be build for all supported platforms by running the
