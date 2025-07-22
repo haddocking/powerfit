@@ -12,6 +12,9 @@ import numpy as np
 from numpy.fft import irfftn as np_irfftn, rfftn as np_rfftn
 from scipy.ndimage import binary_erosion, laplace
 from tqdm.auto import tqdm
+
+from powerfit_em.correlators import gpu
+from powerfit_em.volume import Volume
 try:
     from pyfftw import zeros_aligned, simd_alignment
     from pyfftw.builders import rfftn as rfftn_builder, irfftn as irfftn_builder
@@ -52,13 +55,14 @@ class PowerFitter(object):
     accelerated searches providing an easy interface.
     """
 
-    def __init__(self, target, laplace=False):
+    def __init__(
+        self, target: Volume, rotations: np.ndarray, template: Volume, mask: Volume, queues, laplace: bool = False
+    ):
         self._target = target
-        self._rotations = None
-        self._template = None
-        self._mask = None
-        self._rotations = None
-        self._queues = None
+        self._rotations = rotations
+        self._template = template
+        self._mask = mask
+        self._queues = queues
         self._nproc = 1
         self._directory = abspath('./')
         self._laplace = laplace
@@ -84,15 +88,17 @@ class PowerFitter(object):
             self._gpu_scan(progress)
 
     def _gpu_scan(self, progress: partial[tqdm]):
-        self._corr = GPUCorrelator(self._target.array, self._queues[0],
-                laplace=self._laplace)
-
-        self._corr.template = self._template.array
-        self._corr.mask = self._mask.array
-        self._corr.rotations = self._rotations
+        self._corr = gpu.GPUCorrelator(
+            self._target.array,
+            self._rotations,
+            self._template.array,
+            self._mask.array,
+            self._queues[0],
+            self._laplace,
+        )
         self._corr.scan(progress)
-        self._lcc = self._corr.lcc
-        self._rot = self._corr.rot
+        self._lcc = self._corr._lcc
+        self._rot = self._corr._rot
 
     def _multi_cpu_scan(self, progress: partial[tqdm]):
         nrot = self._rotations.shape[0]

@@ -365,13 +365,9 @@ def powerfit(target_volume: BinaryIO,
         logger.info("Calculating core-weighted mask.")
         mask.array = determine_core_indices(mask.array)
 
-    pf = PowerFitter(target, laplace=laplace)
-    pf._rotations = rotmat
-    pf._template = template
-    pf._mask = mask
+    pf = PowerFitter(target, rotmat, template, mask, queues, laplace=laplace)
     pf._nproc = nproc
     pf.directory = directory
-    pf._queues = queues
     if gpu:
         logger.info("Using GPU-accelerated search.")
     else:
@@ -380,7 +376,6 @@ def powerfit(target_volume: BinaryIO,
     time1 = time()
     pf.scan(progress=progress)
     logger.info("Time for search: {:.0f}m {:.0f}s".format(*divmod(time() - time1, 60)))
-
     logger.info("Analyzing results")
     # calculate the molecular volume of the structure
     mv = (
