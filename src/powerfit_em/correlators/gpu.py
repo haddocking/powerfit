@@ -12,8 +12,6 @@ from scipy.ndimage import laplace
 
 from string import Template
 
-import os
-
 
 f32 = np.float32
 i32 = np.int32
@@ -64,15 +62,16 @@ def get_ft_shape(target: np.ndarray) -> tuple:
 
 
 def init_gpu_vars(
-    queue: cl.CommandQueue, target: np.ndarray, template: np.ndarray, mask: np.ndarray
+    queue: cl.CommandQueue, target: np.ndarray, template: np.ndarray, mask: np.ndarray, laplace: bool,
 ):
     lcc_mask = get_lcc_mask(target)
+    _t = laplace_filter(target) if laplace else target
     zeros = np.zeros(target.shape, f32)
     gpu_vars = GPUVars(
-        target = cl_array.to_device(queue, target.astype(f32)),
+        target = cl_array.to_device(queue, _t.astype(f32)),
         template = cl.image_from_array(queue.context, template.astype(f32)),
         mask = cl.image_from_array(queue.context, mask.astype(f32)),
-        lcc_mask = cl_array.to_device(queue, lcc_mask.astype(np.int32)),
+        lcc_mask = cl_array.to_device(queue, lcc_mask.astype(i32)),
         target2 = cl_array.to_device(queue, zeros),
         rot_template = cl_array.to_device(queue, zeros),
         rot_mask = cl_array.to_device(queue, zeros),
@@ -98,12 +97,12 @@ def init_gpu_vars(
     return gpu_vars, gpu_vars_ft
 
 
-def generate_kernels(queue: cl.CommandQueue, shape: tuple, rmax: int):
+def generate_kernels(queue: cl.CommandQueue, target: np.ndarray):
     kernel_values = {
-        'shape_x': shape[2],
-        'shape_y': shape[1],
-        'shape_z': shape[0],
-        'llength': rmax,
+        'shape_x': target.shape[2],
+        'shape_y': target.shape[1],
+        'shape_z': target.shape[0],
+        'llength': i32(min(target.shape) // 2),
     }
     return CLKernels(queue.context, kernel_values)
 
@@ -123,22 +122,26 @@ class GPUCorrelator:
     LCC: local cross-correlation.
 
     """
-    def __init__(self,
+    def __init__(
+        self,
         target: np.ndarray,
         rotations: np.ndarray,
         template: np.ndarray,
         mask: np.ndarray,
         queue: cl.CommandQueue,
-        laplace: bool = False
+        laplace: bool = False,
     ):
         if template.shape != target.shape:
             raise ValueError("Shape of template does not match the target.")
+
         mask = mask.copy()
         template = template.copy()
         target = target / target.max()
-
         self._queue = queue
-        self._rmax = min(target.shape) // 2
+
+        if laplace:
+            template = laplace_filter(template)
+
         # Set rotations;
         rotations = np.asarray(rotations, dtype=np.float64).reshape(-1, 3, 3)
         self._rotations = np.zeros((rotations.shape[0], 16), dtype=np.float32)
@@ -151,9 +154,6 @@ class GPUCorrelator:
         if self._norm_factor == 0:
             raise ValueError('Zero-filled mask is not allowed.')
 
-        if laplace:
-            template = laplace_filter(template)
-
         template *= mask
         # normalize template;
         template[ind] -= template[ind].mean()
@@ -163,17 +163,12 @@ class GPUCorrelator:
 
         self.cpu_vars: dict[str, np.ndarray] = {}
 
-        if laplace:
-            self._target = laplace_filter(target)
-        else:
-            self._target = target
-
-        self.gpu_vars, self.gpu_vars_ft = init_gpu_vars(queue, target, template, mask)
+        self.gpu_vars, self.gpu_vars_ft = init_gpu_vars(queue, target, template, mask, laplace)
 
         self._lcc = np.zeros(target.shape, dtype=np.float32)
         self._rot = np.zeros(target.shape, dtype=np.int32)
 
-        self._k = generate_kernels(queue, target.shape, self._rmax)
+        self._k = generate_kernels(queue, target)
 
         # Do some one-time precalculations
         self.gpu_vars_ft.target = rfftn(self.gpu_vars.target)
