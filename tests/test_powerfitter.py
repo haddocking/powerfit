@@ -168,7 +168,7 @@ class TestBaseCorrelator(unittest.TestCase):
             self.corr.scan()
 
 
-@unittest.skipIf(not PYOPENCL, "GPU resources are not available.")
+@unittest.skipIf(not OPENCL, "GPU resources are not available.")
 class TestCLKernels(unittest.TestCase):
     """Tests for the OpenCL kernels"""
 
