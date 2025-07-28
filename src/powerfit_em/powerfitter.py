@@ -13,7 +13,6 @@ from numpy.fft import irfftn as np_irfftn, rfftn as np_rfftn
 from scipy.ndimage import binary_erosion, laplace
 from tqdm.auto import tqdm
 
-from powerfit_em.correlators import gpu
 from powerfit_em.volume import Volume
 try:
     from pyfftw import zeros_aligned, simd_alignment
@@ -23,12 +22,10 @@ except ImportError:
     PYFFTW = False
 try:
     import pyopencl as cl
-    import pyopencl.array as cl_array
-    from pyopencl.elementwise import ElementwiseKernel
-    from pyvkfft.fft import rfftn, irfftn
     OPENCL = True
 except:
     OPENCL = False
+
 
 from ._powerfit import conj_multiply, calc_lcc, dilate_points
 from ._extensions import rotate_grid3d
@@ -88,7 +85,12 @@ class PowerFitter(object):
             self._gpu_scan(progress)
 
     def _gpu_scan(self, progress: partial[tqdm]):
-        self._corr = gpu.GPUCorrelator(
+        if OPENCL:
+            from powerfit_em.correlators.gpu import GPUCorrelator
+        else:
+            msg = "OpenCL is not available, cannot run scan on GPU."
+            raise ValueError(msg)
+        self._corr = GPUCorrelator(
             self._target.array,
             self._template.array,
             self._rotations,
