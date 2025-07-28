@@ -90,15 +90,15 @@ class PowerFitter(object):
     def _gpu_scan(self, progress: partial[tqdm]):
         self._corr = gpu.GPUCorrelator(
             self._target.array,
-            self._rotations,
             self._template.array,
+            self._rotations,
             self._mask.array,
             self._queues[0],
             self._laplace,
         )
         self._corr.scan(progress)
-        self._lcc = self._corr._lcc
-        self._rot = self._corr._rot
+        self._lcc = self._corr.lcc
+        self._rot = self._corr.rot
 
     def _multi_cpu_scan(self, progress: partial[tqdm]):
         nrot = self._rotations.shape[0]
