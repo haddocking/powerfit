@@ -6,9 +6,9 @@
     <title>PowerFit Web Interface</title>
     
     <!-- PyScript CSS and JS -->
+     <script src="/mini-coi.js"></script>
     <link rel="stylesheet" href="https://pyscript.net/releases/2025.7.3/core.css">
     <script type="module" src="https://pyscript.net/releases/2025.7.3/core.js"></script>
-    
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -124,36 +124,6 @@
             text-decoration: underline;
         }
         
-        .file-input-wrapper {
-            position: relative;
-            display: inline-block;
-            cursor: pointer;
-            width: 100%;
-        }
-        
-        .file-input-label {
-            display: block;
-            padding: 10px;
-            border: 2px dashed #ddd;
-            border-radius: 5px;
-            text-align: center;
-            background-color: #fafafa;
-            transition: all 0.3s ease;
-        }
-        
-        .file-input-label:hover {
-            border-color: #007bff;
-            background-color: #f0f8ff;
-        }
-        
-        .file-input {
-            position: absolute;
-            opacity: 0;
-            width: 100%;
-            height: 100%;
-            cursor: pointer;
-        }
-        
         .help-text {
             font-size: 12px;
             color: #666;
@@ -168,54 +138,46 @@
         <p><small><strong>Note:</strong> This interface requires the PowerFit wheel file to be present in the same directory. 
         Download it from the <a href="https://github.com/haddocking/powerfit/releases" target="_blank">releases page</a> if not available.</small></p>
         
-        <form id="powerfit-form">
+        <form id="powerfit-form" name="powerfit-form" 
+          method="post" enctype="multipart/form-data"
+         >
             <!-- File inputs -->
             <div class="form-group">
                 <label for="target-file">Target Density Map (MRC/CCP4 format) *</label>
-                <div class="file-input-wrapper">
-                    <input type="file" id="target-file" class="file-input" accept=".mrc,.map,.ccp4" required>
-                    <label for="target-file" class="file-input-label">
-                        Click to select target density map file
-                    </label>
-                </div>
+                <input type="file" id="target-file" name="target-file" accept=".mrc,.map,.ccp4" required>
                 <div class="help-text">Upload your target density map in MRC or CCP4 format</div>
             </div>
             
             <div class="form-group">
                 <label for="template-file">Template Structure (PDB/mmCIF format) *</label>
-                <div class="file-input-wrapper">
-                    <input type="file" id="template-file" class="file-input" accept=".pdb,.ent,.cif,.mmcif" required>
-                    <label for="template-file" class="file-input-label">
-                        Click to select template structure file
-                    </label>
-                </div>
+                <input type="file" id="template-file" name="template-file" accept=".pdb,.ent,.cif,.mmcif" required>
                 <div class="help-text">Upload your atomic model in PDB or mmCIF format</div>
             </div>
             
             <!-- Basic parameters -->
             <div class="form-group">
                 <label for="resolution">Resolution (Å) *</label>
-                <input type="number" id="resolution" step="0.1" min="0.1" value="13.0" required>
+                <input type="number" id="resolution" name="resolution" step="0.1" min="0.1" value="13.0" required>
                 <div class="help-text">Resolution of the target density map in angstroms</div>
             </div>
             
             <div class="form-group">
                 <label for="angle">Rotational Sampling Density (degrees)</label>
-                <input type="number" id="angle" step="0.1" min="0.1" value="20.0">
+                <input type="number" id="angle" name="angle" step="0.1" min="0.1" value="20.0">
                 <div class="help-text">Rotational sampling density. Decreasing by factor 2 increases rotations ~8x</div>
             </div>
             
             <!-- Chain selection -->
             <div class="form-group">
                 <label for="chain">Chain IDs (optional)</label>
-                <input type="text" id="chain" placeholder="e.g., A,B,C">
+                <input type="text" id="chain" name="chain" placeholder="e.g., A,B,C">
                 <div class="help-text">Comma-separated list of chain IDs to fit. Leave empty for whole structure</div>
             </div>
             
             <!-- Scoring options -->
             <div class="form-group">
                 <div class="checkbox-group">
-                    <input type="checkbox" id="laplace">
+                    <input type="checkbox" id="laplace" name="laplace" value="1">
                     <label for="laplace">Use Laplace pre-filter</label>
                 </div>
                 <div class="help-text">Apply Laplace pre-filter to density data</div>
@@ -223,7 +185,7 @@
             
             <div class="form-group">
                 <div class="checkbox-group">
-                    <input type="checkbox" id="core-weighted">
+                    <input type="checkbox" id="core-weighted" name="core-weighted" value="1">
                     <label for="core-weighted">Use core-weighted local cross-correlation</label>
                 </div>
                 <div class="help-text">Use core-weighted scoring function</div>
@@ -232,7 +194,7 @@
             <!-- Resampling options -->
             <div class="form-group">
                 <div class="checkbox-group">
-                    <input type="checkbox" id="no-resampling">
+                    <input type="checkbox" id="no-resampling" name="no-resampling" value="1">
                     <label for="no-resampling">Disable resampling</label>
                 </div>
                 <div class="help-text">Skip density map resampling step</div>
@@ -240,14 +202,14 @@
             
             <div class="form-group">
                 <label for="resampling-rate">Resampling Rate</label>
-                <input type="number" id="resampling-rate" step="0.1" min="0.1" value="2.0">
+                <input type="number" id="resampling-rate" name="resampling-rate" step="0.1" min="0.1" value="2.0">
                 <div class="help-text">Resampling rate compared to Nyquist frequency</div>
             </div>
             
             <!-- Trimming options -->
             <div class="form-group">
                 <div class="checkbox-group">
-                    <input type="checkbox" id="no-trimming">
+                    <input type="checkbox" id="no-trimming" name="no-trimming" value="1">
                     <label for="no-trimming">Disable trimming</label>
                 </div>
                 <div class="help-text">Skip density map trimming step</div>
@@ -255,25 +217,25 @@
             
             <div class="form-group">
                 <label for="trimming-cutoff">Trimming Cutoff</label>
-                <input type="number" id="trimming-cutoff" step="0.01" min="0">
+                <input type="number" id="trimming-cutoff" name="trimming-cutoff" step="0.01" min="0">
                 <div class="help-text">Intensity cutoff for trimming. Leave empty for 10% of maximum</div>
             </div>
             
             <!-- Output options -->
             <div class="form-group">
                 <label for="num-models">Number of Output Models</label>
-                <input type="number" id="num-models" min="1" value="10">
+                <input type="number" id="num-models" name="num-models" min="1" value="10">
                 <div class="help-text">Number of best-fitting models to output</div>
             </div>
             
             <div class="form-group">
                 <label for="nproc">Number of Processors</label>
-                <input type="number" id="nproc" min="1" value="1">
+                <input type="number" id="nproc" name="nproc" min="1" value="1">
                 <div class="help-text">Number of CPU cores to use for computation</div>
             </div>
             
-            <button type="button" id="submit-btn">Run PowerFit</button>
-            <button type="button" id="clear-btn">Clear Form</button>
+            <button type="submit" id="submit-btn">Run PowerFit</button>
+            <button type="reset" py-click="clear_form">Clear Form</button>
         </form>
         
         <div id="status" class="status"></div>
@@ -288,31 +250,15 @@
     </div>
 
     <!-- PyScript configuration and code -->
-     <!-- ValueError: Wheel platform 'pyodide_2025_0_wasm32' is not compatible with Pyodide's platform 'emscripten-3.1.58-wasm32' -->
-    <py-config>
-        {
-            "packages": [
-                "numpy",
-                "scipy",
-                "tqdm",
-                "rich",
-                "pygments",
-                "./powerfit_em-3.0.5-cp312-cp312-pyodide_2024_0_wasm32.whl"
-            ]
-        }
-    </py-config>
+    <!-- Web Worker for PowerFit computation -->
+    <script type="py" src="./powerfit-worker.py" worker name="powerfit-worker" config='{"packages": ["numpy", "scipy", "tqdm", "rich", "pygments", "./powerfit_em-3.0.5-cp312-cp312-pyodide_2024_0_wasm32.whl"]}'></script>
 
     <py-script>
         import js
         import asyncio
-        from functools import partial
         from pathlib import Path
-        from pyodide.ffi import create_proxy
-        from pyscript import document, fetch, window
-        import io
-        from tqdm.auto import tqdm
-
-        progress = lambda x: x
+        from pyodide.ffi import create_proxy, to_js
+        from pyscript import document, fetch, window, workers, when
 
         def show_status(message, status_type="info"):
             """Display status message to user"""
@@ -342,10 +288,9 @@
             download_link.href = url
             download_link.download = filename
 
+        
         async def run_powerfit(event):
-            """Main function to run PowerFit analysis"""
-            # No need for preventDefault since we're handling click, not form submit
-            
+            """Main function to run PowerFit analysis using web worker"""
             try:
                 # Disable submit button
                 submit_btn = js.document.getElementById("submit-btn")
@@ -353,96 +298,69 @@
                 submit_btn.innerHTML = "Running PowerFit..."                
                 
                 show_status("Reading input files...", "info")
+                window.console.log("Reading input files...")  # Debug info
+
+                # Get form data
+                form_data = js.FormData.new(event.target)
                 
-                # Get file inputs
-                target_file_input = js.document.getElementById("target-file")
-                template_file_input = js.document.getElementById("template-file")
-                
-                if not target_file_input.files.length or not template_file_input.files.length:
+                # Get file inputs from form data
+                target_file = form_data.get("target-file")
+                template_file = form_data.get("template-file")
+               
+                if not target_file or not template_file or target_file.size == 0 or template_file.size == 0:
                     show_status("Please select both target and template files.", "error")
                     return
-                
-                # Read file contents
-                target_file = target_file_input.files.item(0)
-                template_file = template_file_input.files.item(0)
-                
-                <!-- # Convert files to Python file-like objects
-                target_content = await target_file.arrayBuffer()
-                template_content = await template_file.text()
-                
-                target_io = io.BytesIO(target_content.to_py())
-                target_io.name = target_file.name
-                template_io = io.StringIO(template_content)
-                template_io.name = template_file.name -->
-                
-                target_url = window.URL.createObjectURL(target_file)
-                target_fn = f'./{target_file.name}'
-                with open(target_fn, 'wb') as d:
-                    d.write(await fetch(target_url).bytearray())
-                window.URL.revokeObjectURL(target_url)
 
-                template_url = window.URL.createObjectURL(template_file)
-                template_fn = f'./{template_file.name}'
-                with open(template_fn, 'wb') as d:
-                    d.write(await fetch(template_url).bytearray())
-                window.URL.revokeObjectURL(template_url)
-
-                # Get form parameters
-                resolution = float(js.document.getElementById("resolution").value)
-                angle = float(js.document.getElementById("angle").value)
-                chain = js.document.getElementById("chain").value or None
-                laplace = js.document.getElementById("laplace").checked
-                core_weighted = js.document.getElementById("core-weighted").checked
-                no_resampling = js.document.getElementById("no-resampling").checked
-                resampling_rate = float(js.document.getElementById("resampling-rate").value)
-                no_trimming = js.document.getElementById("no-trimming").checked
-                trimming_cutoff_val = js.document.getElementById("trimming-cutoff").value
-                trimming_cutoff = float(trimming_cutoff_val) if trimming_cutoff_val else None
-                num_models = int(js.document.getElementById("num-models").value)
-                nproc = int(js.document.getElementById("nproc").value)
-                
+                # Prepare parameters for the worker
+                parameters = {
+                    "resolution": float(form_data.get("resolution")),
+                    "angle": float(form_data.get("angle")),
+                    "chain": form_data.get("chain") or None,
+                    "laplace": form_data.get("laplace") is not None,
+                    "core_weighted": form_data.get("core-weighted") is not None,
+                    "no_resampling": form_data.get("no-resampling") is not None,
+                    "resampling_rate": float(form_data.get("resampling-rate")),
+                    "no_trimming": form_data.get("no-trimming") is not None,
+                    "trimming_cutoff": float(form_data.get("trimming-cutoff")) if form_data.get("trimming-cutoff") else None,
+                    "num_models": int(form_data.get("num-models")),
+                    "nproc": int(form_data.get("nproc"))
+                }
+                print(parameters)
                 show_status("Running PowerFit analysis... This may take several minutes.", "info")
                 
-                # Import PowerFit after installation
-                from powerfit_em.powerfit import powerfit
-         
-                # Run PowerFit analysis
-                with open(template_fn, 'r') as template_io, open(target_fn, 'rb') as target_io:                    
-                    print("Starting PowerFit...")  # Debug info
-                    powerfit(
-                        target_volume=target_io,
-                        resolution=resolution,
-                        template_structure=template_io,
-                        angle=angle,
-                        laplace=laplace,
-                        core_weighted=core_weighted,
-                        no_resampling=no_resampling,
-                        resampling_rate=resampling_rate,
-                        no_trimming=no_trimming,
-                        trimming_cutoff=trimming_cutoff,
-                        chain=chain,
-                        directory=".",
-                        num=num_models,
-                        gpu=None,  # GPU not supported in PyScript
-                        nproc=1,   # Single-threaded in PyScript
-                        delimiter=',',
-                        progress=progress
+                # Get the worker and run computation
+                powerfit_worker = await workers["powerfit-worker"]
+                
+                # Prepare data for worker
+                worker_data = {
+                    #"target_file": await target_file.arrayBuffer(),
+                    #"template_file": await template_file.arrayBuffer(),
+                    "parameters": parameters
+                }
+                window.console.log("Worker data prepared:", worker_data)  # Debug info
+                
+                # Run computation in worker
+                result = await powerfit_worker.run_powerfit_computation(
+                    #worker_data
+                #to_js(parameters, dict_converter=js.Object.fromEntries)
+                "foo"
                     )
-                print("PowerFit analysis completed successfully.")  # Debug info
-
-                # Read the solutions.out file
-                solutions_path = Path("solutions.out")
-                if solutions_path.exists():
-                    solutions_content = solutions_path.read_text()
-                    create_download_link(solutions_content, "solutions.out")
+                
+                window.console.log("PowerFit computation result:", result)  # Debug info
+                return
+                if result["success"]:
+                    # Create download link with the results
+                    create_download_link(result["solutions_content"], "solutions.out")
                     show_download_section()
-                    show_status("PowerFit analysis completed successfully!", "success")
+                    show_status(result["message"], "success")
                 else:
-                    show_status("Analysis completed but solutions file not found.", "error")
+                    window.console.error(result)
+                    show_status(f"Error: {result['error']}", "error")
                 
             except Exception as e:
                 show_status(f"Error running PowerFit: {str(e)}", "error")
                 print(f"PowerFit error: {e}")  # Debug info
+                window.console.error(e)  # Debug info
                 
             finally:
                 # Re-enable submit button
@@ -450,57 +368,24 @@
                 submit_btn.innerHTML = "Run PowerFit"
 
         def clear_form(event):
-            """Clear all form fields"""
-            form = js.document.getElementById("powerfit-form")
-            form.reset()
+            """Clear UI elements when form is reset"""
             hide_status()
             download_section = js.document.getElementById("download-section")
             download_section.style.display = "none"
 
-        def update_file_labels():
-            """Update file input labels with selected filenames"""
-            def update_target_label(event):
-                file_input = event.target
-                label = file_input.nextElementSibling
-                if file_input.files.length > 0:
-                    label.innerHTML = f"Selected: {file_input.files.item(0).name}"
-                    label.style.color = "#007bff"
-                else:
-                    label.innerHTML = "Click to select target density map file"
-                    label.style.color = ""
-
-            def update_template_label(event):
-                file_input = event.target
-                label = file_input.nextElementSibling
-                if file_input.files.length > 0:
-                    label.innerHTML = f"Selected: {file_input.files.item(0).name}"
-                    label.style.color = "#007bff"
-                else:
-                    label.innerHTML = "Click to select template structure file"
-                    label.style.color = ""
-
-            # Add event listeners for file inputs
-            target_input = js.document.getElementById("target-file")
-            template_input = js.document.getElementById("template-file")
-            
-            target_input.addEventListener("change", create_proxy(update_target_label))
-            template_input.addEventListener("change", create_proxy(update_template_label))
-
-        # Set up event listeners when DOM is ready
-        def setup_event_listeners():
-            submit_btn = js.document.getElementById("submit-btn")
-            clear_btn = js.document.getElementById("clear-btn")
-            
-            submit_btn.addEventListener("click", create_proxy(run_powerfit))
-            clear_btn.addEventListener("click", create_proxy(clear_form))
-            
-            update_file_labels()
-
-        # Initialize when page loads
-        setup_event_listeners()
-        
         # Show initial status
         show_status("Page loaded. Upload files to get started.", "info")
+
+@when("submit", "#powerfit-form")
+def submit_handler(event):
+    # For some reason, @when does not work with async functions, 
+    # so we wrap it in a regular function
+    event.preventDefault()
+    asyncio.create_task(run_powerfit(event))
+
+
+        window.console.log("PyScript initialized successfully.")
     </py-script>
+
 </body>
 </html>
