@@ -63,7 +63,7 @@ def get_ft_shape(target: np.ndarray) -> tuple:
 
 
 def init_gpu_vars(
-    queue: cl.CommandQueue, target: np.ndarray, template: np.ndarray, mask: np.ndarray, laplace: bool,
+    queue: cl.CommandQueue, target: np.ndarray, mask: np.ndarray, laplace: bool,
 ):
     """Initialize all GPU variables on the specified queue."""
     lcc_mask = get_lcc_mask(target)
@@ -71,7 +71,7 @@ def init_gpu_vars(
     zeros = np.zeros(target.shape, f32)
     gpu_vars = GPUVars(
         target = cl_array.to_device(queue, _t.astype(f32)),
-        template = cl.image_from_array(queue.context, template.astype(f32)),
+        template = cl.image_from_array(queue.context, zeros),  # template is set through separate method
         mask = cl.image_from_array(queue.context, mask.astype(f32)),
         lcc_mask = cl_array.to_device(queue, lcc_mask.astype(i32)),
         target2 = cl_array.to_device(queue, zeros),
@@ -165,14 +165,11 @@ class GPUCorrelator:
             laplace: if true, a Laplace pre-filter is applied to the target density and
                 template to enhance the sensitivity of the scoring function.
         """
-        if template.shape != target.shape:
-            raise ValueError("Shape of template does not match the target.")
 
-        target = target / target.max()
+        self.target: np.ndarray = target / target.max()
+        self.laplace = laplace
+        self.mask = mask
         self._queue = queue
-
-        if laplace:
-            template = laplace_filter(template, mode='wrap')
 
         self._rotations = transform_rotations(rotations)
 
@@ -181,15 +178,38 @@ class GPUCorrelator:
         if self._norm_factor == 0:
             raise ValueError('Zero-filled mask is not allowed.')
 
-        template = normalize_template(template, mask)
-        
-        self.gpu_vars, self.gpu_vars_ft = init_gpu_vars(queue, target, template, mask, laplace)
+        self.gpu_vars, self.gpu_vars_ft = init_gpu_vars(queue, self.target, mask, self.laplace)
 
-        self.lcc = np.zeros(target.shape, dtype=np.float32)
-        self.rot = np.zeros(target.shape, dtype=np.int32)
+        self.lcc = np.zeros(self.target.shape, dtype=np.float32)
+        self.rot = np.zeros(self.target.shape, dtype=np.int32)
 
-        self.cl_kernels = generate_kernels(queue, target)
+        self.set_template(template)
+
+        self.cl_kernels = generate_kernels(queue, self.target)
         precompute_squared_targets(self.gpu_vars, self.gpu_vars_ft, self.cl_kernels)
+
+    def set_template(self, template: np.ndarray):
+        """Set the template structure that you want to fit in the target density.
+
+        Can be used to try to fit a different template to the same target structure
+        without recomputing the kernels.
+        
+        Args:
+            template: the template structure that you want to fit in the target density,
+                should have been regridded to the same grid as the target density.
+        """
+        if template.shape != self.target.shape:
+            raise ValueError("Shape of template does not match the target.")
+
+        if self.laplace:
+            template = laplace_filter(template, mode='wrap')
+        
+        template = normalize_template(template, self.mask)
+        self.gpu_vars.template = cl.image_from_array(self.gpu_vars.template.context, template.astype(f32))
+
+        # Reset lcc and rot values after (re)setting the template
+        self.lcc[:] = 0.0
+        self.rot[:] = 0
 
     @property
     def queue(self) -> cl.CommandQueue:
