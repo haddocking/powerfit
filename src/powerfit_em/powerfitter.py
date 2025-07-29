@@ -13,6 +13,7 @@ from numpy.fft import irfftn as np_irfftn, rfftn as np_rfftn
 from scipy.ndimage import binary_erosion, laplace
 from tqdm.auto import tqdm
 
+from powerfit_em.correlators.shared import get_lcc_mask
 from powerfit_em.volume import Volume
 try:
     from pyfftw import zeros_aligned, simd_alignment
@@ -186,12 +187,8 @@ class BaseCorrelator(object):
         self._template = None
         self._mask = None
         self._laplace = laplace
-        self._lcc_mask = self._get_lcc_mask(self._target)
+        self._lcc_mask = get_lcc_mask(self._target)
         self._rmax = min(target.shape) // 2
-
-    @staticmethod
-    def _get_lcc_mask(target):
-        return (target > target.max() * 0.05).astype(np.uint8)
 
     @property
     def target(self):

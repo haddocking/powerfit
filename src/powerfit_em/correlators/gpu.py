@@ -10,6 +10,7 @@ from scipy.ndimage import laplace as laplace_filter
 
 
 from powerfit_em.correlators.clkernels import CLKernels
+from powerfit_em.correlators.shared import get_lcc_mask
 
 
 f32 = np.float32
@@ -46,15 +47,6 @@ class GPUVarsFT:
     lcc: ClArray
     gcc: ClArray
 
-
-def get_lcc_mask(target: np.ndarray) -> np.ndarray:
-    """Compute the local cross correlation (LCC) mask.
-    
-    Note that the mask is equal to all target voxels where the values
-    exceed 5% of the maximum voxel value. Only these voxels are used for
-    computing the LCC in the `calc_lcc_and_take_best` kernel function.
-    """
-    return (target > target.max() * 0.05)
 
 
 def get_ft_shape(target: np.ndarray) -> tuple:
