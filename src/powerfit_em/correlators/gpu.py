@@ -159,7 +159,7 @@ class GPUCorrelator:
         self.target: np.ndarray = target / target.max()
         self.laplace = laplace
         self.mask = mask
-        self._queue = queue
+        self.queue = queue
 
         self._rotations = transform_rotations(rotations)
 
@@ -200,10 +200,6 @@ class GPUCorrelator:
         # Reset lcc and rot values after (re)setting the template
         self.lcc[:] = 0.0
         self.rot[:] = 0
-
-    @property
-    def queue(self) -> cl.CommandQueue:
-        return self._queue
 
     def rotate_grids(self, rotmat: np.ndarray):
         self.cl_kernels.rotate_image3d(self.queue, self.gpu_vars.template, rotmat,
