@@ -134,7 +134,6 @@ def transform_rotations(rotations: np.ndarray) -> np.ndarray:
     The OpenCL kernel requires a Float16 input (struct containing 16 single-
     precision floats). The rotation matrices need to occupy the first 9 entries.
     """
-    rotations = np.asarray(rotations, dtype=np.float64).reshape(-1, 3, 3)
     rot_trans = np.zeros((rotations.shape[0], 16), dtype=np.float32)
     rot_trans[:, :9] = rotations.reshape(-1, 9)
     return rot_trans
@@ -157,15 +156,14 @@ class GPUCorrelator:
             target: the target density on which you want to fit a template structure.
             template: the template structure that you want to fit in the target density,
                 should have been regridded to the same grid as the target density.
-            rotations: array of 3D-rotations, for each rotation all translation the
-                template is both rotated and translated to compute the highest local cross-
-                correlation score.
+            rotations: array of 3D-rotation matrices, of shape (n_rotations, 3, 3).
+                for each rotation the local cross correlation is computed for every
+                possible translation (in parallel using Fourier transforms).
             mask: core-weighted mask. See doi:10.3934/biophy.2015.2.73, Figure 1.
             queue: the OpenCL command queue on which to execute the computations.
             laplace: if true, a Laplace pre-filter is applied to the target density and
                 template to enhance the sensitivity of the scoring function.
         """
-
         self.target: np.ndarray = target / target.max()
         self.laplace = laplace
         self.mask = mask
