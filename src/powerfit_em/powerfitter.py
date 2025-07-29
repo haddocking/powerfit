@@ -21,7 +21,7 @@ try:
 except ImportError:
     PYFFTW = False
 try:
-    import pyopencl as cl
+    import pyopencl as _
     OPENCL = True
 except:
     OPENCL = False
@@ -87,9 +87,6 @@ class PowerFitter(object):
     def _gpu_scan(self, progress: partial[tqdm]):
         if OPENCL:
             from powerfit_em.correlators.gpu import GPUCorrelator
-        else:
-            msg = "OpenCL is not available, cannot run scan on GPU."
-            raise ValueError(msg)
         self._corr = GPUCorrelator(
             self._target.array,
             self._template.array,
