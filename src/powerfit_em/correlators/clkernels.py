@@ -36,7 +36,7 @@ class CLKernels(object):
                 """
                 )
 
-        kernel_file = Path(__file__).parent.parent / "kernels.cl"
+        kernel_file = Path(__file__).parent / "kernels.cl"
         with kernel_file.open() as f:
             t = Template(f.read()).substitute(**values)
 
