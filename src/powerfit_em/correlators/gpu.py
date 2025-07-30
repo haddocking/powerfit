@@ -1,4 +1,3 @@
-from dataclasses import dataclass
 from functools import partial
 import numpy as np
 import pyopencl as cl
@@ -11,7 +10,7 @@ from scipy.ndimage import laplace as laplace_filter
 
 
 from powerfit_em.correlators.clkernels import CLKernels
-from powerfit_em.correlators.shared import Vars, VarsFT, get_ft_shape, get_lcc_mask, get_normalization_factor, normalize_template, f32, i32
+from powerfit_em.correlators.shared import Correlator, Vars, VarsFT, get_ft_shape, get_lcc_mask, get_normalization_factor, f32, i32
 
 
 def init_gpu_vars(
@@ -80,7 +79,7 @@ def transform_rotations(rotations: np.ndarray) -> np.ndarray:
     return rot_trans
 
 
-class GPUCorrelator:
+class GPUCorrelator(Correlator):
     """Compute the LCC score for a target and template combination."""
     def __init__(
         self,
@@ -123,69 +122,21 @@ class GPUCorrelator:
         self.set_template(template)
 
         self.cl_kernels = generate_kernels(queue, self.target)
+        self.conj_multiply = self.cl_kernels.conj_multiply
+        self.square = lambda a,b: self.cl_kernels.multiply(a, a, b)
+        self.rfftn = rfftn
+        self.irfftn = irfftn
         precompute_squared_targets(self.vars, self.vars_ft, self.cl_kernels)
 
-    def set_template(self, template: np.ndarray):
-        """Set the template structure that you want to fit in the target density.
-
-        Can be used to try to fit a different template to the same target structure
-        without recomputing the kernels.
-        
-        Args:
-            template: the template structure that you want to fit in the target density,
-                should have been regridded to the same grid as the target density.
-        """
-        if template.shape != self.target.shape:
-            raise ValueError("Shape of template does not match the target.")
-
-        if self.laplace:
-            template = laplace_filter(template, mode='wrap')
-        
-        template = normalize_template(template, self.mask)
+    def _set_template_var(self, template: np.ndarray):
         self.vars.template = cl.image_from_array(self.vars.template.context, template.astype(f32))
 
-        # Reset lcc and rot values after (re)setting the template
-        self.lcc[:] = 0.0
-        self.rot[:] = 0
-
     def rotate_grids(self, rotmat: np.ndarray):
+        """Rotate the template and mask using the rotational matrix."""
         self.cl_kernels.rotate_image3d(self.queue, self.vars.template, rotmat,
                 self.vars.rot_template)
         self.cl_kernels.rotate_image3d(self.queue, self.vars.mask, rotmat,
                 self.vars.rot_mask, nearest=True)
-
-    def compute_gcc(self):
-        """Compute the global cross-correlation.
-        
-        Ref doi:10.3934/biophy.2015.2.73. Equation 3."""
-        rfftn(self.vars.rot_template, self.vars_ft.template)
-        self.cl_kernels.conj_multiply(
-            self.vars_ft.template,
-            self.vars_ft.target,
-            self.vars_ft.gcc
-        )
-        irfftn(self.vars_ft.gcc, self.vars.gcc)
-
-    def compute_sq_avg_density(self):
-        """Compute the square of the average core-weighted density.
-        
-        Ref doi:10.3934/biophy.2015.2.73. Equation 4."""
-        rfftn(self.vars.rot_mask, self.vars_ft.mask)
-        self.cl_kernels.conj_multiply(
-            self.vars_ft.mask,
-            self.vars_ft.target,
-            self.vars_ft.ave
-        )
-        irfftn(self.vars_ft.ave, self.vars.ave)
-
-    def compute_avg_sq_density(self):
-        """Compute the average of the squared core-weighted density.
-        
-        Ref doi:10.3934/biophy.2015.2.73. Equation 5."""
-        self.cl_kernels.multiply(self.vars.rot_mask, self.vars.rot_mask, self.vars.rot_mask2)
-        rfftn(self.vars.rot_mask2, self.vars_ft.mask2)
-        self.cl_kernels.conj_multiply(self.vars_ft.mask2, self.vars_ft.target2, self.vars_ft.ave2)
-        irfftn(self.vars_ft.ave2, self.vars.ave2)
 
     def compute_lcc_score_and_take_best(self, n: int):
         """Compute the LCC score and store best result.
@@ -203,19 +154,6 @@ class GPUCorrelator:
             self.vars.lcc,
             self.vars.rot,
         )
-
-    def compute_rotation(self, n: int, rotmat: np.ndarray):
-        """Compute a single rotation.
-        
-        Args:
-            n: rotation number.
-            rotmat: rotation matrix for this rotation.
-        """
-        self.rotate_grids(rotmat)
-        self.compute_gcc()
-        self.compute_sq_avg_density()
-        self.compute_avg_sq_density()
-        self.compute_lcc_score_and_take_best(n)
 
     def retrieve_results(self):
         """Retrieve the results from the GPU."""

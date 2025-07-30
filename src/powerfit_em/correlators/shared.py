@@ -1,8 +1,12 @@
 """Shared functionality between GPU and CPU correlators."""
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from functools import partial
+from typing import TYPE_CHECKING, Callable
 import numpy as np
+from tqdm import tqdm
+from scipy.ndimage import laplace as laplace_filter
 
 if TYPE_CHECKING:
     from pyopencl.array import Array as ClArray
@@ -77,3 +81,114 @@ def get_normalization_factor(mask: np.ndarray) -> np.float32:
     if norm_factor == 0:
         raise ValueError('Zero-filled mask is not allowed.')
     return norm_factor
+
+
+class Correlator(ABC):
+    vars: Vars
+    vars_ft: VarsFT
+    rfftn: Callable
+    irfftn: Callable
+    conj_multiply: Callable
+    square: Callable
+    laplace: bool
+    target: np.ndarray
+    mask: np.ndarray
+    lcc: np.ndarray
+    rot: np.ndarray
+
+    @abstractmethod
+    def __init__(self):
+        """Initialize the correlator along with the above class properties."""
+        pass
+
+    @abstractmethod
+    def _set_template_var(self, template: np.ndarray):
+        """Set the Vars.template variable in-place."""
+        pass
+
+    def set_template(self, template: np.ndarray):
+        """Set the template structure that you want to fit in the target density.
+
+        Can be used to try to fit a different template to the same target structure
+        without recomputing the kernels.
+        
+        Args:
+            template: the template structure that you want to fit in the target density,
+                should have been regridded to the same grid as the target density.
+        """
+        if template.shape != self.target.shape:
+            raise ValueError("Shape of template does not match the target.")
+
+        if self.laplace:
+            template = laplace_filter(template, mode='wrap')
+        
+        template = normalize_template(template, self.mask)
+        self._set_template_var(template)
+
+        # Reset lcc and rot values after (re)setting the template
+        self.lcc[:] = 0.0
+        self.rot[:] = 0
+
+    @abstractmethod
+    def rotate_grids(self, rotmat: np.ndarray):
+        """Rotate the template and mask using the rotational matrix."""
+        pass
+
+    def compute_gcc(self):
+        """Compute the global cross-correlation.
+        
+        Ref doi:10.3934/biophy.2015.2.73. Equation 3."""
+        self.rfftn(self.vars.rot_template, self.vars_ft.template)
+        self.conj_multiply(
+            self.vars_ft.template,
+            self.vars_ft.target,
+            self.vars_ft.gcc
+        )
+        self.irfftn(self.vars_ft.gcc, self.vars.gcc)
+
+    def compute_sq_avg_density(self):
+        """Compute the square of the average core-weighted density.
+        
+        Ref doi:10.3934/biophy.2015.2.73. Equation 4."""
+        self.rfftn(self.vars.rot_mask, self.vars_ft.mask)
+        self.conj_multiply(
+            self.vars_ft.mask,
+            self.vars_ft.target,
+            self.vars_ft.ave
+        )
+        self.irfftn(self.vars_ft.ave, self.vars.ave)
+
+    def compute_avg_sq_density(self):
+        """Compute the average of the squared core-weighted density.
+        
+        Ref doi:10.3934/biophy.2015.2.73. Equation 5."""
+        self.square(self.vars.rot_mask, self.vars.rot_mask2)
+        self.rfftn(self.vars.rot_mask2, self.vars_ft.mask2)
+        self.conj_multiply(self.vars_ft.mask2, self.vars_ft.target2, self.vars_ft.ave2)
+        self.irfftn(self.vars_ft.ave2, self.vars.ave2)
+
+    @abstractmethod
+    def compute_lcc_score_and_take_best(self, n: int):
+        """Compute the LCC score and store best result.
+        
+        Args:
+            n: iteration number.
+        """
+        pass
+
+    def compute_rotation(self, n: int, rotmat: np.ndarray):
+        """Compute a single rotation.
+        
+        Args:
+            n: rotation number.
+            rotmat: rotation matrix for this rotation.
+        """
+        self.rotate_grids(rotmat)
+        self.compute_gcc()
+        self.compute_sq_avg_density()
+        self.compute_avg_sq_density()
+        self.compute_lcc_score_and_take_best(n)
+
+    @abstractmethod
+    def scan(self, progress: partial[tqdm] = lambda x: x):
+        pass

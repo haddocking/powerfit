@@ -5,7 +5,7 @@ import warnings
 
 from tqdm import tqdm
 
-from powerfit_em.correlators.shared import Vars, VarsFT, get_ft_shape, get_lcc_mask, get_normalization_factor, normalize_template, f32, i32
+from powerfit_em.correlators.shared import Correlator, Vars, VarsFT, get_ft_shape, get_lcc_mask, get_normalization_factor, f32, i32
 
 try:
     from pyfftw.builders import rfftn as rfftn_builder, irfftn as irfftn_builder
@@ -81,7 +81,7 @@ def init_cpu_vars(
     return vars, vars_ft
 
 
-class CPUCorrelator:
+class CPUCorrelator(Correlator):
     """Compute the LCC score for a target and template combination."""
     def __init__(
         self,
@@ -120,36 +120,19 @@ class CPUCorrelator:
 
         self.set_template(template)
 
+        self.conj_multiply = lambda a,b,c: np.multiply(np.conjugate(a), b, out=c)
+        self.square = lambda a,b: np.square(a, out=b)
         self.rfftn, self.irfftn = build_ffts(self.target, self.vars.gcc, self.vars_ft.gcc, fftw)
+
         # pre-calculate the FFTs of the target
         self.rfftn(self.vars.target, self.vars_ft.target)
         self.rfftn(self.vars.target**2, self.vars_ft.target2)
 
-    def set_template(self, template: np.ndarray):
-        """Set the template structure that you want to fit in the target density.
-
-        Can be used to try to fit a different template to the same target structure
-        without recomputing the kernels.
-        
-        Args:
-            template: the template structure that you want to fit in the target density,
-                should have been regridded to the same grid as the target density.
-        """
-        if template.shape != self.target.shape:
-            raise ValueError("Shape of template does not match the target.")
-
-        if self.laplace:
-            template = laplace_filter(template, mode='wrap')
-        
-        template = normalize_template(template, self.mask)
+    def _set_template_var(self, template: np.ndarray):
         self.vars.template = template.astype(f32)
 
-        # Reset lcc and rot values after (re)setting the template
-        self.lcc[:] = 0.0
-        self.rot[:] = 0
-
     def rotate_grids(self, rotmat: np.ndarray):
-        """Rotate template and mask."""
+        """Rotate the template and mask using the rotational matrix."""
         rotate_grid3d(
             self.vars.template, rotmat.astype(f32), rmax(self.target),
             self.vars.rot_template, False
@@ -158,31 +141,6 @@ class CPUCorrelator:
             self.vars.mask, rotmat.astype(f32), rmax(self.target),
             self.vars.rot_mask, True
         )
-
-    def compute_gcc(self):
-        """Compute the global cross-correlation.
-        
-        Ref doi:10.3934/biophy.2015.2.73. Equation 3."""
-        self.rfftn(self.vars.rot_template, self.vars_ft.template)
-        self.vars_ft.gcc[:] = np.multiply(np.conjugate(self.vars_ft.template), self.vars_ft.target)
-        self.irfftn(self.vars_ft.gcc, self.vars.gcc)
-
-    def compute_sq_avg_density(self):
-        """Compute the square of the average core-weighted density.
-        
-        Ref doi:10.3934/biophy.2015.2.73. Equation 4."""
-        self.rfftn(self.vars.rot_mask, self.vars_ft.mask)
-        self.vars_ft.ave[:] = np.multiply(np.conjugate(self.vars_ft.mask), self.vars_ft.target)
-        self.irfftn(self.vars_ft.ave, self.vars.ave)
-
-    def compute_avg_sq_density(self):
-        """Compute the average of the squared core-weighted density.
-        
-        Ref doi:10.3934/biophy.2015.2.73. Equation 5."""
-        self.vars.rot_mask2[:] = self.vars.rot_mask ** 2
-        self.rfftn(self.vars.rot_mask2, self.vars_ft.mask2)
-        self.vars_ft.ave2[:] = np.multiply(np.conjugate(self.vars_ft.mask2), self.vars_ft.target2)
-        self.irfftn(self.vars_ft.ave2, self.vars.ave2)
 
     def compute_lcc_score_and_take_best(self, n: int):
         """Compute the LCC score and store best result.
@@ -198,19 +156,6 @@ class CPUCorrelator:
         # store lcc and rotation index
         self.lcc[ind] = self.lcc_scan[ind]
         self.rot[ind] = n
-
-    def compute_rotation(self, n: int, rotmat: np.ndarray):
-        """Compute a single rotation.
-        
-        Args:
-            n: rotation number.
-            rotmat: rotation matrix for this rotation.
-        """
-        self.rotate_grids(rotmat)
-        self.compute_gcc()
-        self.compute_sq_avg_density()
-        self.compute_avg_sq_density()
-        self.compute_lcc_score_and_take_best(n)
 
     def scan(self, progress: partial[tqdm] = lambda x: x):
         """Scan all provided rotations to find the best fit."""
