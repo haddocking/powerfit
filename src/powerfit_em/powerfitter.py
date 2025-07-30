@@ -12,6 +12,9 @@ import numpy as np
 from numpy.fft import irfftn as np_irfftn, rfftn as np_rfftn
 from scipy.ndimage import binary_erosion, laplace
 from tqdm.auto import tqdm
+
+from powerfit_em.correlators.shared import get_lcc_mask
+from powerfit_em.volume import Volume
 try:
     from pyfftw import zeros_aligned, simd_alignment
     from pyfftw.builders import rfftn as rfftn_builder, irfftn as irfftn_builder
@@ -19,13 +22,11 @@ try:
 except ImportError:
     PYFFTW = False
 try:
-    import pyopencl as cl
-    import pyopencl.array as cl_array
-    from pyopencl.elementwise import ElementwiseKernel
-    from pyvkfft.fft import rfftn, irfftn
+    import pyopencl as _
     OPENCL = True
 except:
     OPENCL = False
+
 
 from ._powerfit import conj_multiply, calc_lcc, dilate_points
 from ._extensions import rotate_grid3d
@@ -52,13 +53,14 @@ class PowerFitter(object):
     accelerated searches providing an easy interface.
     """
 
-    def __init__(self, target, laplace=False):
+    def __init__(
+        self, target: Volume, rotations: np.ndarray, template: Volume, mask: Volume, queues, laplace: bool = False
+    ):
         self._target = target
-        self._rotations = None
-        self._template = None
-        self._mask = None
-        self._rotations = None
-        self._queues = None
+        self._rotations = rotations
+        self._template = template
+        self._mask = mask
+        self._queues = queues
         self._nproc = 1
         self._directory = abspath('./')
         self._laplace = laplace
@@ -84,12 +86,16 @@ class PowerFitter(object):
             self._gpu_scan(progress)
 
     def _gpu_scan(self, progress: partial[tqdm]):
-        self._corr = GPUCorrelator(self._target.array, self._queues[0],
-                laplace=self._laplace)
-
-        self._corr.template = self._template.array
-        self._corr.mask = self._mask.array
-        self._corr.rotations = self._rotations
+        if OPENCL:
+            from powerfit_em.correlators.gpu import GPUCorrelator
+        self._corr = GPUCorrelator(
+            self._target.array,
+            self._template.array,
+            self._rotations,
+            self._mask.array,
+            self._queues[0],
+            self._laplace,
+        )
         self._corr.scan(progress)
         self._lcc = self._corr.lcc
         self._rot = self._corr.rot
@@ -181,12 +187,8 @@ class BaseCorrelator(object):
         self._template = None
         self._mask = None
         self._laplace = laplace
-        self._lcc_mask = self._get_lcc_mask(self._target)
+        self._lcc_mask = get_lcc_mask(self._target)
         self._rmax = min(target.shape) // 2
-
-    @staticmethod
-    def _get_lcc_mask(target):
-        return (target > target.max() * 0.05).astype(np.uint8)
 
     @property
     def target(self):
@@ -400,183 +402,3 @@ class CPUCorrelator(BaseCorrelator):
             self._gcc = self._irfftn(self._ft_gcc, s=self.target.shape)
             self._ave = self._irfftn(self._ft_ave, s=self.target.shape)
             self._ave2 = self._irfftn(self._ft_ave2, s=self.target.shape)
-
-
-if OPENCL:
-    class GPUCorrelator(BaseCorrelator):
-
-        def __init__(self, target, queue, laplace=False):
-            super(GPUCorrelator, self).__init__(target, laplace=laplace)
-            self._queue = queue
-            self._ctx = self._queue.context
-            self._gpu = self._queue.device
-
-            self._allocate_arrays()
-            self._generate_kernels()
-
-            target = self._target
-            if self._laplace:
-                target = self._laplace_filter(self._target)
-            # move some arrays to the GPU
-            self._gtarget = cl_array.to_device(self._queue, target.astype(np.float32))
-            self._lcc_mask = cl_array.to_device(self._queue,
-                    self._lcc_mask.astype(np.int32))
-            # Do some one-time precalculations
-            self._ft_target = rfftn(self._gtarget)
-            self._k.multiply(self._gtarget, self._gtarget, self._target2)
-            rfftn(self._target2, self._ft_target2)
-
-            self._gshape = np.asarray(
-                    list(self._target.shape) + [np.prod(self._target.shape)],
-                    dtype=np.int32)
-
-        def _allocate_arrays(self):
-            # Determine the required shape and size of an array
-            self._shape = self._target.shape
-            self._ft_shape = self._shape[:-1] + (self._shape[-1] // 2 + 1,)
-
-            # Allocate arrays on CPU
-            self._lcc = np.zeros(self._target.shape, dtype=np.float32)
-            self._rot = np.zeros(self._target.shape, dtype=np.int32)
-
-            # Allocate arrays on GPU
-            arrays = '_target2 _rot_template _rot_mask _rot_mask2 _gcc _ave _ave2 _glcc'.split()
-            for array in arrays:
-                setattr(self, array, 
-                        cl_array.zeros( self._queue, self._shape, dtype=np.float32)
-                        )
-            self._grot = cl_array.zeros(self._queue, self._shape, dtype=np.int32)
-
-            # Allocate all complex arrays
-            ft_arrays = 'target target2 template mask mask2 gcc ave ave2 lcc'.split()
-            for ft_array in ft_arrays:
-                setattr(self, '_ft_' + ft_array, 
-                        cl_array.to_device(self._queue,
-                            np.zeros(self._ft_shape, dtype=np.complex64))
-                        )
-
-        @property
-        def mask(self):
-            return BaseCorrelator.mask
-
-        @mask.setter
-        def mask(self, mask):
-            BaseCorrelator.mask.fset(self, mask)
-            self._norm_factor = np.float32(self._norm_factor)
-            self._rmax = np.int32(self._rmax)
-            self._gtemplate = cl.image_from_array(self._queue.context,
-                    self._template.astype(np.float32))
-            self._gmask = cl.image_from_array(self._queue.context,
-                    self._mask.astype(np.float32))
-
-        @property
-        def rotations(self):
-            return BaseCorrelator.rotations
-
-        @rotations.setter
-        def rotations(self, rotations):
-            BaseCorrelator.rotations.fset(self, rotations)
-            self._cl_rotations = np.zeros((self._rotations.shape[0], 16),
-                    dtype=np.float32)
-            self._cl_rotations[:, :9] = self._rotations.reshape(-1, 9)
-
-        def _cl_rotate_grids(self, rotmat):
-            self._k.rotate_image3d(self._queue, self._gtemplate, rotmat,
-                    self._rot_template)
-            self._k.rotate_image3d(self._queue, self._gmask, rotmat,
-                    self._rot_mask, nearest=True)
-
-        def _cl_get_gcc(self):
-            rfftn(self._rot_template, self._ft_template)
-            self._k.conj_multiply(self._ft_template, self._ft_target, self._ft_gcc)
-            irfftn(self._ft_gcc, self._gcc)
-
-        def _cl_get_ave(self):
-            rfftn(self._rot_mask, self._ft_mask)
-            self._k.conj_multiply(self._ft_mask, self._ft_target, self._ft_ave)
-            irfftn(self._ft_ave, self._ave)
-
-        def _cl_get_ave2(self):
-            self._k.multiply(self._rot_mask, self._rot_mask, self._rot_mask2)
-            rfftn(self._rot_mask2, self._ft_mask2)
-            self._k.conj_multiply(self._ft_mask2, self._ft_target2, self._ft_ave2)
-            irfftn(self._ft_ave2, self._ave2)
-
-        def scan(self, progress: partial[tqdm] = lambda x: x):
-            super(GPUCorrelator, self).scan()
-
-            self._glcc.fill(0)
-            self._grot.fill(0)
-            for n in progress(range(0, self._rotations.shape[0])):
-
-                rotmat = self._cl_rotations[n]
-
-                self._cl_rotate_grids(rotmat)
-
-                self._cl_get_gcc()
-                self._cl_get_ave()
-                self._cl_get_ave2()
-                self._k.calc_lcc_and_take_best(self._gcc, self._ave,
-                        self._ave2, self._lcc_mask, self._norm_factor,
-                        np.int32(n), self._glcc, self._grot)
-                self._queue.finish() # only necessary if we want to track it/s accuratly
-
-            self._glcc.get(ary=self._lcc)
-            self._grot.get(ary=self._rot)
-            self._queue.finish()
-
-        def _generate_kernels(self):
-            kernel_values = {'shape_x': self._shape[2],
-                             'shape_y': self._shape[1],
-                             'shape_z': self._shape[0],
-                             'llength': self._rmax,
-                             }
-            self._k = CLKernels(self._ctx, kernel_values)
-
-
-    class CLKernels(object):
-        def __init__(self, ctx, values):
-            self.sampler_nearest = cl.Sampler(ctx, True,
-                    cl.addressing_mode.REPEAT, cl.filter_mode.NEAREST)
-            self.sampler_linear = cl.Sampler(ctx, True,
-                    cl.addressing_mode.REPEAT, cl.filter_mode.LINEAR)
-            self.multiply = ElementwiseKernel(ctx,
-                  "float *x, float *y, float *z",
-                  "z[i] = x[i] * y[i];"
-                  )
-            self.conj_multiply = ElementwiseKernel(ctx,
-                  "cfloat_t *x, cfloat_t *y, cfloat_t *z",
-                  "z[i] = cfloat_mul(cfloat_conj(x[i]), y[i]);"
-                  )
-            self.calc_lcc_and_take_best = ElementwiseKernel(ctx,
-                    """float *gcc, float *ave, float *ave2, int *mask,
-                       float norm_factor, int nrot, float *lcc, int *grot""",
-                    """float _lcc;
-                       if (mask[i] > 0) {
-                           _lcc = gcc[i] / sqrt(ave2[i] * norm_factor - ave[i] * ave[i]);
-                           if (_lcc > lcc[i]) {
-                               lcc[i] = _lcc;
-                               grot[i] = nrot;
-                           };
-                       };
-                    """
-                    )
-
-            kernel_file = os.path.join(os.path.dirname(__file__), 'kernels.cl')
-            with open(kernel_file) as f:
-                t = Template(f.read()).substitute(**values)
-
-            self._program = cl.Program(ctx, t).build()
-            self._rotate_image3d = self._program.rotate_image3d
-            self._gws_rotate_grid3d = (96, 64, 1)
-
-        def rotate_grid3d(self, queue, grid, rotmat, out, nearest=False):
-            args = (grid.data, rotmat, out.data, np.int32(nearest))
-            self._program.rotate_grid3d(queue, self._gws_rotate_grid3d, None, *args)
-
-        def rotate_image3d(self, queue, image, rotmat, out, nearest=False):
-            if nearest:
-                args = (image, self.sampler_nearest, rotmat, out.data)
-            else:
-                args = (image, self.sampler_linear, rotmat, out.data)
-            self._rotate_image3d(queue, self._gws_rotate_grid3d, None, *args)

@@ -27,6 +27,11 @@ from powerfit_em.powerfitter import PowerFitter
 from powerfit_em.analyzer import Analyzer
 from powerfit_em.helpers import mkdir_p, write_fits_to_pdb, fisher_sigma
 from powerfit_em.volume import extend, nearest_multiple2357, trim, resample
+try:
+    import pyopencl as cl
+    OPENCL = True
+except:
+    OPENCL = False
 
 logger = logging.getLogger(__name__)
 
@@ -294,7 +299,9 @@ def powerfit(target_volume: BinaryIO,
     # Get GPU queue if requested
     queues = None
     if gpu:
-        import pyopencl as cl
+        if not OPENCL:
+            msg = "Running on GPU requires the pyopencl package, however importing pyopencl failed."
+            raise ValueError(msg)
         # TODO allow to omit platform, so gpu='4' runs 5th device on first platform
         if isinstance(gpu, str) and ':' in gpu:
             platform_idx, device_idx = map(int, gpu.split(':'))
@@ -365,13 +372,9 @@ def powerfit(target_volume: BinaryIO,
         logger.info("Calculating core-weighted mask.")
         mask.array = determine_core_indices(mask.array)
 
-    pf = PowerFitter(target, laplace=laplace)
-    pf._rotations = rotmat
-    pf._template = template
-    pf._mask = mask
+    pf = PowerFitter(target, rotmat, template, mask, queues, laplace=laplace)
     pf._nproc = nproc
     pf.directory = directory
-    pf._queues = queues
     if gpu:
         logger.info("Using GPU-accelerated search.")
     else:
@@ -380,7 +383,6 @@ def powerfit(target_volume: BinaryIO,
     time1 = time()
     pf.scan(progress=progress)
     logger.info("Time for search: {:.0f}m {:.0f}s".format(*divmod(time() - time1, 60)))
-
     logger.info("Analyzing results")
     # calculate the molecular volume of the structure
     mv = (

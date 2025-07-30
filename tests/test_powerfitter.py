@@ -4,8 +4,7 @@ import numpy as np
 from scipy.ndimage import laplace
 
 try:
-    import pyfftw
-
+    import pyfftw as _
     PYFFTW = True
 except ImportError:
     PYFFTW = False
@@ -13,15 +12,15 @@ try:
     import pyopencl as cl
     import pyopencl.array as cl_array
 
-    PYOPENCL = True
+    OPENCL = True
 except ImportError:
-    PYOPENCL = False
+    OPENCL = False
 
 from powerfit_em.powerfitter import BaseCorrelator, CPUCorrelator
 from powerfit_em.rotations import euler
 
-if PYOPENCL:
-    from powerfit_em.powerfitter import CLKernels
+if OPENCL:
+    from powerfit_em.correlators.clkernels import CLKernels
 
 
 class TestCPUCorrelator(unittest.TestCase):
@@ -169,7 +168,7 @@ class TestBaseCorrelator(unittest.TestCase):
             self.corr.scan()
 
 
-@unittest.skipIf(not PYOPENCL, "GPU resources are not available.")
+@unittest.skipIf(not OPENCL, "GPU resources are not available.")
 class TestCLKernels(unittest.TestCase):
     """Tests for the OpenCL kernels"""
 
