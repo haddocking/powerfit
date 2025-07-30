@@ -11,15 +11,13 @@ from scipy.ndimage import laplace as laplace_filter
 if TYPE_CHECKING:
     from pyopencl.array import Array as ClArray
     from pyopencl import Image
-
-
-type Array = "ClArray" | np.ndarray
+    type Array = "ClArray" | np.ndarray
 
 f32 = np.float32
 i32 = np.int32
 
 @dataclass
-class Vars[T: Array, I: "Image" | np.ndarray]:
+class Vars[T: "Array", I: "Image" | np.ndarray]:
     """Non-complex GPU arrays."""
     target: T
     template: I
@@ -37,7 +35,7 @@ class Vars[T: Array, I: "Image" | np.ndarray]:
 
 
 @dataclass
-class VarsFT[T: Array]:
+class VarsFT[T: "Array"]:
     """Fourier transformed (complex) arrays."""
     target: T
     target2: T
