@@ -26,6 +26,7 @@ dependencies = [
     "scipy",
     "tqdm",
     "rich",
+    "molviewspec>=1.6.0",
 ]
 
 [project.optional-dependencies]

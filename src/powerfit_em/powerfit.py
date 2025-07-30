@@ -200,6 +200,12 @@ def make_parser():
         default=True,
         help="Show a progress bar during the search.",
     )
+    p.add_argument(
+        "--report",
+        dest="report",
+        action="store_true",
+        help="Generate a html report with Mol* 3D viewer of the fitted models."
+    )
 
     return p
 
@@ -268,6 +274,9 @@ def main():
         delimiter=args.delimiter,
         progress=progress
     )
+    if args.report:
+        from powerfit_em.report import generate_report
+        generate_report(args.directory, args.target.name, args.num, args.delimiter)
 
 
 def powerfit(target_volume: BinaryIO,
