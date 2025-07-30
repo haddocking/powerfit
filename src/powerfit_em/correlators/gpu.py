@@ -4,64 +4,24 @@ import numpy as np
 import pyopencl as cl
 import pyopencl.array as cl_array
 from pyopencl.array import Array as ClArray
+from pyopencl import Image
 from pyvkfft.fft import rfftn, irfftn
 from tqdm import tqdm
 from scipy.ndimage import laplace as laplace_filter
 
 
 from powerfit_em.correlators.clkernels import CLKernels
-from powerfit_em.correlators.shared import get_lcc_mask
-
-
-f32 = np.float32
-i32 = np.int32
-
-@dataclass
-class GPUVars:
-    """Non-complex GPU arrays."""
-    target: ClArray
-    template: ClArray
-    mask: ClArray
-    lcc_mask: ClArray
-    target2: ClArray
-    rot_template: ClArray
-    rot_mask: ClArray
-    rot_mask2: ClArray
-    gcc: ClArray
-    ave: ClArray
-    ave2: ClArray
-    lcc: ClArray
-    rot: ClArray
-
-
-@dataclass
-class GPUVarsFT:
-    """Fourier transformed (complex) arrays."""
-    target: ClArray
-    target2: ClArray
-    template: ClArray
-    mask: ClArray
-    mask2: ClArray
-    ave: ClArray
-    ave2: ClArray
-    lcc: ClArray
-    gcc: ClArray
-
-
-
-def get_ft_shape(target: np.ndarray) -> tuple:
-    """Returns shape of fourier transformed target."""
-    return target.shape[:-1] + (target.shape[-1] // 2 + 1,)
+from powerfit_em.correlators.shared import Vars, VarsFT, get_ft_shape, get_lcc_mask, get_normalization_factor, normalize_template, f32, i32
 
 
 def init_gpu_vars(
     queue: cl.CommandQueue, target: np.ndarray, mask: np.ndarray, laplace: bool,
-):
+) -> tuple[Vars[ClArray, Image], VarsFT[ClArray]]:
     """Initialize all GPU variables on the specified queue."""
     lcc_mask = get_lcc_mask(target)
     _t = laplace_filter(target, mode='wrap') if laplace else target
     zeros = np.zeros(target.shape, f32)
-    gpu_vars = GPUVars(
+    gpu_vars = Vars(
         target = cl_array.to_device(queue, _t.astype(f32)),
         template = cl.image_from_array(queue.context, zeros),  # template is set through separate method
         mask = cl.image_from_array(queue.context, mask.astype(f32)),
@@ -77,7 +37,7 @@ def init_gpu_vars(
         rot = cl_array.to_device(queue, np.zeros(target.shape, i32)),
     )
     zeros_ft = np.zeros(get_ft_shape(target), dtype=np.complex64)
-    gpu_vars_ft = GPUVarsFT(
+    gpu_vars_ft = VarsFT(
         target = cl_array.to_device(queue, zeros_ft),
         target2 = cl_array.to_device(queue, zeros_ft),
         template = cl_array.to_device(queue, zeros_ft),
@@ -102,18 +62,7 @@ def generate_kernels(queue: cl.CommandQueue, target: np.ndarray):
     return CLKernels(queue.context, kernel_values)
 
 
-def normalize_template(template: np.ndarray, mask: np.ndarray) -> np.ndarray:
-    """Normalize the template structure cf. A.M. Roseman (2000)."""
-    norm_template = template * mask
-    # normalize template;
-    ind = mask != 0
-    norm_template[ind] -= norm_template[ind].mean()
-    norm_template[ind] /= norm_template[ind].std()
-    # multiply again for core-weighted correlation score
-    return norm_template * mask
-
-
-def precompute_squared_targets(gpu_vars: GPUVars, gpu_vars_ft: GPUVarsFT, kernels: CLKernels):
+def precompute_squared_targets(gpu_vars: Vars[ClArray, Image], gpu_vars_ft: VarsFT[ClArray], kernels: CLKernels):
     """Compute the squared target and fourier transformed target on GPU for reuse."""
     gpu_vars_ft.target = rfftn(gpu_vars.target)
     kernels.multiply(gpu_vars.target, gpu_vars.target, gpu_vars.target2)
@@ -164,11 +113,9 @@ class GPUCorrelator:
         self._rotations = transform_rotations(rotations)
 
         # Precompute the normalization factor for use in the LCC computing kernel
-        self._norm_factor = np.float32((mask != 0).sum())
-        if self._norm_factor == 0:
-            raise ValueError('Zero-filled mask is not allowed.')
+        self.norm_factor = get_normalization_factor(mask)
 
-        self.gpu_vars, self.gpu_vars_ft = init_gpu_vars(queue, self.target, mask, self.laplace)
+        self.vars, self.vars_ft = init_gpu_vars(queue, self.target, mask, self.laplace)
 
         self.lcc = np.zeros(self.target.shape, dtype=np.float32)
         self.rot = np.zeros(self.target.shape, dtype=np.int32)
@@ -176,7 +123,7 @@ class GPUCorrelator:
         self.set_template(template)
 
         self.cl_kernels = generate_kernels(queue, self.target)
-        precompute_squared_targets(self.gpu_vars, self.gpu_vars_ft, self.cl_kernels)
+        precompute_squared_targets(self.vars, self.vars_ft, self.cl_kernels)
 
     def set_template(self, template: np.ndarray):
         """Set the template structure that you want to fit in the target density.
@@ -195,50 +142,50 @@ class GPUCorrelator:
             template = laplace_filter(template, mode='wrap')
         
         template = normalize_template(template, self.mask)
-        self.gpu_vars.template = cl.image_from_array(self.gpu_vars.template.context, template.astype(f32))
+        self.vars.template = cl.image_from_array(self.vars.template.context, template.astype(f32))
 
         # Reset lcc and rot values after (re)setting the template
         self.lcc[:] = 0.0
         self.rot[:] = 0
 
     def rotate_grids(self, rotmat: np.ndarray):
-        self.cl_kernels.rotate_image3d(self.queue, self.gpu_vars.template, rotmat,
-                self.gpu_vars.rot_template)
-        self.cl_kernels.rotate_image3d(self.queue, self.gpu_vars.mask, rotmat,
-                self.gpu_vars.rot_mask, nearest=True)
+        self.cl_kernels.rotate_image3d(self.queue, self.vars.template, rotmat,
+                self.vars.rot_template)
+        self.cl_kernels.rotate_image3d(self.queue, self.vars.mask, rotmat,
+                self.vars.rot_mask, nearest=True)
 
     def compute_gcc(self):
         """Compute the global cross-correlation.
         
         Ref doi:10.3934/biophy.2015.2.73. Equation 3."""
-        rfftn(self.gpu_vars.rot_template, self.gpu_vars_ft.template)
+        rfftn(self.vars.rot_template, self.vars_ft.template)
         self.cl_kernels.conj_multiply(
-            self.gpu_vars_ft.template,
-            self.gpu_vars_ft.target,
-            self.gpu_vars_ft.gcc
+            self.vars_ft.template,
+            self.vars_ft.target,
+            self.vars_ft.gcc
         )
-        irfftn(self.gpu_vars_ft.gcc, self.gpu_vars.gcc)
+        irfftn(self.vars_ft.gcc, self.vars.gcc)
 
     def compute_sq_avg_density(self):
         """Compute the square of the average core-weighted density.
         
         Ref doi:10.3934/biophy.2015.2.73. Equation 4."""
-        rfftn(self.gpu_vars.rot_mask, self.gpu_vars_ft.mask)
+        rfftn(self.vars.rot_mask, self.vars_ft.mask)
         self.cl_kernels.conj_multiply(
-            self.gpu_vars_ft.mask,
-            self.gpu_vars_ft.target,
-            self.gpu_vars_ft.ave
+            self.vars_ft.mask,
+            self.vars_ft.target,
+            self.vars_ft.ave
         )
-        irfftn(self.gpu_vars_ft.ave, self.gpu_vars.ave)
+        irfftn(self.vars_ft.ave, self.vars.ave)
 
     def compute_avg_sq_density(self):
         """Compute the average of the squared core-weighted density.
         
         Ref doi:10.3934/biophy.2015.2.73. Equation 5."""
-        self.cl_kernels.multiply(self.gpu_vars.rot_mask, self.gpu_vars.rot_mask, self.gpu_vars.rot_mask2)
-        rfftn(self.gpu_vars.rot_mask2, self.gpu_vars_ft.mask2)
-        self.cl_kernels.conj_multiply(self.gpu_vars_ft.mask2, self.gpu_vars_ft.target2, self.gpu_vars_ft.ave2)
-        irfftn(self.gpu_vars_ft.ave2, self.gpu_vars.ave2)
+        self.cl_kernels.multiply(self.vars.rot_mask, self.vars.rot_mask, self.vars.rot_mask2)
+        rfftn(self.vars.rot_mask2, self.vars_ft.mask2)
+        self.cl_kernels.conj_multiply(self.vars_ft.mask2, self.vars_ft.target2, self.vars_ft.ave2)
+        irfftn(self.vars_ft.ave2, self.vars.ave2)
 
     def compute_lcc_score_and_take_best(self, n: int):
         """Compute the LCC score and store best result.
@@ -247,14 +194,14 @@ class GPUCorrelator:
             n: iteration number.
         """
         self.cl_kernels.calc_lcc_and_take_best(
-            self.gpu_vars.gcc,
-            self.gpu_vars.ave,
-            self.gpu_vars.ave2,
-            self.gpu_vars.lcc_mask,
-            self._norm_factor,
+            self.vars.gcc,
+            self.vars.ave,
+            self.vars.ave2,
+            self.vars.lcc_mask,
+            self.norm_factor,
             np.int32(n),
-            self.gpu_vars.lcc,
-            self.gpu_vars.rot,
+            self.vars.lcc,
+            self.vars.rot,
         )
 
     def compute_rotation(self, n: int, rotmat: np.ndarray):
@@ -272,13 +219,13 @@ class GPUCorrelator:
 
     def retrieve_results(self):
         """Retrieve the results from the GPU."""
-        self.gpu_vars.lcc.get(ary=self.lcc)
-        self.gpu_vars.rot.get(ary=self.rot)
+        self.vars.lcc.get(ary=self.lcc)
+        self.vars.rot.get(ary=self.rot)
 
     def scan(self, progress: partial[tqdm] = lambda x: x):
         """Scan all provided rotations to find the best fit."""
-        self.gpu_vars.lcc.fill(0)
-        self.gpu_vars.rot.fill(0)
+        self.vars.lcc.fill(0)
+        self.vars.rot.fill(0)
 
         for n in progress(range(0, self._rotations.shape[0])):
             self.compute_rotation(n, self._rotations[n])
