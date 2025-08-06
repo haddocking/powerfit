@@ -407,6 +407,7 @@
                 from powerfit_em.powerfit import powerfit
          
                 # Run PowerFit analysis
+                start_time = js.Date.now()
                 with open(template_fn, 'r') as template_io, open(target_fn, 'rb') as target_io:                    
                     print("Starting PowerFit...")  # Debug info
                     powerfit(
@@ -429,7 +430,8 @@
                         progress=progress
                     )
                 print("PowerFit analysis completed successfully.")  # Debug info
-
+                end_time = js.Date.now()
+                print(f"PowerFit completed in {end_time - start_time} ms")  # Debug info
                 # Read the solutions.out file
                 solutions_path = Path("solutions.out")
                 if solutions_path.exists():
