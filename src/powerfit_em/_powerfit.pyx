@@ -43,36 +43,6 @@ def fsc_curve(np.ndarray[np.complex128_t, ndim=3] f1,
 
 
 @cython.boundscheck(False)
-@cython.wraparound(False)
-def conj_multiply(np.ndarray[np.complex128_t] in1,
-        np.ndarray[np.complex128_t] in2,
-        np.ndarray[np.complex128_t] out,
-        ):
-    cdef unsigned int n
-    for n in range(out.shape[0]):
-        out[n] = in1[n].conjugate() * in2[n]
-
-
-@cython.boundscheck(False)
-@cython.wraparound(False)
-@cython.cdivision(True)
-def calc_lcc(np.ndarray[np.float64_t] gcc,
-        np.ndarray[np.float64_t] ave,
-        np.ndarray[np.float64_t] ave2,
-        np.ndarray[np.uint8_t] mask,
-        np.ndarray[np.float64_t] lcc):
-
-    cdef:
-        unsigned int n
-        np.float64_t var
-
-    for n in range(gcc.shape[0]):
-        if mask[n]:
-            var = (ave2[n] - ave[n] ** 2)
-            lcc[n] = gcc[n] / sqrt(var)
-
-
-@cython.boundscheck(False)
 @cython.cdivision(True)
 def blur_points(np.ndarray[np.float64_t, ndim=2] points,
                 np.ndarray[np.float64_t, ndim=1] weights,
