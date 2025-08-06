@@ -152,7 +152,12 @@ class CPUCorrelator(Correlator):
         self.vars.ave2 *= self.norm_factor
 
         var = self.vars.ave2 - self.vars.ave**2
-        self.lcc_scan = np.where(self.vars.lcc_mask, self.vars.gcc / np.sqrt(var), 0.0)
+        # Ignore division and invalid sqrt errors
+        #    see: https://github.com/haddocking/powerfit/issues/72
+        with np.errstate(divide="ignore", invalid="ignore"):
+            self.lcc_scan = np.where(
+                self.vars.lcc_mask, self.vars.gcc / np.sqrt(var), 0.0
+            )
         ind = np.greater(self.lcc_scan, self.lcc)
         # store lcc and rotation index
         self.lcc[ind] = self.lcc_scan[ind]
