@@ -121,6 +121,7 @@ class CPUCorrelator(Correlator):
 
         self.set_template(template)
 
+        # set methods in the same was as GPUCorrelator implementation;
         self.conj_multiply = lambda a,b,c: np.multiply(np.conjugate(a), b, out=c)
         self.square = lambda a,b: np.square(a, out=b)
         self.rfftn, self.irfftn = build_ffts(self.target, self.vars.gcc, self.vars_ft.gcc, fftw)
