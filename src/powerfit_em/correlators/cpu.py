@@ -1,5 +1,6 @@
 from functools import partial
 import numpy as np
+from numpy import typing as npt
 from scipy.ndimage import laplace as laplace_filter
 import warnings
 
@@ -35,7 +36,7 @@ def rmax(target: np.ndarray) -> int:
     return (min(target.shape) // 2)
 
 
-def zeros_array(shape: tuple[int], dtype: np.dtype, fftw: bool) -> np.ndarray:
+def zeros_array(shape: tuple[int], dtype: npt.DTypeLike, fftw: bool) -> np.ndarray:
     """Returns optimally SIMD aligned array if PyFFTW is used, for faster computation."""
     if fftw:
         return zeros_aligned(shape, dtype, n=simd_alignment)

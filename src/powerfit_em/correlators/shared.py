@@ -3,7 +3,7 @@
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from functools import partial
-from typing import TYPE_CHECKING, Callable
+from typing import TYPE_CHECKING, Callable, Generic, TypeVar
 import numpy as np
 from tqdm import tqdm
 from scipy.ndimage import laplace as laplace_filter
@@ -15,8 +15,12 @@ if TYPE_CHECKING:
 f32 = np.float32
 i32 = np.int32
 
+T = TypeVar("T", np.ndarray, "ClArray")
+I = TypeVar("I", np.ndarray, "Image")
+
+
 @dataclass
-class Vars[T: "ClArray" | np.ndarray, I: "Image" | np.ndarray]:
+class Vars(Generic[T, I]):
     """Non-complex GPU arrays."""
     target: T
     template: I
@@ -34,7 +38,7 @@ class Vars[T: "ClArray" | np.ndarray, I: "Image" | np.ndarray]:
 
 
 @dataclass
-class VarsFT[T: "ClArray" | np.ndarray]:
+class VarsFT(Generic[T]):
     """Fourier transformed (complex) arrays."""
     target: T
     target2: T
