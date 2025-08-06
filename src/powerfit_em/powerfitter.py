@@ -38,6 +38,31 @@ class _Counter(object):
             return self.val.value
 
 
+def run_correlator_instance(
+    target: Volume,
+    template: Volume,
+    mask: Volume,
+    rotations: np.ndarray,
+    laplace: bool,
+    jobid: int,
+    directory: str,
+    counter: _Counter
+):
+    correlator = CPUCorrelator(
+        target.array,
+        template.array,
+        rotations,
+        mask.array,
+        laplace,
+    )
+    for n in range(len(rotations)):
+        correlator.compute_rotation(n, rotmat=correlator.rotations[n])
+        counter.increment()
+        
+    np.save(join(directory, '_lcc_part_{:d}.npy').format(jobid), correlator.lcc)
+    np.save(join(directory, '_rot_part_{:d}.npy').format(jobid), correlator.rot)
+
+
 class PowerFitter(object):
     """Wrapper around the Correlator classes for multiprocessing and GPU
     accelerated searches providing an easy interface.
@@ -93,35 +118,37 @@ class PowerFitter(object):
     def _multi_cpu_scan(self, progress: partial[tqdm]):
         nrot = self._rotations.shape[0]
         self._nrot_per_job = nrot // self._nproc
-        processes = []
+        processes: list[Process] = []
         self._counter = _Counter()
         self._njobs = self._nproc
         if self._queues is not None:
             self._njobs = len(self._queues)
 
-        for n in range(self._njobs):
-            init_rot = n * self._nrot_per_job
-            end_rot = init_rot + self._nrot_per_job
-            if n == self._njobs - 1:
-                end_rot = None
-            sub_rotations = self._rotations[init_rot: end_rot]
-            processes.append(Process(
-                  target=self._run_correlator_instance,
+        for id in range(self._njobs):
+            start = id * self._nrot_per_job
+            stop = start + self._nrot_per_job
+            if id == self._njobs - 1:
+                stop = len(self._rotations)
+            partial_rotations = self._rotations[start:stop]
+            processes.append(
+                Process(
+                  target=run_correlator_instance,
                   args=(self._target, self._template, self._mask,
-                        sub_rotations, self._laplace, self._counter, n,
-                        self._queues, self._directory)
-                  ))
+                        partial_rotations, self._laplace, id,
+                        self._directory, self._counter)
+                )
+            )
 
-        for n in range(self._njobs):
-            processes[n].start()
+        for id in range(self._njobs):
+            processes[id].start()
 
         with progress(total=nrot) as pbar:
             while self._counter.value() < nrot:
                 current_count = self._counter.value()
                 pbar.update(current_count - pbar.n)
         
-        for n in range(self._njobs):
-            processes[n].join()
+        for id in range(self._njobs):
+            processes[id].join()
         self._combine()
 
     def _single_cpu_scan(self, progress):
@@ -135,19 +162,6 @@ class PowerFitter(object):
         correlator.scan(progress)
         self._lcc = correlator.lcc
         self._rot = correlator.rot
-
-
-    @staticmethod
-    def _run_correlator_instance(target, template, mask, rotations, laplace,
-            counter, jobid, queues, directory):
-        correlator = CPUCorrelator(target.array, laplace=laplace)
-        correlator.template = template.array
-        correlator.mask = mask.array
-        correlator.rotations = rotations
-        correlator._counter = counter
-        correlator.scan(lambda x: x)
-        np.save(join(directory, '_lcc_part_{:d}.npy').format(jobid), correlator._lcc)
-        np.save(join(directory, '_rot_part_{:d}.npy').format(jobid), correlator._rot)
 
     def _combine(self):
         # Combine all the intermediate results
