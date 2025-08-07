@@ -252,7 +252,9 @@ def main():
     mkdir_p(args.directory)
     configure_logging(join(args.directory, "powerfit.log"), args.log_level)
     
-    progress = partial(rich_tqdm, desc="Processing rotations", unit="rot", disable=not args.progressbar)
+    progress = partial(
+        rich_tqdm, desc="Processing rotations", unit="rot"
+    ) if args.progressbar else None
 
     powerfit(
         target_volume=args.target,
@@ -291,7 +293,7 @@ def powerfit(target_volume: BinaryIO,
              gpu: str | None =None, 
              nproc: int=1,
              delimiter: str = None,
-             progress: partial[tqdm] = tqdm
+             progress: partial[tqdm] | None = tqdm
              ):
     time0 = time()
     mkdir_p(directory)
@@ -382,7 +384,11 @@ def powerfit(target_volume: BinaryIO,
     logger.info("Starting search")
     time1 = time()
     pf.scan(progress=progress)
-    logger.info("Time for search: {:.0f}m {:.0f}s".format(*divmod(time() - time1, 60)))
+    dtime = time() - time1
+    if dtime < 10:
+        logger.info("Time for search: {:.3f} s".format(dtime))
+    else:
+        logger.info("Time for search: {:.0f}m {:.0f}s".format(*divmod(dtime, 60)))
     logger.info("Analyzing results")
     # calculate the molecular volume of the structure
     mv = (

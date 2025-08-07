@@ -191,5 +191,5 @@ class Correlator(ABC):
         self.compute_lcc_score_and_take_best(n)
 
     @abstractmethod
-    def scan(self, progress: partial[tqdm] = lambda x: x):
+    def scan(self, progress: partial[tqdm] | None):
         pass
