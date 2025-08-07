@@ -4,8 +4,10 @@ from pyopencl.array import Array as ClArray
 from pyopencl.elementwise import ElementwiseKernel
 
 
-from pathlib import Path
 from string import Template
+import importlib.resources
+
+import powerfit_em
 
 
 class CLKernels(object):
@@ -36,9 +38,8 @@ class CLKernels(object):
                 """
                 )
 
-        kernel_file = Path(__file__).parent / "kernels.cl"
-        with kernel_file.open() as f:
-            t = Template(f.read()).substitute(**values)
+        t = importlib.resources.read_text(powerfit_em, "correlators/kernels.cl")
+        t = Template(t).substitute(**values)
 
         self._program = cl.Program(ctx, t).build()
         self._rotate_image3d = self._program.rotate_image3d

@@ -1,9 +1,11 @@
 
-import os.path
 from math import sqrt
 from random import random
+import importlib.resources
 
 import numpy as np
+
+import powerfit_em
 
 
 def euler(angle, axis):
@@ -86,7 +88,6 @@ def random_rotmat():
 
 
 def proportional_orientations(angle):
-    
     # orientation sets available: name of file: (Norientations, degree)
     rot_sets = {'E.npy': (1, 360.0),
                 'c48u1.npy': (24, 62.8),
@@ -121,7 +122,7 @@ def proportional_orientations(angle):
             fname = s
 
     # read file
-    infile = os.path.join(os.path.dirname(__file__), 'data', fname)
+    infile = importlib.resources.open_binary(powerfit_em, f"data/{fname}")
     quat_weights = np.load(infile)
 
     quat = quat_weights[:, :4]
