@@ -5,7 +5,7 @@ import importlib.resources
 
 import numpy as np
 
-import powerfit_em
+import powerfit_em.data
 
 
 def euler(angle, axis):
@@ -122,7 +122,7 @@ def proportional_orientations(angle):
             fname = s
 
     # read file
-    infile = importlib.resources.open_binary(powerfit_em, f"data/{fname}")
+    infile = importlib.resources.open_binary(powerfit_em.data, fname)
     quat_weights = np.load(infile)
 
     quat = quat_weights[:, :4]
