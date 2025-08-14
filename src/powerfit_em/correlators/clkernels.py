@@ -7,7 +7,7 @@ from pyopencl.elementwise import ElementwiseKernel
 from string import Template
 import importlib.resources
 
-import powerfit_em
+import powerfit_em.correlators
 
 
 class CLKernels(object):
@@ -38,7 +38,7 @@ class CLKernels(object):
                 """
                 )
 
-        t = importlib.resources.read_text(powerfit_em, "correlators/kernels.cl")
+        t = importlib.resources.read_text(powerfit_em.correlators, "kernels.cl")
         t = Template(t).substitute(**values)
 
         self._program = cl.Program(ctx, t).build()
