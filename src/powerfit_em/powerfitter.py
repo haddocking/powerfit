@@ -101,7 +101,7 @@ class PowerFitter(object):
         else:
             self._gpu_scan(progress)
 
-    def _gpu_scan(self, progress: partial[tqdm]):
+    def _gpu_scan(self, progress: partial[tqdm] | None):
         if OPENCL:
             from powerfit_em.correlators.gpu import GPUCorrelator
         self._corr = GPUCorrelator(
