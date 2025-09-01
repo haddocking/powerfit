@@ -164,10 +164,14 @@ class CPUCorrelator(Correlator):
         self.lcc[ind] = self.lcc_scan[ind]
         self.rot[ind] = n
 
-    def scan(self, progress: partial[tqdm] = lambda x: x):
+    def scan(self, progress: partial[tqdm] | None = None):
         """Scan all provided rotations to find the best fit."""
         self.vars.lcc.fill(0)
         self.vars.rot.fill(0)
 
-        for n in progress(range(0, self.rotations.shape[0])):
+        _range = range(0, self.rotations.shape[0])
+        if progress is not None:
+            _range = progress(_range)
+        
+        for n in _range:
             self.compute_rotation(n, self.rotations[n])

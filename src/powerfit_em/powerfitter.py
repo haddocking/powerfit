@@ -46,7 +46,7 @@ def run_correlator_instance(
     laplace: bool,
     jobid: int,
     directory: str,
-    counter: _Counter
+    counter: _Counter | None
 ):
     correlator = CPUCorrelator(
         target.array,
@@ -57,8 +57,9 @@ def run_correlator_instance(
     )
     for n in range(len(rotations)):
         correlator.compute_rotation(n, rotmat=correlator.rotations[n])
-        counter.increment()
-        
+        if counter is not None:
+            counter.increment()
+
     np.save(join(directory, '_lcc_part_{:d}.npy').format(jobid), correlator.lcc)
     np.save(join(directory, '_rot_part_{:d}.npy').format(jobid), correlator.rot)
 
@@ -91,7 +92,7 @@ class PowerFitter(object):
         else:
             raise ValueError("Directory does not exist.")
 
-    def scan(self, progress: partial[tqdm]):
+    def scan(self, progress: partial[tqdm] | None):
         if self._queues is None:
             if self._nproc == 1:
                 self._single_cpu_scan(progress)
@@ -100,7 +101,7 @@ class PowerFitter(object):
         else:
             self._gpu_scan(progress)
 
-    def _gpu_scan(self, progress: partial[tqdm]):
+    def _gpu_scan(self, progress: partial[tqdm] | None):
         if OPENCL:
             from powerfit_em.correlators.gpu import GPUCorrelator
         self._corr = GPUCorrelator(
@@ -115,11 +116,11 @@ class PowerFitter(object):
         self._lcc = self._corr.lcc
         self._rot = self._corr.rot
 
-    def _multi_cpu_scan(self, progress: partial[tqdm]):
+    def _multi_cpu_scan(self, progress: partial[tqdm] | None):
         nrot = self._rotations.shape[0]
         self._nrot_per_job = nrot // self._nproc
         processes: list[Process] = []
-        self._counter = _Counter()
+        self._counter = None if processes is None else _Counter()
         self._njobs = self._nproc
         if self._queues is not None:
             self._njobs = len(self._queues)
@@ -142,16 +143,17 @@ class PowerFitter(object):
         for id in range(self._njobs):
             processes[id].start()
 
-        with progress(total=nrot) as pbar:
-            while self._counter.value() < nrot:
-                current_count = self._counter.value()
-                pbar.update(current_count - pbar.n)
+        if progress is not None:
+            with progress(total=nrot) as pbar:
+                while self._counter.value() < nrot:
+                    current_count = self._counter.value()
+                    pbar.update(current_count - pbar.n)
         
         for id in range(self._njobs):
             processes[id].join()
         self._combine()
 
-    def _single_cpu_scan(self, progress):
+    def _single_cpu_scan(self, progress: partial[tqdm] | None):
         correlator = CPUCorrelator(
             self._target.array,
             self._template.array,

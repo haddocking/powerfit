@@ -160,14 +160,19 @@ class GPUCorrelator(Correlator):
         self.vars.lcc.get(ary=self.lcc)
         self.vars.rot.get(ary=self.rot)
 
-    def scan(self, progress: partial[tqdm] = lambda x: x):
+    def scan(self, progress: partial[tqdm] | None):
         """Scan all provided rotations to find the best fit."""
         self.vars.lcc.fill(0)
         self.vars.rot.fill(0)
 
-        for n in progress(range(0, self._rotations.shape[0])):
-            self.compute_rotation(n, self._rotations[n])
-            self.queue.finish() # only necessary if we want to track it/s accuratly
+        _range = range(0, self._rotations.shape[0])
+        if progress is None:
+            for n in _range:
+                self.compute_rotation(n, self._rotations[n])
+        else:
+            for n in progress(_range):
+                self.compute_rotation(n, self._rotations[n])
+                self.queue.finish()
 
         self.retrieve_results()
         self.queue.finish()
