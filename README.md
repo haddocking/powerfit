@@ -200,6 +200,16 @@ docker run --rm -ti \
     -a 20 -l -d /data/run-KsgA-docker-nv --gpu
 ```
 
+To run on Intel integrated graphics use
+
+```shell
+docker run --rm -ti \
+    --device=/dev/dri \
+    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.0.5 \
+    /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
+    -a 20 -l -d /data/run-KsgA-docker-nv --gpu
+```
+
 To run on [AMD GPU](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/docker.html) use
 
 ```shell
@@ -336,7 +346,8 @@ The GPU version has been successfully tested on Linux and with a Docker containe
 * AMD Radeon RX 7900 XTX
 * Intel Iris Xe Graphics (on a Core i7-1185G7)
 
-The integrated graphics of AMD Ryzen CPUs do not officially support OpenCL. If they do seem available in PyOpenCL be aware that this [may lead to incorrect results](https://github.com/haddocking/powerfit/issues/76).
+The integrated graphics of AMD Ryzen CPUs do not officially support OpenCL.
+If they do seem available in PyOpenCL be aware that this [may lead to incorrect results](https://github.com/haddocking/powerfit/issues/76).
 
 ## Development
 
