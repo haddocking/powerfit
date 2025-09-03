@@ -3,6 +3,7 @@
 
 from functools import partial
 from os.path import splitext, join, abspath
+from pathlib import Path
 from time import time
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, BooleanOptionalAction, FileType
 import logging
@@ -56,8 +57,9 @@ def make_parser():
     p.add_argument("resolution", type=float, help="Resolution of map in angstrom")
     p.add_argument(
         "template",
+        nargs="+",
         type=FileType("r"),
-        help="Atomic model to be fitted in the density. "
+        help="Atomic model(s) to be fitted in the density. "
         "Format should either be PDB or mmCIF",
     )
 
@@ -256,10 +258,14 @@ def main():
         rich_tqdm, desc="Processing rotations", unit="rot"
     ) if args.progressbar else None
 
+    if len(set(t.name for t in args.template)) != len(args.template):
+        msg = "Non-unique templates provided. Please check your input."
+        raise ValueError(msg)
+
     powerfit(
         target_volume=args.target,
         resolution=args.resolution,
-        template_structure=args.template,
+        template_structures=args.template,
         angle=args.angle,
         laplace=args.laplace,
         core_weighted=args.core_weighted,
@@ -277,26 +283,75 @@ def main():
     )
 
 
-def powerfit(target_volume: BinaryIO,
-             resolution: float,
-             template_structure: TextIO,
-             angle: float=10,
-             laplace: bool=False,
-             core_weighted: bool=False,
-             no_resampling: bool=False,
-             resampling_rate: float=2,
-             no_trimming: bool=False,
-             trimming_cutoff: float | None=None,
-             chain: str | None =None,
-             directory: str='.',
-             num: int=10,
-             gpu: str | None =None, 
-             nproc: int=1,
-             delimiter: str = None,
-             progress: partial[tqdm] | None = tqdm
-             ):
+def compute_template_mask_volumes(
+    template_structures: list[TextIO],
+    target: Volume,
+    resolution: float,
+    logger: logging.Logger | None = None,
+    chain: str | None = None,
+) -> tuple[list[Volume], list[Volume], list[Structure]]:
+    """Compute the Volumes of each template structure, along with the associated masks."""
+    templates: list[Volume] = []
+    masks: list[Volume] = []
+    structures: list[Structure] = []
+    for template in template_structures:
+        # Read in structure or high-resolution map
+        if logger is not None:
+            logger.info("Template file read from: {:s}".format(abspath(template.name)))
+        structure = Structure.fromfile(template)
+        if chain is not None:
+            if logger is not None:
+                logger.info("Selecting chains: " + chain)
+            structure = structure.select("chain", chain.split(","))
+        if structure.data.size == 0:
+            raise ValueError("No atoms were selected.")
+
+        # Move structure to origin of density
+        structure.translate(target.origin - structure.coor.mean(axis=1))
+        template = structure_to_shape_like(
+            target,
+            structure.coor,
+            resolution=resolution,
+            weights=structure.atomnumber,
+            shape="vol",
+        )
+        mask = structure_to_shape_like(
+            target, structure.coor, resolution=resolution, shape="mask"
+        )
+        templates.append(template)
+        masks.append(mask)
+        structures.append(structure)
+    return templates, masks, structures
+
+
+def powerfit(
+    target_volume: BinaryIO,
+    resolution: float,
+    template_structures: list[TextIO],
+    angle: float=10,
+    laplace: bool=False,
+    core_weighted: bool=False,
+    no_resampling: bool=False,
+    resampling_rate: float=2,
+    no_trimming: bool=False,
+    trimming_cutoff: float | None=None,
+    chain: str | None =None,
+    directory: str='.',
+    num: int=10,
+    gpu: str | None =None, 
+    nproc: int=1,
+    delimiter: str | None = None,
+    progress: partial[tqdm] | None = tqdm,
+):
     time0 = time()
     mkdir_p(directory)
+
+    if len(template_structures) > 1:
+        template_dirs = [Path(directory) / Path(t.name).name for t in template_structures]
+        for d in template_dirs:
+            d.mkdir(exist_ok=True)
+    else:
+        template_dirs = [directory]
 
     # Get GPU queue if requested
     queues = None
@@ -317,7 +372,9 @@ def powerfit(target_volume: BinaryIO,
         if device_idx >= len(devices):
             raise RuntimeError(f"Requested OpenCL device {device_idx} not found on platform {platform_idx}.")
         context = cl.Context(devices=[devices[device_idx]])
-        queues = [cl.CommandQueue(context, device=devices[device_idx])]
+        queues = []
+        for _ in range(nproc):
+            queues.append(cl.CommandQueue(context, device=devices[device_idx]))
 
     logger.info("Target file read from: {:s}".format(abspath(target_volume.name)))
     target = Volume.fromfile(target_volume)
@@ -340,28 +397,10 @@ def powerfit(target_volume: BinaryIO,
     target = extend(target, extended_shape)
     logger.info(("Shape after extending:" + " {:d}" * 3).format(*target.shape))
 
-    # Read in structure or high-resolution map
-    logger.info("Template file read from: {:s}".format(abspath(template_structure.name)))
-    structure = Structure.fromfile(template_structure)
-    if chain is not None:
-        logger.info("Selecting chains: " + chain)
-        structure = structure.select("chain", chain.split(","))
-    if structure.data.size == 0:
-        raise ValueError("No atoms were selected.")
-
-    # Move structure to origin of density
-    structure.translate(target.origin - structure.coor.mean(axis=1))
-    template = structure_to_shape_like(
-        target,
-        structure.coor,
-        resolution=resolution,
-        weights=structure.atomnumber,
-        shape="vol",
+    templates, masks, structures = compute_template_mask_volumes(
+        template_structures, target, resolution, logger, chain
     )
-    mask = structure_to_shape_like(
-        target, structure.coor, resolution=resolution, shape="mask"
-    )
-
+    
     # Read in the rotations to sample
     logger.info("Reading in rotations.")
     q, w, degree = proportional_orientations(angle)
@@ -371,57 +410,84 @@ def powerfit(target_volume: BinaryIO,
 
     # Apply core-weighted mask if requested
     if core_weighted:
-        logger.info("Calculating core-weighted mask.")
-        mask.array = determine_core_indices(mask.array)
+        logger.info("Calculating core-weighted mask(s).")
+        for mask in masks:
+            mask.array = determine_core_indices(mask.array)
 
-    pf = PowerFitter(target, rotmat, template, mask, queues, laplace=laplace)
-    pf._nproc = nproc
-    pf.directory = directory
-    if gpu:
-        logger.info("Using GPU-accelerated search.")
-    else:
-        logger.info("Requested number of processors: {:d}".format(nproc))
-    logger.info("Starting search")
-    time1 = time()
-    pf.scan(progress=progress)
-    dtime = time() - time1
-    if dtime < 10:
-        logger.info("Time for search: {:.3f} s".format(dtime))
-    else:
-        logger.info("Time for search: {:.0f}m {:.0f}s".format(*divmod(dtime, 60)))
-    logger.info("Analyzing results")
-    # calculate the molecular volume of the structure
-    mv = (
-        structure_to_shape_like(
-            target,
-            structure.coor,
-            resolution=resolution,
-            radii=structure.rvdw,
-            shape="mask",
-        ).array.sum()
-        * target.voxelspacing**3
-    )
-    z_sigma = fisher_sigma(mv, resolution)
-    analyzer = Analyzer(
-        pf._lcc,
-        rotmat,
-        pf._rot,
-        voxelspacing=target.voxelspacing,
-        origin=target.origin,
-        z_sigma=z_sigma,
-    )
+    # from IPython import embed; embed(); quit()
+    setups = list(zip(templates, masks, structures, template_dirs, strict=True))
+    pfs: list[PowerFitter] = []
+    while len(setups) > 0:
+        # No reuse required for CPU
+        if queues is None:
+            template, mask, structure, output_dir = setups.pop()
+            pfs = [PowerFitter(target, rotmat, structure, template, mask, queues, str(output_dir), nproc, laplace)]
+        # Setup <nproc> queues for GPU
+        else:
+            for n in range(len(queues)):
+                template, mask, structure, output_dir = setups.pop()
+                if len(pfs) <= n: # First time initialize the powerfitters
+                    pfs.append(PowerFitter(target, rotmat, structure, template, mask, queues[n], str(output_dir), nproc, laplace))
+                else: # Afterwards reuse powerfitters
+                    pfs[n].set_template(template, mask, structure)
 
-    logger.info("Writing solutions to file.")
-    Volume(pf._lcc, target.voxelspacing, target.origin).tofile(
-        join(directory, "lcc.mrc")
-    )
-    analyzer.tofile(join(directory, "solutions.out"), delimiter=delimiter)
+        if gpu:
+            logger.info(f"Using GPU-accelerated search, using {nproc} queues.")
+        else:
+            logger.info(f"Requested number of processors: {nproc}")
+        logger.info("Starting search")
+        if len(templates) > 1:
+            logger.info(f"Correlating {len(templates)} template structures.")
+        time1 = time()
 
-    logger.info("Writing PDBs to file.")
-    n = min(num, len(analyzer.solutions))
-    write_fits_to_pdb(
-        structure, analyzer.solutions[:n], basename=join(directory, "fit")
-    )
+        for pf in pfs:
+            pf.scan(progress=progress)
+
+        # GPU retrieval is blocking; let scans run in parallel queues before retrieving.
+        for pf in pfs:
+            pf.retrieve_results()
+
+        dtime = time() - time1
+        if dtime < 10:
+            logger.info("Time for search: {:.3f} s".format(dtime))
+        else:
+            logger.info("Time for search: {:.0f}m {:.0f}s".format(*divmod(dtime, 60)))
+
+        logger.info("Analyzing results")
+
+        for pf in pfs:
+            # calculate the molecular volume of the structure
+            mv = (
+                structure_to_shape_like(
+                    target,
+                    pf.structure.coor,
+                    resolution=resolution,
+                    radii=pf.structure.rvdw,
+                    shape="mask",
+                ).array.sum()
+                * target.voxelspacing**3
+            )
+            z_sigma = fisher_sigma(mv, resolution)
+            analyzer = Analyzer(
+                pf._lcc,
+                rotmat,
+                pf._rot,
+                voxelspacing=target.voxelspacing,
+                origin=target.origin,
+                z_sigma=z_sigma,
+            )
+
+            logger.info("Writing solutions to file.")
+            Volume(pf._lcc, target.voxelspacing, target.origin).tofile(
+                join(pf._directory, "lcc.mrc")
+            )
+            analyzer.tofile(join(pf._directory, "solutions.out"), delimiter=delimiter)
+
+            logger.info("Writing PDBs to file.")
+            n = min(num, len(analyzer.solutions))
+            write_fits_to_pdb(
+                pf.structure, analyzer.solutions[:n], basename=join(pf._directory, "fit")
+            )
 
     logger.info("Total time: {:.0f}m {:.0f}s".format(*divmod(time() - time0, 60)))
 

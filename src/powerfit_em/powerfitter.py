@@ -9,6 +9,9 @@ import numpy as np
 from tqdm.auto import tqdm
 
 from powerfit_em.correlators.cpu import CPUCorrelator
+from powerfit_em.correlators.gpu import GPUCorrelator
+from powerfit_em.correlators.shared import Correlator
+from powerfit_em.structure import Structure
 from powerfit_em.volume import Volume
 try:
     import pyfftw as _
@@ -70,27 +73,27 @@ class PowerFitter(object):
     """
 
     def __init__(
-        self, target: Volume, rotations: np.ndarray, template: Volume, mask: Volume, queues, laplace: bool = False
+        self,
+        target: Volume,
+        rotations: np.ndarray,
+        structure: Structure,
+        template: Volume,
+        mask: Volume,
+        queues,
+        directory = abspath('./'),
+        nproc: int = 1,
+        laplace: bool = False
     ):
         self._target = target
         self._rotations = rotations
+        self.structure = structure
         self._template = template
         self._mask = mask
         self._queues = queues
-        self._nproc = 1
-        self._directory = abspath('./')
+        self._nproc = nproc
+        self._directory = directory
         self._laplace = laplace
-
-    @property
-    def directory(self):
-        return self._directory
-
-    @directory.setter
-    def directory(self, directory):
-        if isdir(directory):
-            self._directory = abspath(directory)
-        else:
-            raise ValueError("Directory does not exist.")
+        self._corr: Correlator | None = None
 
     def scan(self, progress: partial[tqdm] | None):
         if self._queues is None:
@@ -101,6 +104,22 @@ class PowerFitter(object):
         else:
             self._gpu_scan(progress)
 
+    def retrieve_results(self):
+        if isinstance(self._corr, GPUCorrelator):
+            self._corr.retrieve_results()
+            self._lcc = self._corr.lcc
+            self._rot = self._corr.rot
+
+    def set_template(self, template: Volume, mask: Volume, structure: Structure):
+        self.structure = structure
+        if self._corr is not None:
+            self._corr.set_template(template.array, mask.array)
+            self._lcc = np.zeros(0, dtype=self._lcc.dtype)
+            self._rot = np.zeros(0, dtype=self._rot.dtype)
+        else:
+            msg = "Correlator undefined. First do a scan before trying to (re)set the template."
+            raise ValueError(msg)
+
     def _gpu_scan(self, progress: partial[tqdm] | None):
         if OPENCL:
             from powerfit_em.correlators.gpu import GPUCorrelator
@@ -109,12 +128,10 @@ class PowerFitter(object):
             self._template.array,
             self._rotations,
             self._mask.array,
-            self._queues[0],
+            self._queues,
             self._laplace,
         )
         self._corr.scan(progress)
-        self._lcc = self._corr.lcc
-        self._rot = self._corr.rot
 
     def _multi_cpu_scan(self, progress: partial[tqdm] | None):
         nrot = self._rotations.shape[0]

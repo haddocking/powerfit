@@ -14,7 +14,7 @@ from powerfit_em.correlators.shared import Correlator, Vars, VarsFT, get_ft_shap
 
 
 def init_gpu_vars(
-    queue: cl.CommandQueue, target: np.ndarray, mask: np.ndarray, laplace: bool,
+    queue: cl.CommandQueue, target: np.ndarray, laplace: bool,
 ) -> tuple[Vars[ClArray, Image], VarsFT[ClArray]]:
     """Initialize all GPU variables on the specified queue."""
     lcc_mask = get_lcc_mask(target)
@@ -23,7 +23,7 @@ def init_gpu_vars(
     gpu_vars = Vars(
         target = cl_array.to_device(queue, _t.astype(f32)),
         template = cl.image_from_array(queue.context, zeros),  # template is set through separate method
-        mask = cl.image_from_array(queue.context, mask.astype(f32)),
+        mask = cl.image_from_array(queue.context, zeros),  # mask is set through separate method
         lcc_mask = cl_array.to_device(queue, lcc_mask.astype(i32)),
         target2 = cl_array.to_device(queue, zeros),
         rot_template = cl_array.to_device(queue, zeros),
@@ -108,18 +108,16 @@ class GPUCorrelator(Correlator):
         self.laplace = laplace
         self.mask = mask
         self.queue = queue
+        self.norm_factor = 0.0  # to be set by set_template
 
         self._rotations = transform_rotations(rotations)
 
-        # Precompute the normalization factor for use in the LCC computing kernel
-        self.norm_factor = get_normalization_factor(mask)
-
-        self.vars, self.vars_ft = init_gpu_vars(queue, self.target, mask, self.laplace)
+        self.vars, self.vars_ft = init_gpu_vars(queue, self.target, self.laplace)
 
         self.lcc = np.zeros(self.target.shape, dtype=np.float32)
         self.rot = np.zeros(self.target.shape, dtype=np.int32)
 
-        self.set_template(template)
+        self.set_template(template, mask)
 
         self.cl_kernels = generate_kernels(queue, self.target)
         self.conj_multiply = self.cl_kernels.conj_multiply
@@ -130,6 +128,9 @@ class GPUCorrelator(Correlator):
 
     def _set_template_var(self, template: np.ndarray):
         self.vars.template = cl.image_from_array(self.vars.template.context, template.astype(f32))
+
+    def _set_mask_var(self, mask: np.ndarray):
+        self.vars.mask = cl.image_from_array(self.vars.mask.context, mask.astype(f32))
 
     def rotate_grids(self, rotmat: np.ndarray):
         """Rotate the template and mask using the rotational matrix."""
@@ -159,6 +160,7 @@ class GPUCorrelator(Correlator):
         """Retrieve the results from the GPU."""
         self.vars.lcc.get(ary=self.lcc)
         self.vars.rot.get(ary=self.rot)
+        self.queue.finish()
 
     def scan(self, progress: partial[tqdm] | None):
         """Scan all provided rotations to find the best fit."""
@@ -173,6 +175,3 @@ class GPUCorrelator(Correlator):
             for n in progress(_range):
                 self.compute_rotation(n, self._rotations[n])
                 self.queue.finish()
-
-        self.retrieve_results()
-        self.queue.finish()

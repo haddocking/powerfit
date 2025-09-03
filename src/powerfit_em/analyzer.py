@@ -4,8 +4,8 @@ from scipy.ndimage import label, maximum_position
 class Analyzer(object):
 
 
-    def __init__(self, corr, rotmat, rotmat_ind, steps=5, voxelspacing=1,
-                 origin=(0, 0, 0), z_sigma=1):
+    def __init__(self, corr, rotmat, rotmat_ind, steps=5, voxelspacing=1.0,
+                 origin=(0, 0, 0), z_sigma=1.0):
         self._corr = corr
         self._rotmat = rotmat
         self._rotmat_ind = rotmat_ind
