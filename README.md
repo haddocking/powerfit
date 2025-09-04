@@ -342,6 +342,7 @@ Copyright (c) 2005-2015, Christoph Gohlke
 The GPU version has been successfully tested on Linux and with a Docker container for the following devices;
 
 * NVIDIA GeForce GTX 1050 Ti
+* NVIDIA GeForce RTX 4070
 * AMD Radeon RX 7800 XT
 * AMD Radeon RX 7900 XTX
 * Intel Iris Xe Graphics (on a Core i7-1185G7)
