@@ -203,7 +203,7 @@ def make_parser():
         dest="progressbar",
         action=BooleanOptionalAction,
         default=True,
-        help="Show a progress bar during the search.",
+        help="Show a progress bar during the search. Disabling the progressbar will improve performance.",
     )
 
     return p
