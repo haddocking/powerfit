@@ -30,7 +30,7 @@ Minimal requirements for the CPU version:
 * FFTW3
 * pyFFTW 0.10+
 
-To offload computations to the GPU the following is also required
+To offload computations to a discrete or integrated\* GPU the following is also required
 
 * OpenCL1.1+
 * pyopencl
@@ -40,6 +40,8 @@ Recommended for installation
 
 * git
 * pip
+
+\* _Integrated graphics on CPUs are able to signficantly outperform the native CPU implementation in some cases. This is mostly applicable to Intel devices, see the section [tested platfoms](#tested-platforms)_.
 
 ## Installation
 
@@ -198,6 +200,16 @@ docker run --rm -ti \
     -a 20 -l -d /data/run-KsgA-docker-nv --gpu
 ```
 
+To run on Intel integrated graphics use
+
+```shell
+docker run --rm -ti \
+    --device=/dev/dri \
+    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.0.5 \
+    /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
+    -a 20 -l -d /data/run-KsgA-docker-nv --gpu
+```
+
 To run on [AMD GPU](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/docker.html) use
 
 ```shell
@@ -327,10 +339,16 @@ Copyright (c) 2005-2015, Christoph Gohlke
 |MacOSX           | Yes        | Yes       | No  |
 |Windows          | Yes        | Fail      | No  |
 
-The GPU version has been tested on:
+The GPU version has been successfully tested on Linux and with a Docker container for the following devices;
 
-* NVIDIA GeForce GTX 1050 Ti, GeForce RTX 4070 and AMD Radeon RX 7900 XTX on Linux 
-* NVIDIA GeForce GTX 1050 Ti, AMD Radeon RX 7800 XT and AMD Radeon RX 7900 XTX in Docker container
+* NVIDIA GeForce GTX 1050 Ti
+* NVIDIA GeForce RTX 4070
+* AMD Radeon RX 7800 XT
+* AMD Radeon RX 7900 XTX
+* Intel Iris Xe Graphics (on a Core i7-1185G7)
+
+The integrated graphics of AMD Ryzen CPUs do not officially support OpenCL.
+If they do seem available in PyOpenCL be aware that this [may lead to incorrect results](https://github.com/haddocking/powerfit/issues/76).
 
 ## Development
 
