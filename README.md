@@ -282,6 +282,8 @@ rotation matrix values.
 correlation score found during the rotational search.
 * *powerfit.log*: a log file, including the input parameters with date and
 timing information.
+* *report.html*: an HTML report with interactive 3D visualization of the best fits.
+  Only written if the `--report --delimiter ,` arguments are passed.
 
 ## Creating an image-pyramid
 
