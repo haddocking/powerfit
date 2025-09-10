@@ -24,6 +24,10 @@ def _add_density_to_builder(builder: Root, density: Path) -> VolumeRepresentatio
         builder.download(url=density.name)
         .parse(format="map")
         .volume()
+        # the right isovalue depends on the density
+        # You can use molstar to change it in many steps:
+        # Controls panel > State Tree > Isosurface > Update 3D representation > ... of type > slide isovalue
+        # TODO add a slider in a copy of STORIES_TEMPLATE to easy change it
         .representation(type="isosurface", relative_isovalue=3, show_wireframe=True)
         .color(color="gray")
         .opacity(opacity=0.2)
@@ -119,6 +123,7 @@ def generate_report(
 
     report = run_dir / "report.html"
     template = STORIES_TEMPLATE
+    # TODO add download link for density map in template
     format = "mvsj"
     molstar_version: str = "latest"
     body = (
