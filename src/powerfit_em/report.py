@@ -16,7 +16,6 @@ from molviewspec import (
 from molviewspec.builder import Representation, Root, VolumeRepresentation
 from molviewspec.molstar_widgets import STORIES_TEMPLATE
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -37,6 +36,8 @@ def _add_model_to_builder(builder: Root, model: Path) -> Representation:
         .parse(format="pdb")
         .model_structure()
         .component()
+        # Focus on fitted model with some of the density around it
+        .focus(radius_factor=3)
         .representation()
         .color(color="blue")
     )
