@@ -1,4 +1,5 @@
 import logging
+import os
 from pathlib import Path
 import csv
 import shutil
@@ -126,11 +127,11 @@ def generate_report(
     )
     report.write_text(body)
 
-    rel_report = report.relative_to(Path.cwd(), walk_up=True)
-    rel_run_dir = run_dir.relative_to(Path.cwd(), walk_up=True)
+    rel_report = Path(os.path.relpath(report, Path.cwd()))
+    rel_run_dir = Path(os.path.relpath(run_dir, Path.cwd()))
     logger.warning(
         f"Report generated at {rel_report}. Start web server with "
-        f"`cd {rel_run_dir};python3 -m http.server`. "
+        f"`python3 -m http.server -d {rel_run_dir}`. "
         "Open http://localhost:8000/report.html in a web browser to view the results."
     )
 
