@@ -1,6 +1,4 @@
-
-
-FROM python:3.12 AS build
+FROM python:3.12-bookworm AS build
 # Downgraded to python 3.12 so binary wheel for siphash24 is available
 
 WORKDIR /src
@@ -16,9 +14,10 @@ RUN python -m build --wheel
 # Build wheel for pyvkfft in build container to reduce final image size
 RUN pip wheel -w dist --no-deps pyvkfft
 
-FROM python:3.12-slim
+FROM python:3.12-slim-bookworm
 
 RUN apt update && apt install -y ocl-icd-libopencl1
+RUN apt install -y intel-opencl-icd
 
 COPY --from=build /src/dist/*.whl /opt/
 
