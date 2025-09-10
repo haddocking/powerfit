@@ -26,8 +26,8 @@ def _add_density_to_builder(builder: Root, density: Path) -> VolumeRepresentatio
         .parse(format="map")
         .volume()
         .representation(type="isosurface", relative_isovalue=3, show_wireframe=True)
-        .color(color="green")
-        .opacity(opacity=0.1)
+        .color(color="gray")
+        .opacity(opacity=0.2)
     )
 
 
