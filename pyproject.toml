@@ -26,6 +26,8 @@ dependencies = [
     "scipy",
     "tqdm",
     "rich",
+    # molviewspec has pydantic<3,>=1, but wasm needs pydantic >=2
+    "pydantic>=2,<3; platform_machine == 'wasm32'",
     "molviewspec>=1.6.0",
 ]
 
