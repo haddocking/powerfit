@@ -188,204 +188,215 @@ def generate_html(
     # template was copied from molviewspec.molstar_widgets.STORIES_TEMPLATE and heavily modified
     template = Template(
         dedent("""\
-        <!DOCTYPE html>
-        <html lang="en">
-        <head>
-            <style>
-                * {
-                    margin: 0;
-                    padding: 0;
-                    box-sizing: border-box;
-                }
+            <!DOCTYPE html>
+            <html lang="en">
 
-                html, body {
-                    height: 100%;
-                    width: 100%;
-                }
+            <head>
+                <style>
+                    * {
+                        margin: 0;
+                        padding: 0;
+                        box-sizing: border-box;
+                    }
 
-                body {
-                    min-height: 100vh;
-                    min-width: 100vw;
-                    display: flex;
-                    flex-direction: column;
-                    background: #fff;
-                }
+                    html,
+                    body {
+                        height: 100%;
+                        width: 100%;
+                    }
 
-                header {
-                    background: #F6F5F3;
-                    padding: 1rem;
-                    border-bottom: 1px solid #ccc;
-                    display: flex;
-                    justify-content: space-between;
-                }
-
-                #iso-number {
-                    width: 4rem;
-                }
-                               
-                .options li {
-                    list-style-position: inside;
-                }
-
-                .container {
-                    flex: 1 1 auto;
-                    display: flex;
-                    flex-direction: row;
-                    width: 100vw;
-                    height: 0; /* let flexbox control height */
-                    min-height: 0;
-                }
-
-                #viewer {
-                    flex: 2 1 0;
-                    min-width: 0;
-                    position: relative;
-                    height: 100%;
-                }
-
-                #controls {
-                    flex: 1 1 0;
-                    min-width: 320px;
-                    max-width: 600px;
-                    padding: 16px;
-                    padding-bottom: 20px;
-                    border-left: 1px solid #ccc;
-                    background: #F6F5F3;
-                    display: flex;
-                    flex-direction: column;
-                    gap: 16px;
-                    height: 100%;
-                    box-sizing: border-box;
-                }
-
-                @media (orientation:portrait), (max-width: 900px) {
-                    .container {
+                    body {
+                        min-height: 100vh;
+                        min-width: 100vw;
+                        display: flex;
                         flex-direction: column;
+                        background: #fff;
                     }
+
+                    header {
+                        background: #F6F5F3;
+                        padding: 1rem;
+                        border-bottom: 1px solid #ccc;
+                        display: flex;
+                        justify-content: space-between;
+                    }
+
+                    #iso-number {
+                        width: 4rem;
+                    }
+
+                    .options li {
+                        list-style-position: inside;
+                    }
+
+                    .container {
+                        flex: 1 1 auto;
+                        display: flex;
+                        flex-direction: row;
+                        width: 100vw;
+                        height: 0;
+                        /* let flexbox control height */
+                        min-height: 0;
+                    }
+
                     #viewer {
-                        flex: 1 1 0;
-                        min-height: 300px;
-                        height: 50vh;
+                        flex: 2 1 0;
+                        min-width: 0;
+                        position: relative;
+                        height: 100%;
                     }
+
                     #controls {
                         flex: 1 1 0;
-                        min-width: 0;
-                        max-width: none;
-                        border-left: none;
-                        border-top: 1px solid #ccc;
-                        height: auto;
+                        min-width: 320px;
+                        max-width: 600px;
+                        padding: 16px;
+                        padding-bottom: 20px;
+                        border-left: 1px solid #ccc;
+                        background: #F6F5F3;
+                        display: flex;
+                        flex-direction: column;
+                        gap: 16px;
+                        height: 100%;
+                        box-sizing: border-box;
                     }
-                    .msp-viewport-controls-buttons {
-                        display: none;
+
+                    @media (orientation:portrait),
+                    (max-width: 900px) {
+                        .container {
+                            flex-direction: column;
+                        }
+
+                        #viewer {
+                            flex: 1 1 0;
+                            min-height: 300px;
+                            height: 50vh;
+                        }
+
+                        #controls {
+                            flex: 1 1 0;
+                            min-width: 0;
+                            max-width: none;
+                            border-left: none;
+                            border-top: 1px solid #ccc;
+                            height: auto;
+                        }
+
+                        .msp-viewport-controls-buttons {
+                            display: none;
+                        }
                     }
-                }
-            </style>
-            <script src="https://cdn.jsdelivr.net/npm/molstar@latest/build/mvs-stories/mvs-stories.js"></script>
-            <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/molstar@latest/build/mvs-stories/mvs-stories.css" />
-        </head>
-        <body>
-            <header>
-                <h4>PowerFit Report</h4>
-                <details title="Options used for fitting">
-                    <summary>Options</summary>
-                    <span>The following options were used for fitting:</span>
-                    <ul class="options">
-                    ${options}
-                    </ul>
-                </details>
-                <a href="${target}" target="_blank" rel="noreferrer" >Download density map</a>
-                <label title="Adjust the iso value of the density map.">
-                    Iso value
-                    <input id="iso-slider" type="range" min="${iso_min}" max="${iso_max}" value="${iso_value}" step="${iso_step}" />
-                    <input id="iso-number" type="number" min="${iso_min}" max="${iso_max}" value="${iso_value}" step="${iso_step}" />
-                </label>
-            </header>
-            <div class="container">
-                <div id="viewer">
-                    <mvs-stories-viewer />
+                </style>
+                <script src="https://cdn.jsdelivr.net/npm/molstar@latest/build/mvs-stories/mvs-stories.js"></script>
+                <link rel="stylesheet" type="text/css"
+                    href="https://cdn.jsdelivr.net/npm/molstar@latest/build/mvs-stories/mvs-stories.css" />
+            </head>
+
+            <body>
+                <header>
+                    <h4>PowerFit Report</h4>
+                    <details title="Options used for fitting">
+                        <summary>Options</summary>
+                        <span>The following options were used for fitting:</span>
+                        <ul class="options">
+                            ${options}
+                        </ul>
+                    </details>
+                    <a href="${target}" target="_blank" rel="noreferrer">Download density map</a>
+                    <label title="Adjust the iso value of the density map.">
+                        Iso value
+                        <input id="iso-slider" type="range" min="${iso_min}" max="${iso_max}" value="${iso_value}"
+                            step="${iso_step}" />
+                        <input id="iso-number" type="number" min="${iso_min}" max="${iso_max}" value="${iso_value}"
+                            step="${iso_step}" />
+                    </label>
+                </header>
+                <div class="container">
+                    <div id="viewer">
+                        <mvs-stories-viewer />
+                    </div>
+                    <div id="controls">
+                        <mvs-stories-snapshot-markdown style="flex-grow: 1;" />
+                    </div>
                 </div>
-                <div id="controls">
-                    <mvs-stories-snapshot-markdown style="flex-grow: 1;" />
-                </div>
-            </div>
+                <script>
+                    mvsStories.loadFromURL('${state}', { format: 'mvsj' });
 
-            <script>
-                mvsStories.loadFromURL('${state}', { format: 'mvsj' });
+                    let listenerAdded = false;
+                    const slider = document.getElementById('iso-slider');
+                    const number = document.getElementById('iso-number');
+                    let currentIsoValue = parseFloat(number.value);
 
-                let listenerAdded = false;
-                const slider = document.getElementById('iso-slider');
-                const number = document.getElementById('iso-number');
-                let currentIsoValue = parseFloat(number.value);
+                    function updateIsoValue(newIsoValue) {
+                        const context = mvsStories.getContext();
+                        const viewer = context.state.viewers.value[0].model;
+                        const plugin = viewer.plugin;
+                        // Find and update all isosurface representations in the Mol* viewer
+                        const state = viewer.plugin.state.data;
+                        const isosurfaceNodes = Array.from(viewer.plugin.state.data.cells.values().filter(v => v.obj.label === 'Isosurface'))
 
-                function updateIsoValue(newIsoValue) {
-                    const context = mvsStories.getContext();
-                    const viewer = context.state.viewers.value[0].model;
-                    const plugin = viewer.plugin;
-                    // Find and update all isosurface representations in the Mol* viewer
-                    const state = viewer.plugin.state.data;
-                    const isosurfaceNodes =  Array.from(viewer.plugin.state.data.cells.values().filter(v => v.obj.label === 'Isosurface'))
+                        // Update the relativeIsoValue for each isosurface
+                        const b = state.build();
 
-                    // Update the relativeIsoValue for each isosurface
-                    const b = state.build();
+                        isosurfaceNodes.forEach(cell => {
+                            const params = cell.params?.values;
+                            if (!params?.type?.params?.isoValue) return;
 
-                    isosurfaceNodes.forEach(cell => {
-                        const params = cell.params?.values;
-                        if (!params?.type?.params?.isoValue) return;
-
-                        const nextParams = {
-                            ...params,
-                            type: {
-                                ...params.type,
-                                params: {
-                                    ...params.type.params,
-                                    isoValue: {
-                                        kind: 'relative',
-                                        relativeValue: newIsoValue
+                            const nextParams = {
+                                ...params,
+                                type: {
+                                    ...params.type,
+                                    params: {
+                                        ...params.type.params,
+                                        isoValue: {
+                                            kind: 'relative',
+                                            relativeValue: newIsoValue
+                                        }
                                     }
                                 }
-                            }
-                        };
+                            };
 
-                        b.to(cell.transform.ref).update(nextParams);
-                    });
-                    plugin.runTask(state.updateTree(b));
-
-                    if (!listenerAdded) {
-                        viewer.subscribe(viewer.plugin.managers.snapshot.events.changed, () => {
-                            // wait a frame to apply iso so volume is present
-                            requestAnimationFrame(() => {
-                                updateIsoValue(currentIsoValue);
-                            });
+                            b.to(cell.transform.ref).update(nextParams);
                         });
-                        listenerAdded = true;
-                    }
-                }
+                        plugin.runTask(state.updateTree(b));
 
-                slider.addEventListener('input', (event) => {
-                    const newIsoValue = parseFloat(event.target.value);
-                    if (newIsoValue === currentIsoValue) {
-                        return
+                        if (!listenerAdded) {
+                            viewer.subscribe(viewer.plugin.managers.snapshot.events.changed, () => {
+                                // wait a frame to apply iso so volume is present
+                                requestAnimationFrame(() => {
+                                    updateIsoValue(currentIsoValue);
+                                });
+                            });
+                            listenerAdded = true;
+                        }
                     }
-                    currentIsoValue = newIsoValue;
-                    updateIsoValue(currentIsoValue);
-                    if (number.value !== event.target.value) {
-                        number.value = currentIsoValue;
-                    }
-                });
-                number.addEventListener('input', (event) => {
-                    const newIsoValue = parseFloat(event.target.value);
-                    if (newIsoValue === currentIsoValue) {
-                        return
-                    }
-                    currentIsoValue = newIsoValue;
-                    updateIsoValue(currentIsoValue);
-                    if (slider.value !== event.target.value) {
-                        slider.value = currentIsoValue;
-                    }
-                });
-            </script>
-        </body>
-        </html>
+
+                    slider.addEventListener('input', (event) => {
+                        const newIsoValue = parseFloat(event.target.value);
+                        if (newIsoValue === currentIsoValue) {
+                            return;
+                        }
+                        currentIsoValue = newIsoValue;
+                        updateIsoValue(currentIsoValue);
+                        if (number.value !== event.target.value) {
+                            number.value = currentIsoValue;
+                        }
+                    });
+                    number.addEventListener('input', (event) => {
+                        const newIsoValue = parseFloat(event.target.value);
+                        if (newIsoValue === currentIsoValue) {
+                            return;
+                        }
+                        currentIsoValue = newIsoValue;
+                        updateIsoValue(currentIsoValue);
+                        if (slider.value !== event.target.value) {
+                            slider.value = currentIsoValue;
+                        }
+                    });
+                </script>
+            </body>
+
+            </html>
     """)
     )
     li_options = "\n".join(
