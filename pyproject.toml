@@ -26,8 +26,9 @@ dependencies = [
     "scipy",
     "tqdm",
     "rich",
-    # molviewspec has pydantic as dep but a working 2x version can not be found on PyPi, so use url
-    "https://cdn.jsdelivr.net/pyodide/v0.28.2/full/pydantic-2.10.6-py3-none-any.whl; platform_machine == 'wasm32'",
+    # molviewspec has pydantic<3,>=1, but its code needs pydantic>=2
+    "pydantic-core>=2,<3; platform_machine == 'wasm32'",
+    "pydantic>=2,<3; platform_machine == 'wasm32'",
     "molviewspec>=1.6.0",
 ]
 
