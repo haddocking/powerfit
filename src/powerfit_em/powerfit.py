@@ -26,7 +26,9 @@ from powerfit_em import (
 from powerfit_em.powerfitter import PowerFitter
 from powerfit_em.analyzer import Analyzer
 from powerfit_em.helpers import mkdir_p, write_fits_to_pdb, fisher_sigma
+from powerfit_em.report import generate_report
 from powerfit_em.volume import extend, nearest_multiple2357, trim, resample
+
 try:
     import pyopencl as cl
     OPENCL = True
@@ -282,8 +284,18 @@ def main():
         progress=progress
     )
     if args.report:
-        from powerfit_em.report import generate_report
-        generate_report(args.directory, args.target.name, args.num, args.delimiter)
+        # Report shows all options that affect the fitting
+        options = {
+            'resolution': args.resolution,
+            'angle': args.angle,
+            'laplace': args.laplace,
+            'core_weighted': args.core_weighted,
+            'no_resampling': args.no_resampling,
+            'resampling_rate': args.resampling_rate,
+            'no_trimming': args.no_trimming,
+            'trimming_cutoff': args.trimming_cutoff,
+        }
+        generate_report(args.directory, args.target.name, args.num, args.delimiter, options=options)
 
 
 def powerfit(target_volume: BinaryIO,
