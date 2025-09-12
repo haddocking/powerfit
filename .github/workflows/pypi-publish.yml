@@ -36,6 +36,7 @@ jobs:
           - os: pyodide
             runs-on: ubuntu-latest
             platform: pyodide
+            archs: wasm32
     steps:
       - uses: actions/checkout@v4
         with:
