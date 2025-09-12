@@ -302,7 +302,12 @@ def generate_html(
                             ${options}
                         </ul>
                     </details>
-                    <a href="${target}" target="_blank" rel="noreferrer">Download density map</a>
+                    <div>
+                        Download:
+                        <a href="${target}" target="_blank" rel="noreferrer">density map</a>
+                        <a href="solutions.out" target="_blank" rel="noreferrer">solutions</a>
+                        <a href="lcc.mrc" target="_blank" rel="noreferrer">cross-correlation</a>
+                    </div>
                     <label title="Adjust the iso value of the density map.">
                         Iso value
                         <input id="iso-slider" type="range" min="${iso_min}" max="${iso_max}" value="${iso_value}"
