@@ -3,12 +3,14 @@
 
 from functools import partial
 from os.path import splitext, join, abspath
+from pathlib import Path
 from time import time
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, BooleanOptionalAction, FileType
 import logging
 from typing import BinaryIO, TextIO
 import warnings
 
+import numpy as np
 from rich.logging import RichHandler
 from tqdm import TqdmExperimentalWarning
 from tqdm.rich import tqdm as rich_tqdm
@@ -25,7 +27,7 @@ from powerfit_em import (
 )
 from powerfit_em.powerfitter import PowerFitter
 from powerfit_em.analyzer import Analyzer
-from powerfit_em.helpers import mkdir_p, write_fits_to_pdb, fisher_sigma
+from powerfit_em.helpers import write_fits_to_pdb, fisher_sigma
 from powerfit_em.volume import extend, nearest_multiple2357, trim, resample
 try:
     import pyopencl as cl
@@ -249,7 +251,7 @@ def configure_logging(log_file, log_level= "INFO"):
 def main():
     args = parse_args()
     
-    mkdir_p(args.directory)
+    Path(args.directory).mkdir(exist_ok=True)
     configure_logging(join(args.directory, "powerfit.log"), args.log_level)
     
     progress = partial(
@@ -277,69 +279,70 @@ def main():
     )
 
 
-def powerfit(target_volume: BinaryIO,
-             resolution: float,
-             template_structure: TextIO,
-             angle: float=10,
-             laplace: bool=False,
-             core_weighted: bool=False,
-             no_resampling: bool=False,
-             resampling_rate: float=2,
-             no_trimming: bool=False,
-             trimming_cutoff: float | None=None,
-             chain: str | None =None,
-             directory: str='.',
-             num: int=10,
-             gpu: str | None =None, 
-             nproc: int=1,
-             delimiter: str = None,
-             progress: partial[tqdm] | None = tqdm
-             ):
-    time0 = time()
-    mkdir_p(directory)
+def get_gpu_queue(gpu: str) -> "cl.CommandQueue":
+    """Request an OpenCL Queue."""
+    if not OPENCL:
+        msg = "Running on GPU requires the pyopencl package, however importing pyopencl failed."
+        raise ValueError(msg)
+    # TODO allow to omit platform, so gpu='4' runs 5th device on first platform
+    if ':' in gpu:
+        platform_idx, device_idx = map(int, gpu.split(':'))
+    else:
+        platform_idx, device_idx = 0, 0
+    platforms = cl.get_platforms()
+    if platform_idx >= len(platforms):
+        raise RuntimeError(f"Requested OpenCL platform {platform_idx} not found.")
+    platform = platforms[platform_idx]
+    devices = platform.get_devices()
+    if device_idx >= len(devices):
+        raise RuntimeError(f"Requested OpenCL device {device_idx} not found on platform {platform_idx}.")
+    context = cl.Context(devices=[devices[device_idx]])
+    return cl.CommandQueue(context, device=devices[device_idx])
 
-    # Get GPU queue if requested
-    queues = None
-    if gpu:
-        if not OPENCL:
-            msg = "Running on GPU requires the pyopencl package, however importing pyopencl failed."
-            raise ValueError(msg)
-        # TODO allow to omit platform, so gpu='4' runs 5th device on first platform
-        if isinstance(gpu, str) and ':' in gpu:
-            platform_idx, device_idx = map(int, gpu.split(':'))
-        else:
-            platform_idx, device_idx = 0, 0
-        platforms = cl.get_platforms()
-        if platform_idx >= len(platforms):
-            raise RuntimeError(f"Requested OpenCL platform {platform_idx} not found.")
-        platform = platforms[platform_idx]
-        devices = platform.get_devices()
-        if device_idx >= len(devices):
-            raise RuntimeError(f"Requested OpenCL device {device_idx} not found on platform {platform_idx}.")
-        context = cl.Context(devices=[devices[device_idx]])
-        queues = [cl.CommandQueue(context, device=devices[device_idx])]
 
+def setup_target(
+    target_volume: BinaryIO,
+    resolution: float,
+    no_resampling: bool,
+    resampling_rate: float,
+    no_trimming: bool,
+    trimming_cutoff: float | None,
+) -> Volume:
+    """Load and preprocess the target density."""
     logger.info("Target file read from: {:s}".format(abspath(target_volume.name)))
     target = Volume.fromfile(target_volume)
     logger.info("Target resolution: {:.2f}".format(resolution))
     logger.info(("Initial shape of density:" + " {:d}" * 3).format(*target.shape))
+
     # Resample target density if requested
     if not no_resampling:
         factor = 2 * resampling_rate * target.voxelspacing / resolution
         if factor < 0.9:
             target = resample(target, factor)
             logger.info(("Shape after resampling:" + " {:d}" * 3).format(*target.shape))
+
     # Trim target density if requested
     if not no_trimming:
         if trimming_cutoff is None:
             trimming_cutoff = target.array.max() / 10
         target = trim(target, trimming_cutoff)
         logger.info(("Shape after trimming:" + " {:d}" * 3).format(*target.shape))
+
     # Extend the density to a multiple of 2, 3, 5, and 7 for clFFT
     extended_shape = [nearest_multiple2357(n) for n in target.shape]
     target = extend(target, extended_shape)
     logger.info(("Shape after extending:" + " {:d}" * 3).format(*target.shape))
+    return target
 
+
+def setup_template_structure(
+    template_structure: TextIO,
+    chain: str | None,
+    target: Volume,
+    resolution: float,
+    core_weighted: bool
+) -> tuple[Structure, Volume, Volume, float]:
+    """Load structure, setup template and mask, precompute Fisher sigma for scoring."""
     # Read in structure or high-resolution map
     logger.info("Template file read from: {:s}".format(abspath(template_structure.name)))
     structure = Structure.fromfile(template_structure)
@@ -362,34 +365,11 @@ def powerfit(target_volume: BinaryIO,
         target, structure.coor, resolution=resolution, shape="mask"
     )
 
-    # Read in the rotations to sample
-    logger.info("Reading in rotations.")
-    q, w, degree = proportional_orientations(angle)
-    rotmat = quat_to_rotmat(q)
-    logger.info("Requested rotational sampling density: {:.2f}".format(angle))
-    logger.info("Real rotational sampling density: {:}".format(degree))
-
     # Apply core-weighted mask if requested
     if core_weighted:
         logger.info("Calculating core-weighted mask.")
         mask.array = determine_core_indices(mask.array)
 
-    pf = PowerFitter(target, rotmat, template, mask, queues, laplace=laplace)
-    pf._nproc = nproc
-    pf.directory = directory
-    if gpu:
-        logger.info("Using GPU-accelerated search.")
-    else:
-        logger.info("Requested number of processors: {:d}".format(nproc))
-    logger.info("Starting search")
-    time1 = time()
-    pf.scan(progress=progress)
-    dtime = time() - time1
-    if dtime < 10:
-        logger.info("Time for search: {:.3f} s".format(dtime))
-    else:
-        logger.info("Time for search: {:.0f}m {:.0f}s".format(*divmod(dtime, 60)))
-    logger.info("Analyzing results")
     # calculate the molecular volume of the structure
     mv = (
         structure_to_shape_like(
@@ -402,17 +382,79 @@ def powerfit(target_volume: BinaryIO,
         * target.voxelspacing**3
     )
     z_sigma = fisher_sigma(mv, resolution)
+    return structure, template, mask, z_sigma
+
+
+def setup_rotational_matrix(
+    angle: float        
+) -> np.ndarray:
+    logger.info("Reading in rotations.")
+    q, _, degree = proportional_orientations(angle)
+    rotmat = quat_to_rotmat(q)
+    logger.info("Requested rotational sampling density: {:.2f}".format(angle))
+    logger.info("Real rotational sampling density: {:}".format(degree))
+    return rotmat
+
+
+def powerfit(
+    target_volume: BinaryIO,
+    resolution: float,
+    template_structure: TextIO,
+    angle: float=10,
+    laplace: bool=False,
+    core_weighted: bool=False,
+    no_resampling: bool=False,
+    resampling_rate: float=2,
+    no_trimming: bool=False,
+    trimming_cutoff: float | None=None,
+    chain: str | None =None,
+    directory: str='.',
+    num: int=10,
+    gpu: str | None = None, 
+    nproc: int=1,
+    delimiter: str | None = None,
+    progress: partial[tqdm] | None = tqdm
+):
+    time0 = time()
+    Path(directory).mkdir(exist_ok=True)
+
+    # Get GPU queue if requested
+    queue = None
+    if gpu:
+        queue = get_gpu_queue(gpu)
+
+    target = setup_target(target_volume, resolution, no_resampling, resampling_rate, no_trimming, trimming_cutoff)
+    structure, template, mask, z_sigma = setup_template_structure(template_structure, chain, target, resolution, core_weighted)
+    rotmat = setup_rotational_matrix(angle)
+
+    pf = PowerFitter(target, rotmat, template, mask, queue, nproc, directory, laplace=laplace)
+    if gpu:
+        logger.info("Using GPU-accelerated search.")
+    else:
+        logger.info("Requested number of processors: {:d}".format(nproc))
+
+    logger.info("Starting search")
+
+    time1 = time()
+    pf.scan(progress=progress)
+    dtime = time() - time1
+    if dtime < 10:
+        logger.info("Time for search: {:.3f} s".format(dtime))
+    else:
+        logger.info("Time for search: {:.0f}m {:.0f}s".format(*divmod(dtime, 60)))
+    logger.info("Analyzing results")
+
     analyzer = Analyzer(
-        pf._lcc,
+        pf.lcc,
         rotmat,
-        pf._rot,
+        pf.rot,
         voxelspacing=target.voxelspacing,
         origin=target.origin,
         z_sigma=z_sigma,
     )
 
     logger.info("Writing solutions to file.")
-    Volume(pf._lcc, target.voxelspacing, target.origin).tofile(
+    Volume(pf.lcc, target.voxelspacing, target.origin).tofile(
         join(directory, "lcc.mrc")
     )
     analyzer.tofile(join(directory, "solutions.out"), delimiter=delimiter)
@@ -424,7 +466,6 @@ def powerfit(target_volume: BinaryIO,
     )
 
     logger.info("Total time: {:.0f}m {:.0f}s".format(*divmod(time() - time0, 60)))
-
 
 if __name__ == "__main__":
     main()

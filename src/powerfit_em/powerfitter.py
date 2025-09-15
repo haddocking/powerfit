@@ -16,7 +16,7 @@ try:
 except ImportError:
     PYFFTW = False
 try:
-    import pyopencl as _
+    import pyopencl as cl
     OPENCL = True
 except:
     OPENCL = False
@@ -70,16 +70,34 @@ class PowerFitter(object):
     """
 
     def __init__(
-        self, target: Volume, rotations: np.ndarray, template: Volume, mask: Volume, queues, laplace: bool = False
+        self,
+        target: Volume,
+        rotations: np.ndarray,
+        template: Volume,
+        mask: Volume,
+        queue: "cl.Queue",
+        nproc: int = 1,
+        directory: str = abspath("./"),
+        laplace: bool = False
     ):
         self._target = target
         self._rotations = rotations
         self._template = template
         self._mask = mask
-        self._queues = queues
-        self._nproc = 1
-        self._directory = abspath('./')
+        self._queue = queue
+        self._nproc = nproc
+        self.directory = directory
         self._laplace = laplace
+        self._lcc = np.zeros(0, dtype=np.float32)
+        self._rot = np.zeros(0, dtype=np.float32)
+
+    @property
+    def lcc(self):
+        return self._lcc.copy()
+
+    @property
+    def rot(self):
+        return self._rot.copy()
 
     @property
     def directory(self):
@@ -93,7 +111,7 @@ class PowerFitter(object):
             raise ValueError("Directory does not exist.")
 
     def scan(self, progress: partial[tqdm] | None):
-        if self._queues is None:
+        if self._queue is None:
             if self._nproc == 1:
                 self._single_cpu_scan(progress)
             else:
@@ -109,7 +127,7 @@ class PowerFitter(object):
             self._template.array,
             self._rotations,
             self._mask.array,
-            self._queues[0],
+            self._queue,
             self._laplace,
         )
         self._corr.scan(progress)
@@ -122,8 +140,8 @@ class PowerFitter(object):
         processes: list[Process] = []
         self._counter = None if processes is None else _Counter()
         self._njobs = self._nproc
-        if self._queues is not None:
-            self._njobs = len(self._queues)
+        if self._queue is not None:
+            self._njobs = len(self._queue)
 
         for id in range(self._njobs):
             start = id * self._nrot_per_job
