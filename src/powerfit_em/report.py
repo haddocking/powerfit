@@ -278,9 +278,9 @@ def generate_html(
                         }
                     }
                 </style>
-                <script src="https://cdn.jsdelivr.net/npm/molstar@latest/build/mvs-stories/mvs-stories.js"></script>
+                <script src="https://cdn.jsdelivr.net/npm/molstar@${molstar_version}/build/mvs-stories/mvs-stories.js"></script>
                 <link rel="stylesheet" type="text/css"
-                    href="https://cdn.jsdelivr.net/npm/molstar@latest/build/mvs-stories/mvs-stories.css" />
+                    href="https://cdn.jsdelivr.net/npm/molstar@${molstar_version}/build/mvs-stories/mvs-stories.css" />
             </head>
 
             <body>
@@ -406,6 +406,7 @@ def generate_html(
         iso_value=round(iso.value, 2),
         iso_step=round(iso.step, 2),
         options=li_options,
+        molstar_version="4.18.0",
     )
 
 
