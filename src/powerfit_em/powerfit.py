@@ -289,11 +289,11 @@ def main():
             'resolution': args.resolution,
             'angle': args.angle,
             'laplace': args.laplace,
-            'core_weighted': args.core_weighted,
-            'no_resampling': args.no_resampling,
-            'resampling_rate': args.resampling_rate,
-            'no_trimming': args.no_trimming,
-            'trimming_cutoff': args.trimming_cutoff,
+            'core weighted': args.core_weighted,
+            'no resampling': args.no_resampling,
+            'resampling rate': args.resampling_rate,
+            'no trimming': args.no_trimming,
+            'trimming cutoff': args.trimming_cutoff,
         }
         generate_report(args.directory, args.target.name, args.num, args.delimiter, options=options)
 

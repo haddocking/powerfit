@@ -145,32 +145,23 @@ def create_snapshot_with_all_models(
     for fitted_model_file in fitted_model_files[:max_models]:
         label = fitted_model_file.stem.replace("fit_", "")
         _add_model_to_builder(builder, fitted_model_file, label=label)
-    if len(fitted_model_files) > max_models:
-        description = dedent(f"""
-            First {max_models} fitted models.
+    maxed = len(fitted_model_files) > max_models
+    description_first_line = (
+        f"First {max_models} fitted models." if maxed else "All fitted models."
+    )
+    description = dedent(f"""
+        {description_first_line}
 
-            The labels correspond to the rank of the fitted model.
+        The labels correspond to the rank of the fitted model.
 
-            Could take a while to load the models.
-        """)
-        return builder.get_snapshot(
-            key="all_models",
-            title=f"First {max_models} fitted models",
-            description=description,
-            description_format="markdown",
-        )
-    else:
-        description = dedent("""
-            All fitted models.
-
-            The labels correspond to the rank of the fitted model.
-        """)
-        return builder.get_snapshot(
-            key="all_models",
-            title="All fitted models",
-            description=description,
-            description_format="markdown",
-        )
+        Can take a while to load the models.
+    """)
+    return builder.get_snapshot(
+        key="all_models",
+        title=f"First {max_models} fitted models" if maxed else "All fitted models",
+        description=description,
+        description_format="markdown",
+    )
 
 
 def _read_solutions(path: Path, delimiter: str | None = None) -> list[dict]:
@@ -439,9 +430,14 @@ def generate_report(
     run_dir = Path(directory)
 
     # To render report all files need to be in the same directory
-    logger.warning(f"Copying target file ({target}) to report directory.")
-    target_path = run_dir / target
-    shutil.copyfile(target, target_path)
+    target_path = run_dir / Path(target).name
+    if not target_path.exists():
+        rtarget = Path(os.path.relpath(target, Path.cwd()))
+        rrun_dir = Path(os.path.relpath(run_dir, Path.cwd()))
+        logger.warning(
+            f"Copying target file ({rtarget}) to report directory ({rrun_dir})."
+        )
+        shutil.copyfile(target, target_path)
 
     iso = _calc_rel_isovalue(target_path)
 
