@@ -25,6 +25,7 @@ from powerfit_em import (
     quat_to_rotmat,
     determine_core_indices,
 )
+from powerfit_em import analyzer
 from powerfit_em.powerfitter import PowerFitter
 from powerfit_em.analyzer import Analyzer
 from powerfit_em.helpers import write_fits_to_pdb, fisher_sigma
@@ -413,7 +414,7 @@ def powerfit(
     gpu: str | None = None, 
     nproc: int=1,
     delimiter: str | None = None,
-    progress: partial[tqdm] | None = tqdm
+    progress: partial[tqdm] | None = tqdm,
 ):
     time0 = time()
     Path(directory).mkdir(exist_ok=True)
@@ -457,6 +458,7 @@ def powerfit(
     Volume(pf.lcc, target.voxelspacing, target.origin).tofile(
         join(directory, "lcc.mrc")
     )
+    from IPython import embed; embed(); quit()
     analyzer.tofile(join(directory, "solutions.out"), delimiter=delimiter)
 
     logger.info("Writing PDBs to file.")
@@ -466,6 +468,110 @@ def powerfit(
     )
 
     logger.info("Total time: {:.0f}m {:.0f}s".format(*divmod(time() - time0, 60)))
+
+
+def powerfit_many(
+    target_volume: BinaryIO,
+    resolution: float,
+    template_structures: list[TextIO],
+    angle: float = 10,
+    laplace: bool = False,
+    core_weighted: bool=False,
+    no_resampling: bool=False,
+    resampling_rate: float=2,
+    no_trimming: bool=False,
+    trimming_cutoff: float | None=None,
+    directory: str = '.',
+    num: int = 10,
+    gpu: str | None = None, 
+    nproc: int=1,
+    delimiter: str | None = None,
+):
+    time0 = time()
+    Path(directory).mkdir(exist_ok=True)
+
+    # Get GPU queue if requested
+    queue = None
+    if gpu:
+        queue = get_gpu_queue(gpu)
+
+    target = setup_target(target_volume, resolution, no_resampling, resampling_rate, no_trimming, trimming_cutoff)
+
+    template_vars: list[tuple[Structure, Volume, Volume, float]] = []
+    for template_structure in template_structures:
+        template_vars.append(setup_template_structure(template_structure, None, target, resolution, core_weighted))
+    rotmat = setup_rotational_matrix(angle)
+
+    if gpu:
+        logger.info("Using GPU-accelerated search.")
+    else:
+        logger.info(f"Requested number of processors: {nproc}.")
+
+    logger.info(f"Starting search, analysing {len(template_structures)} structures.")
+
+    time1 = time()
+    results: list[tuple[np.ndarray, np.ndarray]] = []
+    pf: PowerFitter | None = None
+    for i in range(len(template_vars)):
+        _, template, mask, z_sigma = template_vars[i]
+        # if pf is None:
+        pf = PowerFitter(target, rotmat, template, mask, queue, nproc, directory, laplace=laplace)
+        # elif not gpu and nproc > 1:  # Can't reuse w/ multi-cpu search
+        #     pf = PowerFitter(target, rotmat, template, mask, queue, nproc, directory, laplace=laplace)
+        # else:
+        #     pf.set_template(template, mask)
+
+        pf.scan(progress=None)
+        results.append((pf.lcc, pf.rot))
+
+    dtime = time() - time1
+    if dtime < 10:
+        logger.info("Time for searches: {:.3f} s".format(dtime))
+    else:
+        logger.info("Time for searches: {:.0f}m {:.0f}s".format(*divmod(dtime, 60)))
+
+    logger.info("Analyzing results")
+
+    analysis_results: list[Analyzer] = []
+    for result, template_var, template in zip(results, template_vars, template_structures, strict=True):
+        lcc, rot = result
+        _, _, _, z_sigma = template_var
+
+        analysis = Analyzer(
+                lcc,
+                rotmat,
+                rot,
+                voxelspacing=target.voxelspacing,
+                origin=target.origin,
+                z_sigma=z_sigma,
+        )
+        analysis_results.append(analysis)
+
+        logger.info("Writing LCCs to file.")
+        Volume(lcc, target.voxelspacing, target.origin).tofile(
+            join(directory, f"{template.name}_lcc.mrc")
+        )
+    
+    logger.info("Merging solutions")
+    solutions = [r.solutions for r in analysis_results]
+    merged_results: list[list[float | str]] = []
+    for solution, template in zip(solutions, template_structures, strict=True):
+        for row in solution:
+            merged_results.append(
+                [template.name] + row
+            )
+    merged_results.sort(key=lambda x: float(x[1]), reverse=True)
+
+    analyzer.write_file(merged_results, join(directory, "solutions.out"), delimiter=delimiter)
+
+    # logger.info("Writing PDBs to file.")
+    # n = min(num, len(analyzer.solutions))
+    # write_fits_to_pdb(
+    #     structure, analyzer.solutions[:n], basename=join(directory, "fit")
+    # )
+
+    logger.info("Total time: {:.0f}m {:.0f}s".format(*divmod(time() - time0, 60)))
+
 
 if __name__ == "__main__":
     main()

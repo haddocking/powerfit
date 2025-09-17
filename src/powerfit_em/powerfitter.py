@@ -21,6 +21,9 @@ try:
 except:
     OPENCL = False
 
+if OPENCL:
+    from powerfit_em.correlators.gpu import GPUCorrelator
+
 
 class _Counter(object):
     """Thread-safe counter object to follow PowerFit progress"""
@@ -88,6 +91,7 @@ class PowerFitter(object):
         self._nproc = nproc
         self.directory = directory
         self._laplace = laplace
+        self._corr = None
         self._lcc = np.zeros(0, dtype=np.float32)
         self._rot = np.zeros(0, dtype=np.float32)
 
@@ -119,20 +123,28 @@ class PowerFitter(object):
         else:
             self._gpu_scan(progress)
 
+    def set_template(self, template: Volume, mask: Volume):
+        if not self._corr:
+            msg = f"No correlator available yet. First run scan."
+            raise ValueError(msg)
+        self._corr.set_template(template.array, mask.array)
+        
     def _gpu_scan(self, progress: partial[tqdm] | None):
         if OPENCL:
-            from powerfit_em.correlators.gpu import GPUCorrelator
-        self._corr = GPUCorrelator(
-            self._target.array,
-            self._template.array,
-            self._rotations,
-            self._mask.array,
-            self._queue,
-            self._laplace,
-        )
-        self._corr.scan(progress)
-        self._lcc = self._corr.lcc
-        self._rot = self._corr.rot
+            if self._corr is None:
+                self._corr = GPUCorrelator(
+                    self._target.array,
+                    self._template.array,
+                    self._rotations,
+                    self._mask.array,
+                    self._queue,
+                    self._laplace,
+                )
+            self._corr.scan(progress)
+            self._lcc = self._corr.lcc
+            self._rot = self._corr.rot
+        else:
+            raise ValueError("No OpenCL")
 
     def _multi_cpu_scan(self, progress: partial[tqdm] | None):
         nrot = self._rotations.shape[0]
@@ -172,16 +184,16 @@ class PowerFitter(object):
         self._combine()
 
     def _single_cpu_scan(self, progress: partial[tqdm] | None):
-        correlator = CPUCorrelator(
+        self._corr = CPUCorrelator(
             self._target.array,
             self._template.array,
             self._rotations,
             self._mask.array,
             self._laplace,
         )
-        correlator.scan(progress)
-        self._lcc = correlator.lcc
-        self._rot = correlator.rot
+        self._corr.scan(progress)
+        self._lcc = self._corr.lcc
+        self._rot = self._corr.rot
 
     def _combine(self):
         # Combine all the intermediate results
