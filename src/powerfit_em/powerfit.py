@@ -470,9 +470,9 @@ def powerfit(
 
 
 def powerfit_many(
-    target_volume: BinaryIO,
+    target_volume: Path,
     resolution: float,
-    template_structures: list[TextIO],
+    template_structures: list[Path],
     angle: float = 10,
     laplace: bool = False,
     core_weighted: bool=False,
@@ -492,20 +492,22 @@ def powerfit_many(
     if gpu:
         queue = get_gpu_queue(gpu)
 
-    target = setup_target(
-        target_volume,
-        resolution,
-        no_resampling,
-        resampling_rate,
-        no_trimming,
-        trimming_cutoff,
-    )
+    with target_volume.open("rb") as f:
+        target = setup_target(
+            f,
+            resolution,
+            no_resampling,
+            resampling_rate,
+            no_trimming,
+            trimming_cutoff,
+        )
 
     template_vars: list[tuple[Structure, Volume, Volume, float]] = []
     for template_structure in template_structures:
-        template_vars.append(setup_template_structure(
-            template_structure, None, target, resolution, core_weighted
-        ))
+        with template_structure.open("r") as f:
+            template_vars.append(setup_template_structure(
+                f, None, target, resolution, core_weighted
+            ))
     rotmat = setup_rotational_matrix(angle)
 
     if gpu:
