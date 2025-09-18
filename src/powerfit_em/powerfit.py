@@ -25,11 +25,12 @@ from powerfit_em import (
     quat_to_rotmat,
     determine_core_indices,
 )
-from powerfit_em import analyzer
 from powerfit_em.powerfitter import PowerFitter
 from powerfit_em.analyzer import Analyzer
 from powerfit_em.helpers import write_fits_to_pdb, fisher_sigma
+from powerfit_em.report import generate_report
 from powerfit_em.volume import extend, nearest_multiple2357, trim, resample
+
 try:
     import pyopencl as cl
     OPENCL = True
@@ -208,6 +209,12 @@ def make_parser():
         default=True,
         help="Show a progress bar during the search. Disabling the progressbar will improve performance.",
     )
+    p.add_argument(
+        "--report",
+        dest="report",
+        action="store_true",
+        help="Generate a html report with Mol* 3D viewer of the fitted models."
+    )
 
     return p
 
@@ -278,6 +285,19 @@ def main():
         delimiter=args.delimiter,
         progress=progress
     )
+    if args.report:
+        # Report shows all options that affect the fitting
+        options = {
+            'resolution': args.resolution,
+            'angle': args.angle,
+            'laplace': args.laplace,
+            'core weighted': args.core_weighted,
+            'no resampling': args.no_resampling,
+            'resampling rate': args.resampling_rate,
+            'no trimming': args.no_trimming,
+            'trimming cutoff': args.trimming_cutoff,
+        }
+        generate_report(args.directory, args.target.name, args.num, args.delimiter, options=options)
 
 
 def get_gpu_queue(gpu: str) -> "cl.CommandQueue":
