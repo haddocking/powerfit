@@ -458,7 +458,6 @@ def powerfit(
     Volume(pf.lcc, target.voxelspacing, target.origin).tofile(
         join(directory, "lcc.mrc")
     )
-    from IPython import embed; embed(); quit()
     analyzer.tofile(join(directory, "solutions.out"), delimiter=delimiter)
 
     logger.info("Writing PDBs to file.")
@@ -482,11 +481,9 @@ def powerfit_many(
     no_trimming: bool=False,
     trimming_cutoff: float | None=None,
     directory: str = '.',
-    num: int = 10,
     gpu: str | None = None, 
     nproc: int=1,
-    delimiter: str | None = None,
-):
+) -> list[list[list[float]]]:
     time0 = time()
     Path(directory).mkdir(exist_ok=True)
 
@@ -495,11 +492,20 @@ def powerfit_many(
     if gpu:
         queue = get_gpu_queue(gpu)
 
-    target = setup_target(target_volume, resolution, no_resampling, resampling_rate, no_trimming, trimming_cutoff)
+    target = setup_target(
+        target_volume,
+        resolution,
+        no_resampling,
+        resampling_rate,
+        no_trimming,
+        trimming_cutoff,
+    )
 
     template_vars: list[tuple[Structure, Volume, Volume, float]] = []
     for template_structure in template_structures:
-        template_vars.append(setup_template_structure(template_structure, None, target, resolution, core_weighted))
+        template_vars.append(setup_template_structure(
+            template_structure, None, target, resolution, core_weighted
+        ))
     rotmat = setup_rotational_matrix(angle)
 
     if gpu:
@@ -514,12 +520,16 @@ def powerfit_many(
     pf: PowerFitter | None = None
     for i in range(len(template_vars)):
         _, template, mask, z_sigma = template_vars[i]
-        # if pf is None:
-        pf = PowerFitter(target, rotmat, template, mask, queue, nproc, directory, laplace=laplace)
-        # elif not gpu and nproc > 1:  # Can't reuse w/ multi-cpu search
-        #     pf = PowerFitter(target, rotmat, template, mask, queue, nproc, directory, laplace=laplace)
-        # else:
-        #     pf.set_template(template, mask)
+        if pf is None:
+            pf = PowerFitter(
+                target, rotmat, template, mask, queue, nproc, directory, laplace=laplace
+            )
+        elif not gpu and nproc > 1:  # Can't reuse w/ multi-cpu search
+            pf = PowerFitter(
+                target, rotmat, template, mask, queue, nproc, directory, laplace=laplace
+            )
+        else:
+            pf.set_template(template, mask)
 
         pf.scan(progress=None)
         results.append((pf.lcc, pf.rot))
@@ -533,7 +543,9 @@ def powerfit_many(
     logger.info("Analyzing results")
 
     analysis_results: list[Analyzer] = []
-    for result, template_var, template in zip(results, template_vars, template_structures, strict=True):
+    for result, template_var, template in zip(
+        results, template_vars, template_structures, strict=True
+    ):
         lcc, rot = result
         _, _, _, z_sigma = template_var
 
@@ -551,27 +563,9 @@ def powerfit_many(
         Volume(lcc, target.voxelspacing, target.origin).tofile(
             join(directory, f"{template.name}_lcc.mrc")
         )
-    
-    logger.info("Merging solutions")
-    solutions = [r.solutions for r in analysis_results]
-    merged_results: list[list[float | str]] = []
-    for solution, template in zip(solutions, template_structures, strict=True):
-        for row in solution:
-            merged_results.append(
-                [template.name] + row
-            )
-    merged_results.sort(key=lambda x: float(x[1]), reverse=True)
-
-    analyzer.write_file(merged_results, join(directory, "solutions.out"), delimiter=delimiter)
-
-    # logger.info("Writing PDBs to file.")
-    # n = min(num, len(analyzer.solutions))
-    # write_fits_to_pdb(
-    #     structure, analyzer.solutions[:n], basename=join(directory, "fit")
-    # )
 
     logger.info("Total time: {:.0f}m {:.0f}s".format(*divmod(time() - time0, 60)))
-
+    return [r.solutions for r in analysis_results]
 
 if __name__ == "__main__":
     main()

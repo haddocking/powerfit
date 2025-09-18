@@ -78,7 +78,7 @@ class PowerFitter(object):
         rotations: np.ndarray,
         template: Volume,
         mask: Volume,
-        queue: "cl.Queue",
+        queue: "cl.CommandQueue | None",
         nproc: int = 1,
         directory: str = abspath("./"),
         laplace: bool = False

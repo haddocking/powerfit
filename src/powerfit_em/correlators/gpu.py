@@ -175,3 +175,4 @@ class GPUCorrelator(Correlator):
             for n in progress(_range):
                 self.compute_rotation(n, self._rotations[n])
                 self.queue.finish()
+        self.retrieve_results()
