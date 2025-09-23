@@ -587,11 +587,6 @@ def powerfit_many(
         )
         analysis_results.append(analysis)
 
-        logger.info("Writing LCCs to file.")
-        Volume(lcc, target.voxelspacing, target.origin).tofile(
-            join(directory, f"{template.name}_lcc.mrc")
-        )
-
     logger.info("Total time: {:.0f}m {:.0f}s".format(*divmod(time() - time0, 60)))
     return [r.solutions for r in analysis_results]
 
