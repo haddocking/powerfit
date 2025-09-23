@@ -502,8 +502,14 @@ def powerfit_many(
     trimming_cutoff: float | None=None,
     directory: str = '.',
     gpu: str | None = None, 
+    reuse: bool = True,
     nproc: int=1,
 ) -> list[list[list[float]]]:
+    """Run powerfit on multiple templates, returning the solution table for each.
+
+    For a slight efficiency boost, and to avoid continuously creating many new OpenCL
+    queues, the queues are reused. This can be disabled by setting reuse=False
+    """
     time0 = time()
     Path(directory).mkdir(exist_ok=True)
 
@@ -542,7 +548,7 @@ def powerfit_many(
     pf: PowerFitter | None = None
     for i in range(len(template_vars)):
         _, template, mask, z_sigma = template_vars[i]
-        if pf is None:
+        if pf is None or not reuse:
             pf = PowerFitter(
                 target, rotmat, template, mask, queue, nproc, directory, laplace=laplace
             )
