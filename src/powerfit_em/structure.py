@@ -1,7 +1,8 @@
 
 from collections import defaultdict, OrderedDict
 from collections.abc import Sequence
-from io import TextIOWrapper
+import gzip
+from io import BufferedReader, TextIOWrapper
 import operator
 from string import capwords
 
@@ -156,7 +157,7 @@ class Structure(object):
 
         if fname[-3:] in ('pdb', 'ent'):
             arr = pdb_dict_to_array(parse_pdb(fid))
-        elif fname[-3:] == 'cif':
+        elif fname[-3:] == 'cif' or fname[-6:] == 'cif.gz':
             arr = mmcif_dict_to_array(parse_mmcif(fid))
         else:
             raise IOError('Filetype not recognized.')
@@ -258,17 +259,23 @@ class Structure(object):
 
 
 def parse_mmcif(infile):
-    if isinstance(infile, TextIOWrapper):
-        pass
+    if isinstance(infile, BufferedReader):
+        if infile.name.endswith('.gz'):
+            infile = gzip.open(infile, 'rt')
+        else:
+            infile = TextIOWrapper(infile, encoding='utf-8')
     elif isinstance(infile, str):
-        infile = open(infile)
+        if infile.endswith('.gz'):
+            infile = gzip.open(infile, 'rt')
+        else:
+            infile = open(infile)
     else:
         raise TypeError("Input should either be a file or string.")
+
 
     atom_site = OrderedDict()
     with infile as f:
         for line in f:
-
             if line.startswith('_atom_site.'):
                 words = line.split('.')
                 atom_site[words[1].strip()] = []
