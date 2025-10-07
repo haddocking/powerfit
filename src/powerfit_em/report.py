@@ -112,7 +112,7 @@ def _create_snapshot_description(solution: dict[str, Any]) -> str:
             - Fitted model: [{fitted_model_file.name}]({fitted_model_file.name})
             - Cross correlation score: {solution["cc"]}
             - Fisher z-score: {solution["Fish-z"]}
-            - Relative z-score (z-score/α: {solution["rel-z"]}
+            - Relative z-score (z-score/α): {solution["rel-z"]}
             - Sigma difference (z₁-zₙ/α): {solution["sigma_dif"]}
             - Translation: {translation}
             - Rotation: {rotation}
@@ -274,7 +274,7 @@ def generate_html(
                         .close-sigma-lt1 {
                             background-color: #b2e5b2; /* lighter green */
                             font-weight: bold;
-                        }   
+                        }
                         .close-sigma-1to2 {
                             background-color: #c8f7c8; /* lighter medium green */
                             font-weight: bold;
@@ -298,7 +298,7 @@ def generate_html(
                             cursor: pointer;
                             box-sizing: border-box
                         }
-                    }            
+                    }
 
                     @media (orientation:portrait),
                     (max-width: 900px) {
