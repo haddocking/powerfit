@@ -60,7 +60,8 @@ def make_parser():
         "template",
         type=FileType("rb"),
         help="Atomic model to be fitted in the density. "
-        "Format should either be PDB or mmCIF or gzipped mmCIF (.cif.gz).",
+        "Format should either be PDB or mmCIF. "
+        "Valid extensions are .pdb, .ent, .cif, .pdb.gz, .ent.gz, .cif.gz",
     )
 
     # Optional arguments and flags

@@ -31,13 +31,7 @@ TER_DATA = 'id resn chain resi i'.split()
 
 
 def parse_pdb(infile):
-
-    if isinstance(infile, TextIOWrapper):
-        f = infile
-    elif isinstance(infile, str):
-        f = open(infile)
-    else:
-        raise TypeError('Input should be either a file or string.')
+    f = _open_maybe_gzipped_text_file(infile)
 
     pdb = defaultdict(list)
     model_number = 1
@@ -155,9 +149,10 @@ class Structure(object):
         except AttributeError:
             fname = fid
 
-        if fname[-3:] in ('pdb', 'ent'):
+        if fname.endswith('.pdb') or fname.endswith('.ent') or \
+           fname.endswith('.pdb.gz') or fname.endswith('.ent.gz'):
             arr = pdb_dict_to_array(parse_pdb(fid))
-        elif fname[-3:] == 'cif' or fname[-6:] == 'cif.gz':
+        elif fname.endswith('.cif') or fname.endswith('.cif.gz'):
             arr = mmcif_dict_to_array(parse_mmcif(fid))
         else:
             raise IOError('Filetype not recognized.')
@@ -258,20 +253,24 @@ class Structure(object):
         return self._get_property('vdwrad')
 
 
-def parse_mmcif(infile):
+def _open_maybe_gzipped_text_file(infile: str | BufferedReader | TextIOWrapper) -> TextIOWrapper:
     if isinstance(infile, BufferedReader):
         if infile.name.endswith('.gz'):
-            infile = gzip.open(infile, 'rt')
+            return gzip.open(infile, 'rt')
         else:
-            infile = TextIOWrapper(infile, encoding='utf-8')
+            return TextIOWrapper(infile, encoding='utf-8')
     elif isinstance(infile, str):
         if infile.endswith('.gz'):
-            infile = gzip.open(infile, 'rt')
+            return gzip.open(infile, 'rt')
         else:
-            infile = open(infile)
-    else:
-        raise TypeError("Input should either be a file or string.")
+            return open(infile, 'rt')
+    elif not isinstance(infile, TextIOWrapper):
+        raise TypeError("Input should either be a file object or string.")
+    return infile
 
+
+def parse_mmcif(infile):
+    infile = _open_maybe_gzipped_text_file(infile)
 
     atom_site = OrderedDict()
     with infile as f:
