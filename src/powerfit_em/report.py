@@ -268,8 +268,9 @@ def generate_html(
                             margin: 1rem;
 
                             th, td {
-                            border: 1px solid rgb(160 160 160);
-                            padding: 8px 10px;
+                                border: 1px solid rgb(160 160 160);
+                                padding: 8px 10px;
+                            }
                         }
                         .close-sigma-lt1 {
                             background-color: #b2e5b2; /* lighter green */
@@ -282,8 +283,6 @@ def generate_html(
                         .close-sigma-2to3 {
                             background-color: #e6ffe6; /* very light green */
                             font-weight: bold;
-                        }
-                        .close-sigma-gt3 {
                         }
                         button {
                             display: inline-block;
@@ -442,7 +441,7 @@ def generate_html(
                             slider.value = currentIsoValue;
                         }
                     });
-               
+
                     function jumpToSnapshot(key) {
                         const context = mvsStories.getContext();
                         const model = context.state.viewers.value[0].model;
@@ -455,6 +454,52 @@ def generate_html(
                             }
                         })
                     }
+
+                    function updateButtonStates(currentKey) {
+                        // Enable all buttons first
+                        document.querySelectorAll('#solutions-table button').forEach(button => {
+                            button.disabled = false;
+                            button.style.opacity = '1';
+                            button.style.cursor = 'pointer';
+                            button.title = 'View this solution in 3D viewer';
+                        });
+
+                        // Disable the button for the current snapshot
+                        if (currentKey) {
+                            const currentButton = document.querySelector(`#solutions-table button[data-snapshot-key="${currentKey}"]`);
+                            if (currentButton) {
+                                currentButton.disabled = true;
+                                currentButton.style.opacity = '0.5';
+                                currentButton.style.cursor = 'not-allowed';
+                                currentButton.title = 'This solution is currently displayed';
+                            }
+                        }
+                    }
+
+                    function setupSnapshotListener() {
+                        const context = mvsStories.getContext();
+                        if (!context?.state?.viewers?.value?.[0]?.model) {
+                            // Retry after a short delay if context is not ready
+                            setTimeout(setupSnapshotListener, 100);
+                            return;
+                        }
+
+                        const model = context.state.viewers.value[0].model;
+                        const plugin = model.plugin;
+
+                        if (plugin?.managers?.snapshot) {
+                            // Update button states when snapshot changes
+                            plugin.managers.snapshot.subscribe(plugin.managers.snapshot.events.changed, (newState) => {
+                                const key = plugin.managers.snapshot.current.key;
+                                updateButtonStates(key);
+                            });
+
+                            // Set initial state
+                            const initialKey = plugin.managers.snapshot.current.key;
+                            updateButtonStates(initialKey);
+                        }
+                    }
+                    setupSnapshotListener();
                 </script>
             </body>
 
@@ -490,7 +535,7 @@ def generated_table(solutions: list[dict[str, Any]]) -> str:
             <th>Fisher z-score</th>
             <th>Relative z-score (z-score/&alpha;)</th>
             <th>Sigma difference (z<sub>1</sub>-z<sub>N</sub>/&alpha;)</th>
-            <th>Visualize</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
@@ -505,6 +550,7 @@ def generated_table(solutions: list[dict[str, Any]]) -> str:
             class_name = "close-sigma-2to3"
         else:
             class_name = "close-sigma-gt3"
+        snapshot_key = f"fit_{solution['rank']}"
         table += dedent(f"""\
             <tr class="{class_name}">
               <td>{solution["rank"]}</td>
@@ -512,7 +558,7 @@ def generated_table(solutions: list[dict[str, Any]]) -> str:
               <td>{solution["Fish-z"]}</td>
               <td>{solution["rel-z"]}</td>
               <td>{sigma_dif}</td>
-              <td><button onclick="jumpToSnapshot('fit_{solution["rank"]}')">View</button></td>
+              <td><button data-snapshot-key="{snapshot_key}" onclick="jumpToSnapshot('{snapshot_key}')">View in 3D</button></td>
             </tr>
         """)
     table += "</tbody></table>\n"
