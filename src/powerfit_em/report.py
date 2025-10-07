@@ -174,7 +174,11 @@ def _read_solutions(path: Path, delimiter: str | None = None) -> list[dict]:
 
 
 def generate_html(
-    target_path: Path, iso: Iso, state_path: Path, options: dict[str, Any]
+    target_path: Path,
+    iso: Iso,
+    state_path: Path,
+    options: dict[str, Any],
+    solutions_table: str,
 ):
     # template was copied from molviewspec.molstar_widgets.STORIES_TEMPLATE and heavily modified
     template = Template(
@@ -201,7 +205,6 @@ def generate_html(
                         min-width: 100vw;
                         display: flex;
                         flex-direction: column;
-                        background: #fff;
                     }
 
                     header {
@@ -250,6 +253,32 @@ def generate_html(
                         gap: 16px;
                         height: 100%;
                         box-sizing: border-box;
+                    }
+               
+                    #solutions-table table{
+                        border-collapse: collapse;
+                        border: 1px solid #ccc;
+                        margin: 1rem;
+               
+                        th, td {
+                            border: 1px solid rgb(160 160 160);
+                            padding: 8px 10px;
+                        }
+                    }
+               
+                    .close-sigma-lt1 {
+                        background-color: #b2e5b2; /* lighter green */
+                        font-weight: bold;
+                    }   
+                    .close-sigma-1to2 {
+                        background-color: #c8f7c8; /* lighter medium green */
+                        font-weight: bold;
+                    }
+                    .close-sigma-2to3 {
+                        background-color: #e6ffe6; /* very light green */
+                        font-weight: bold;
+                    }
+                    .close-sigma-gt3 {
                     }
 
                     @media (orientation:portrait),
@@ -315,6 +344,9 @@ def generate_html(
                         <mvs-stories-snapshot-markdown style="flex-grow: 1;" />
                     </div>
                 </div>
+               <div id="solutions-table">
+               ${solutions}
+               </div>
                 <script>
                     mvsStories.loadFromURL('${state}', { format: 'mvsj' });
 
@@ -398,6 +430,7 @@ def generate_html(
     li_options = "\n".join(
         [f"<li>{key}: {value}</li>" for key, value in options.items()]
     )
+
     return template.safe_substitute(
         state=state_path.name,
         target=target_path.name,
@@ -407,7 +440,48 @@ def generate_html(
         iso_step=round(iso.step, 2),
         options=li_options,
         molstar_version="4.18.0",
+        solutions=solutions_table,
     )
+
+
+def generated_table(solutions: list[dict[str, Any]]) -> str:
+    if not solutions:
+        return "<p>No solutions found.</p>"
+    table = dedent("""\
+        <table>
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Cross correlation score</th>
+            <th>Fisher z-score</th>
+            <th>Relative z-score (z-score/&alpha;)</th>
+            <th>Sigma difference (z<sub>1</sub>-z<sub>N</sub>/&alpha;)</th>
+          </tr>
+        </thead>
+        <tbody>
+        """)
+    best_z = float(solutions[0]["Fish-z"])
+    for solution in solutions:
+        sigma_dif = round(float(solution["rel-z"]) - best_z, 3)
+        if sigma_dif < 1:
+            class_name = "close-sigma-lt1"
+        elif sigma_dif < 2:
+            class_name = "close-sigma-1to2"
+        elif sigma_dif < 3:
+            class_name = "close-sigma-2to3"
+        else:
+            class_name = "close-sigma-gt3"
+        table += dedent(f"""\
+            <tr class="{class_name}">
+              <td>{solution["rank"]}</td>
+              <td>{solution["cc"]}</td>
+              <td>{solution["Fish-z"]}</td>
+              <td>{solution["rel-z"]}</td>
+              <td>{sigma_dif}</td>
+            </tr>
+        """)
+    table += "</tbody></table>\n"
+    return table
 
 
 def generate_report(
@@ -427,6 +501,7 @@ def generate_report(
         target: Target volume file name.
         num: Number of fits to include in the report.
         delimiter: Delimiter used in the solutions file. If None, the report raise an error.
+        options: Options used for fitting, to include in the report.
     """
     run_dir = Path(directory)
 
@@ -474,8 +549,10 @@ def generate_report(
     state_path = run_dir / "state.mvsj"
     state_path.write_text(state.dumps(indent=2))
 
+    solutions_table = generated_table(solutions[:num])
+
     report = run_dir / "report.html"
-    body = generate_html(target_path, iso, state_path, options)
+    body = generate_html(target_path, iso, state_path, options, solutions_table)
     report.write_text(body)
 
     rel_report = Path(os.path.relpath(report, Path.cwd()))
