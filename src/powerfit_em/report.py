@@ -485,3 +485,64 @@ def generate_report(
         f"`python3 -m http.server -d {rel_run_dir}`. "
         "Open http://localhost:8000/report.html in a web browser to view the results."
     )
+
+
+if __name__ == "__main__":
+    import argparse
+    from argparse import FileType
+
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawTextHelpFormatter,
+        description=dedent("""\
+            Generate report.html from fitting results.
+                           
+            Example usage:
+            
+            powerfit ribosome-KsgA.map 13 KsgA.pdb -d run -n 20 --delimiter , -a 20 -l
+            # Later generate report.html with
+            python3 -m powerfit_em.report run ribosome-KsgA.map -n 20 --delimiter , --option resolution 13 --option angle 20 --option laplace True
+        """),
+    )
+    parser.add_argument(
+        "directory",
+        type=str,
+        help="Directory with fitting results.",
+    )
+    parser.add_argument(
+        "target",
+        type=str,
+        help="Target density map to fit the model in. "
+        "Data should either be in CCP4 or MRC format",
+    )
+    parser.add_argument(
+        "-n",
+        "--num",
+        dest="num",
+        type=int,
+        default=10,
+        metavar="<int>",
+        help="Number of models written to file. This number "
+        "will be capped if less solutions are found as requested.",
+    )
+    parser.add_argument(
+        "--delimiter",
+        dest="delimiter",
+        type=str,
+        default=",",
+        metavar="<str>",
+        help="Delimiter used in the 'solutions.out' file. For example use ',' or '\\t'. Defaults to fixed width.",
+    )
+    parser.add_argument(
+        "--option",
+        action="append",
+        nargs=2,
+        metavar=("KEY", "VALUE"),
+        default=[],
+        help="Option used for fitting, to include in the report. "
+        "Can be used multiple times. Example: --option resolution 13",
+    )
+    args = parser.parse_args()
+
+    generate_report(
+        args.directory, args.target, args.num, args.delimiter, dict(args.option)
+    )
