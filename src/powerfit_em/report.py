@@ -101,13 +101,12 @@ def _add_model_to_builder(
     return component.focus(radius_factor=3).representation().color(color="blue")
 
 
-def _create_snapshot_description(
-    solution: dict[str, Any], fitted_model_file: Path
-) -> str:
+def _create_snapshot_description(solution: dict[str, Any]) -> str:
     translation = f"({solution['x']}, {solution['y']}, {solution['z']})"
     rotation = f"(({solution['a11']}, {solution['a12']}, {solution['a13']}), "
     rotation += f"({solution['a21']}, {solution['a22']}, {solution['a23']}), "
     rotation += f"({solution['a31']}, {solution['a32']}, {solution['a33']}))"
+    fitted_model_file = solution["fitted_model_file"]
     return dedent(f"""
             - Rank: {solution["rank"]}
             - Fitted model: [{fitted_model_file.name}]({fitted_model_file.name})
@@ -120,13 +119,12 @@ def _create_snapshot_description(
         """)
 
 
-def create_snapshot(
-    solution: dict, fitted_model_file: Path, density: Path, rel_iso_value: float
-) -> Snapshot:
+def create_snapshot(solution: dict, density: Path, rel_iso_value: float) -> Snapshot:
     builder = create_builder()
+    fitted_model_file = solution["fitted_model_file"]
     _add_density_to_builder(builder, density, rel_iso_value)
     _add_model_to_builder(builder, fitted_model_file)
-    description = _create_snapshot_description(solution, fitted_model_file)
+    description = _create_snapshot_description(solution)
     return builder.get_snapshot(
         key=fitted_model_file.stem,
         title=solution["rank"],
@@ -171,11 +169,12 @@ def _read_solutions(path: Path, delimiter: str | None = None) -> list[dict]:
     with open(path, "r") as f:
         reader = csv.DictReader(f, delimiter=delimiter)
         solutions = list(reader)
-    # Calculate sigma_dif for each solution
+    # Calculate sigma_dif for each solution and add fitted_model_file
     if solutions:
         best_z = float(solutions[0]["Fish-z"])
-        for solution in solutions:
+        for i, solution in enumerate(solutions):
             solution["sigma_dif"] = round(float(solution["rel-z"]) - best_z, 3)
+            solution["fitted_model_file"] = Path(path.parent) / f"fit_{i + 1}.pdb"
     return solutions
 
 
@@ -551,9 +550,10 @@ def generated_table(solutions: list[dict[str, Any]]) -> str:
         else:
             class_name = "close-sigma-gt3"
         snapshot_key = f"fit_{solution['rank']}"
+        fitted_model_file = solution["fitted_model_file"]
         table += dedent(f"""\
             <tr class="{class_name}">
-              <td>{solution["rank"]}</td>
+              <td><a href="{fitted_model_file.name}" target="_blank" title="Download fitted model">{solution["rank"]}</a></td>
               <td>{solution["cc"]}</td>
               <td>{solution["Fish-z"]}</td>
               <td>{solution["rel-z"]}</td>
@@ -600,15 +600,10 @@ def generate_report(
 
     solutions_file = run_dir / "solutions.out"
     solutions = _read_solutions(solutions_file, delimiter)
-    fitted_model_files = []
+    fitted_model_files = [solution["fitted_model_file"] for solution in solutions[:num]]
     snapshots = []
-    for i, solution in enumerate(solutions):
-        if i >= num:
-            # Can only visualize written models
-            break
-        fitted_model_file = run_dir / f"fit_{i + 1}.pdb"
-        fitted_model_files.append(fitted_model_file)
-        snapshot = create_snapshot(solution, fitted_model_file, target_path, iso.value)
+    for i, solution in enumerate(solutions[:num]):
+        snapshot = create_snapshot(solution, target_path, iso.value)
         snapshots.append(snapshot)
     snapshots.append(
         create_snapshot_with_all_models(fitted_model_files, target_path, iso.value)
