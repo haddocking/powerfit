@@ -60,9 +60,10 @@ def make_parser():
     p.add_argument("resolution", type=float, help="Resolution of map in angstrom")
     p.add_argument(
         "template",
-        type=FileType("r"),
+        type=FileType("rb"),
         help="Atomic model to be fitted in the density. "
-        "Format should either be PDB or mmCIF",
+        "Format should either be PDB or mmCIF. "
+        "Valid extensions are .pdb, .ent, .cif, .pdb.gz, .ent.gz, .cif.gz",
     )
 
     # Optional arguments and flags
@@ -357,7 +358,7 @@ def setup_target(
 
 
 def setup_template_structure(
-    template_structure: TextIO,
+    template_structure: BinaryIO,
     chain: str | None,
     target: Volume,
     resolution: float,
@@ -420,7 +421,7 @@ def setup_rotational_matrix(
 def powerfit(
     target_volume: BinaryIO,
     resolution: float,
-    template_structure: TextIO,
+    template_structure: BinaryIO,
     angle: float=10,
     laplace: bool=False,
     core_weighted: bool=False,
