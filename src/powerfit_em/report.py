@@ -254,32 +254,47 @@ def generate_html(
                         height: 100%;
                         box-sizing: border-box;
                     }
-               
-                    #solutions-table table{
-                        border-collapse: collapse;
-                        border: 1px solid #ccc;
-                        margin: 1rem;
-               
-                        th, td {
+
+                    #solutions-table {
+                        table {
+                            border-collapse: collapse;
+                            border: 1px solid #ccc;
+                            margin: 1rem;
+
+                            th, td {
                             border: 1px solid rgb(160 160 160);
                             padding: 8px 10px;
                         }
-                    }
-               
-                    .close-sigma-lt1 {
-                        background-color: #b2e5b2; /* lighter green */
-                        font-weight: bold;
-                    }   
-                    .close-sigma-1to2 {
-                        background-color: #c8f7c8; /* lighter medium green */
-                        font-weight: bold;
-                    }
-                    .close-sigma-2to3 {
-                        background-color: #e6ffe6; /* very light green */
-                        font-weight: bold;
-                    }
-                    .close-sigma-gt3 {
-                    }
+                        .close-sigma-lt1 {
+                            background-color: #b2e5b2; /* lighter green */
+                            font-weight: bold;
+                        }   
+                        .close-sigma-1to2 {
+                            background-color: #c8f7c8; /* lighter medium green */
+                            font-weight: bold;
+                        }
+                        .close-sigma-2to3 {
+                            background-color: #e6ffe6; /* very light green */
+                            font-weight: bold;
+                        }
+                        .close-sigma-gt3 {
+                        }
+                        button {
+                            display: inline-block;
+                            padding: 0.25rem 0.5rem;
+                            text-align: center;
+                            font-size: 11px;
+                            font-weight: 600;
+                            letter-spacing: .1rem;
+                            text-transform: uppercase;
+                            text-decoration: none;
+                            white-space: nowrap;
+                            border-radius: 4px;
+                            border: 1px solid #bbb;
+                            cursor: pointer;
+                            box-sizing: border-box
+                        }
+                    }            
 
                     @media (orientation:portrait),
                     (max-width: 900px) {
@@ -421,6 +436,19 @@ def generate_html(
                             slider.value = currentIsoValue;
                         }
                     });
+               
+                    function jumpToSnapshot(key) {
+                        const context = mvsStories.getContext();
+                        const model = context.state.viewers.value[0].model;
+                        model.plugin?.managers.snapshot.entryMap.forEach((entry, entryId) => {
+                            if (entry.key === key) {
+                                const snapshot = model.plugin?.managers.snapshot.setCurrent(entryId);
+                                if (snapshot) {
+                                    model.plugin.state.setSnapshot(snapshot);
+                                }
+                            }
+                        })
+                    }
                 </script>
             </body>
 
@@ -456,6 +484,7 @@ def generated_table(solutions: list[dict[str, Any]]) -> str:
             <th>Fisher z-score</th>
             <th>Relative z-score (z-score/&alpha;)</th>
             <th>Sigma difference (z<sub>1</sub>-z<sub>N</sub>/&alpha;)</th>
+            <th>Visualize</th>
           </tr>
         </thead>
         <tbody>
@@ -478,6 +507,7 @@ def generated_table(solutions: list[dict[str, Any]]) -> str:
               <td>{solution["Fish-z"]}</td>
               <td>{solution["rel-z"]}</td>
               <td>{sigma_dif}</td>
+              <td><button onclick="jumpToSnapshot('fit_{solution["rank"]}')">View</button></td>
             </tr>
         """)
     table += "</tbody></table>\n"
