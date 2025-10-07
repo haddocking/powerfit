@@ -131,7 +131,7 @@ class Correlator(ABC):
 
         template = normalize_template(template, mask)
         self._set_template_var(template)
-        self._set_mask_var(template)
+        self._set_mask_var(mask)
 
         # Reset lcc and rot values after (re)setting the template
         self.lcc[:] = 0.0
