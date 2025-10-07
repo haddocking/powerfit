@@ -508,6 +508,7 @@ def powerfit_many(
 
     For a slight efficiency boost, and to avoid continuously creating many new OpenCL
     queues, the queues are reused. This can be disabled by setting reuse=False
+    Outer list is same order as template_structures. Middle list is ordered on cc score. Inner list is the data for a solution.  Each solution has the following columns: cc Fish-z rel-z x y z a11 a12 a13 a21 a22 a23 a31 a32 a33.
     """
     time0 = time()
 
