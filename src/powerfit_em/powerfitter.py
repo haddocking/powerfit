@@ -1,9 +1,10 @@
 
 
 from functools import partial
-from os import remove
-from os.path import join, abspath, isdir
+import multiprocessing
+from multiprocessing.managers import DictProxy
 from multiprocessing import RawValue, Lock, Process
+from typing import Any
 
 import numpy as np
 from tqdm.auto import tqdm
@@ -48,8 +49,8 @@ def run_correlator_instance(
     rotations: np.ndarray,
     laplace: bool,
     jobid: int,
-    directory: str,
-    counter: _Counter | None
+    counter: _Counter | None,
+    results: dict[int, Any]
 ):
     correlator = CPUCorrelator(
         target.array,
@@ -63,8 +64,7 @@ def run_correlator_instance(
         if counter is not None:
             counter.increment()
 
-    np.save(join(directory, '_lcc_part_{:d}.npy').format(jobid), correlator.lcc)
-    np.save(join(directory, '_rot_part_{:d}.npy').format(jobid), correlator.rot)
+    results[jobid] = (correlator.lcc, correlator.rot)
 
 
 class PowerFitter(object):
@@ -80,7 +80,6 @@ class PowerFitter(object):
         mask: Volume,
         queue: "cl.CommandQueue | None",
         nproc: int = 1,
-        directory: str = abspath("./"),
         laplace: bool = False
     ):
         self._target = target
@@ -89,7 +88,6 @@ class PowerFitter(object):
         self._mask = mask
         self._queue = queue
         self._nproc = nproc
-        self.directory = directory
         self._laplace = laplace
         self._corr = None
         self._lcc = np.zeros(0, dtype=np.float32)
@@ -102,17 +100,6 @@ class PowerFitter(object):
     @property
     def rot(self):
         return self._rot.copy()
-
-    @property
-    def directory(self):
-        return self._directory
-
-    @directory.setter
-    def directory(self, directory):
-        if isdir(directory):
-            self._directory = abspath(directory)
-        else:
-            raise ValueError("Directory does not exist.")
 
     def scan(self, progress: partial[tqdm] | None):
         if self._queue is None:
@@ -155,7 +142,11 @@ class PowerFitter(object):
         if self._queue is not None:
             self._njobs = len(self._queue)
 
-        for id in range(self._njobs):
+        ids = tuple(range(self._njobs))
+        manager = multiprocessing.Manager()
+        results = manager.dict()
+
+        for id in ids:
             start = id * self._nrot_per_job
             stop = start + self._nrot_per_job
             if id == self._njobs - 1:
@@ -166,7 +157,7 @@ class PowerFitter(object):
                   target=run_correlator_instance,
                   args=(self._target, self._template, self._mask,
                         partial_rotations, self._laplace, id,
-                        self._directory, self._counter)
+                        self._counter, results)
                 )
             )
 
@@ -181,7 +172,7 @@ class PowerFitter(object):
         
         for id in range(self._njobs):
             processes[id].join()
-        self._combine()
+        self._combine(ids, results)
 
     def _single_cpu_scan(self, progress: partial[tqdm] | None):
         self._corr = CPUCorrelator(
@@ -195,21 +186,19 @@ class PowerFitter(object):
         self._lcc = self._corr.lcc
         self._rot = self._corr.rot
 
-    def _combine(self):
+    def _combine(self, ids: tuple[int, ...], results: DictProxy):
         # Combine all the intermediate results
         lcc = np.zeros(self._target.shape)
         rot = np.zeros(self._target.shape)
         ind = np.zeros(lcc.shape, dtype=np.bool)
-        for n in range(self._njobs):
-            lcc_file = join(self._directory, '_lcc_part_{:d}.npy').format(n)
-            rot_file = join(self._directory, '_rot_part_{:d}.npy').format(n)
-            part_lcc = np.load(lcc_file)
-            part_rot = np.load(rot_file)
+        for n in ids:
+            # Get LCC and rotations from results
+            part_lcc = results[n][0]
+            part_rot = results[n][1]
+
             np.greater(part_lcc, lcc, ind)
             lcc[ind] = part_lcc[ind]
             # take care of the rotation index offset for each independent job
             rot[ind] = part_rot[ind] + self._nrot_per_job * n
-            remove(lcc_file)
-            remove(rot_file)
         self._lcc = lcc
         self._rot = rot

@@ -448,7 +448,7 @@ def powerfit(
     structure, template, mask, z_sigma = setup_template_structure(template_structure, chain, target, resolution, core_weighted)
     rotmat = setup_rotational_matrix(angle)
 
-    pf = PowerFitter(target, rotmat, template, mask, queue, nproc, directory, laplace=laplace)
+    pf = PowerFitter(target, rotmat, template, mask, queue, nproc, laplace=laplace)
     if gpu:
         logger.info("Using GPU-accelerated search.")
     else:
@@ -500,7 +500,6 @@ def powerfit_many(
     resampling_rate: float=2,
     no_trimming: bool=False,
     trimming_cutoff: float | None=None,
-    directory: str = '.',
     gpu: str | None = None, 
     reuse: bool = True,
     nproc: int=1,
@@ -511,7 +510,6 @@ def powerfit_many(
     queues, the queues are reused. This can be disabled by setting reuse=False
     """
     time0 = time()
-    Path(directory).mkdir(exist_ok=True)
 
     # Get GPU queue if requested
     queue = None
@@ -550,11 +548,11 @@ def powerfit_many(
         _, template, mask, z_sigma = template_vars[i]
         if pf is None or not reuse:
             pf = PowerFitter(
-                target, rotmat, template, mask, queue, nproc, directory, laplace=laplace
+                target, rotmat, template, mask, queue, nproc, laplace=laplace
             )
         elif not gpu and nproc > 1:  # Can't reuse w/ multi-cpu search
             pf = PowerFitter(
-                target, rotmat, template, mask, queue, nproc, directory, laplace=laplace
+                target, rotmat, template, mask, queue, nproc, laplace=laplace
             )
         else:
             pf.set_template(template, mask)
