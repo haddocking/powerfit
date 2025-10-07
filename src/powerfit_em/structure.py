@@ -283,6 +283,7 @@ def parse_mmcif(infile):
                 words = line.split()
                 for key, word in zip(atom_site, words):
                     atom_site[key].append(word)
+    infile.close()
     return atom_site
 
 
