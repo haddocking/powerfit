@@ -111,7 +111,7 @@ def _create_snapshot_description(solution: dict[str, Any]) -> str:
             - Rank: {solution["rank"]}
             - Fitted model: [{fitted_model_file.name}]({fitted_model_file.name})
             - Cross correlation score: {solution["cc"]}
-            - Fish-z score: {solution["Fish-z"]}
+            - Fisher z-score: {solution["Fish-z"]}
             - Relative z-score (z-score/α: {solution["rel-z"]}
             - Sigma difference (z₁-zₙ/α): {solution["sigma_dif"]}
             - Translation: {translation}
