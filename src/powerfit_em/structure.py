@@ -200,7 +200,7 @@ class Structure(object):
               np.asmatrix(rotmat) * np.asmatrix(self.coor)
               )
 
-    def select(self, identifier, values, loperator='==', return_ind=False):
+    def select(self, identifier, values, loperator='==', return_ind=False) -> "Structure":
         """A simple way of selecting atoms"""
         if loperator == '==':
             oper = operator.eq

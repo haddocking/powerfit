@@ -93,7 +93,6 @@ class Correlator(ABC):
     square: Callable
     laplace: bool
     target: np.ndarray
-    mask: np.ndarray
     lcc: np.ndarray
     rot: np.ndarray
 
@@ -107,7 +106,11 @@ class Correlator(ABC):
         """Set the Vars.template variable in-place."""
         pass
 
-    def set_template(self, template: np.ndarray):
+    @abstractmethod
+    def _set_mask_var(self, mask: np.ndarray):
+        """Set the Vars.mask variable in-place."""
+
+    def set_template(self, template: np.ndarray, mask: np.ndarray):
         """Set the template structure that you want to fit in the target density.
 
         Can be used to try to fit a different template to the same target structure
@@ -122,9 +125,13 @@ class Correlator(ABC):
 
         if self.laplace:
             template = laplace_filter(template, mode='wrap')
-        
-        template = normalize_template(template, self.mask)
+
+        # Precompute the normalization factor for use in the LCC computing kernel
+        self.norm_factor = get_normalization_factor(mask)
+
+        template = normalize_template(template, mask)
         self._set_template_var(template)
+        self._set_mask_var(mask)
 
         # Reset lcc and rot values after (re)setting the template
         self.lcc[:] = 0.0
