@@ -45,7 +45,7 @@ def zeros_array(shape: tuple[int], dtype: npt.DTypeLike, fftw: bool) -> np.ndarr
 
 
 def init_cpu_vars(
-    target: np.ndarray, mask: np.ndarray, laplace: bool, fftw: bool,
+    target: np.ndarray, laplace: bool, fftw: bool,
 )-> tuple[Vars[np.ndarray, np.ndarray], VarsFT[np.ndarray]]:
     """Initialize all CPU variables on the specified queue."""
 
@@ -55,7 +55,7 @@ def init_cpu_vars(
     vars = Vars(
         target = _t.astype(f32),
         template = zeros_array(target.shape, f32, fftw),
-        mask = mask.astype(f32),
+        mask = zeros_array(target.shape, f32, fftw),
         lcc_mask = lcc_mask.astype(np.uint8),
         target2 = zeros_array(target.shape, f32, fftw),
         rot_template = zeros_array(target.shape, f32, fftw),
@@ -109,17 +109,15 @@ class CPUCorrelator(Correlator):
         """
         self.target: np.ndarray = target / target.max()
         self.laplace = laplace
-        self.mask = mask
         self.rotations = rotations
-        self.norm_factor = get_normalization_factor(mask)
 
-        self.vars, self.vars_ft = init_cpu_vars(self.target, mask, self.laplace, fftw)
+        self.vars, self.vars_ft = init_cpu_vars(self.target, self.laplace, fftw)
     
         self.lcc_scan = np.zeros(self.target.shape, dtype=f32)
         self.lcc = np.zeros(self.target.shape, dtype=f32)
         self.rot = np.zeros(self.target.shape, dtype=i32)
 
-        self.set_template(template)
+        self.set_template(template, mask)
 
         # set methods in the same was as GPUCorrelator implementation;
         self.conj_multiply = lambda a,b,c: np.multiply(np.conjugate(a), b, out=c)
@@ -132,6 +130,9 @@ class CPUCorrelator(Correlator):
 
     def _set_template_var(self, template: np.ndarray):
         self.vars.template = template.astype(f32)
+
+    def _set_mask_var(self, mask: np.ndarray):
+        self.vars.mask = mask.astype(f32)
 
     def rotate_grids(self, rotmat: np.ndarray):
         """Rotate the template and mask using the rotational matrix."""

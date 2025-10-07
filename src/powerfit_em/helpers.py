@@ -13,16 +13,6 @@ except ImportError:
 from . import volume
 
 
-def mkdir_p(path):
-    try:
-        os.makedirs(path)
-    except OSError as exc:
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
-            pass
-        else:
-            raise
-
-
 def determine_core_indices(mask):
     """Calculate the core indices of a shape"""
 

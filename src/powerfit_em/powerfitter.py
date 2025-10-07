@@ -1,9 +1,10 @@
 
 
 from functools import partial
-from os import remove
-from os.path import join, abspath, isdir
+import multiprocessing
+from multiprocessing.managers import DictProxy
 from multiprocessing import RawValue, Lock, Process
+from typing import Any
 
 import numpy as np
 from tqdm.auto import tqdm
@@ -16,10 +17,13 @@ try:
 except ImportError:
     PYFFTW = False
 try:
-    import pyopencl as _
+    import pyopencl as cl
     OPENCL = True
 except:
     OPENCL = False
+
+if OPENCL:
+    from powerfit_em.correlators.gpu import GPUCorrelator
 
 
 class _Counter(object):
@@ -45,8 +49,8 @@ def run_correlator_instance(
     rotations: np.ndarray,
     laplace: bool,
     jobid: int,
-    directory: str,
-    counter: _Counter | None
+    counter: _Counter | None,
+    results: dict[int, Any]
 ):
     correlator = CPUCorrelator(
         target.array,
@@ -60,8 +64,7 @@ def run_correlator_instance(
         if counter is not None:
             counter.increment()
 
-    np.save(join(directory, '_lcc_part_{:d}.npy').format(jobid), correlator.lcc)
-    np.save(join(directory, '_rot_part_{:d}.npy').format(jobid), correlator.rot)
+    results[jobid] = (correlator.lcc, correlator.rot)
 
 
 class PowerFitter(object):
@@ -70,30 +73,36 @@ class PowerFitter(object):
     """
 
     def __init__(
-        self, target: Volume, rotations: np.ndarray, template: Volume, mask: Volume, queues, laplace: bool = False
+        self,
+        target: Volume,
+        rotations: np.ndarray,
+        template: Volume,
+        mask: Volume,
+        queue: "cl.CommandQueue | None",
+        nproc: int = 1,
+        laplace: bool = False
     ):
         self._target = target
         self._rotations = rotations
         self._template = template
         self._mask = mask
-        self._queues = queues
-        self._nproc = 1
-        self._directory = abspath('./')
+        self._queue = queue
+        self._nproc = nproc
         self._laplace = laplace
+        self._corr = None
+        self._lcc = np.zeros(0, dtype=np.float32)
+        self._rot = np.zeros(0, dtype=np.float32)
 
     @property
-    def directory(self):
-        return self._directory
+    def lcc(self):
+        return self._lcc.copy()
 
-    @directory.setter
-    def directory(self, directory):
-        if isdir(directory):
-            self._directory = abspath(directory)
-        else:
-            raise ValueError("Directory does not exist.")
+    @property
+    def rot(self):
+        return self._rot.copy()
 
     def scan(self, progress: partial[tqdm] | None):
-        if self._queues is None:
+        if self._queue is None:
             if self._nproc == 1:
                 self._single_cpu_scan(progress)
             else:
@@ -101,20 +110,28 @@ class PowerFitter(object):
         else:
             self._gpu_scan(progress)
 
+    def set_template(self, template: Volume, mask: Volume):
+        if not self._corr:
+            msg = f"No correlator available yet. First run scan."
+            raise ValueError(msg)
+        self._corr.set_template(template.array, mask.array)
+        
     def _gpu_scan(self, progress: partial[tqdm] | None):
         if OPENCL:
-            from powerfit_em.correlators.gpu import GPUCorrelator
-        self._corr = GPUCorrelator(
-            self._target.array,
-            self._template.array,
-            self._rotations,
-            self._mask.array,
-            self._queues[0],
-            self._laplace,
-        )
-        self._corr.scan(progress)
-        self._lcc = self._corr.lcc
-        self._rot = self._corr.rot
+            if self._corr is None:
+                self._corr = GPUCorrelator(
+                    self._target.array,
+                    self._template.array,
+                    self._rotations,
+                    self._mask.array,
+                    self._queue,
+                    self._laplace,
+                )
+            self._corr.scan(progress)
+            self._lcc = self._corr.lcc
+            self._rot = self._corr.rot
+        else:
+            raise ValueError("No OpenCL")
 
     def _multi_cpu_scan(self, progress: partial[tqdm] | None):
         nrot = self._rotations.shape[0]
@@ -122,10 +139,14 @@ class PowerFitter(object):
         processes: list[Process] = []
         self._counter = None if processes is None else _Counter()
         self._njobs = self._nproc
-        if self._queues is not None:
-            self._njobs = len(self._queues)
+        if self._queue is not None:
+            self._njobs = len(self._queue)
 
-        for id in range(self._njobs):
+        ids = tuple(range(self._njobs))
+        manager = multiprocessing.Manager()
+        results = manager.dict()
+
+        for id in ids:
             start = id * self._nrot_per_job
             stop = start + self._nrot_per_job
             if id == self._njobs - 1:
@@ -136,7 +157,7 @@ class PowerFitter(object):
                   target=run_correlator_instance,
                   args=(self._target, self._template, self._mask,
                         partial_rotations, self._laplace, id,
-                        self._directory, self._counter)
+                        self._counter, results)
                 )
             )
 
@@ -151,35 +172,33 @@ class PowerFitter(object):
         
         for id in range(self._njobs):
             processes[id].join()
-        self._combine()
+        self._combine(ids, results)
 
     def _single_cpu_scan(self, progress: partial[tqdm] | None):
-        correlator = CPUCorrelator(
+        self._corr = CPUCorrelator(
             self._target.array,
             self._template.array,
             self._rotations,
             self._mask.array,
             self._laplace,
         )
-        correlator.scan(progress)
-        self._lcc = correlator.lcc
-        self._rot = correlator.rot
+        self._corr.scan(progress)
+        self._lcc = self._corr.lcc
+        self._rot = self._corr.rot
 
-    def _combine(self):
+    def _combine(self, ids: tuple[int, ...], results: DictProxy):
         # Combine all the intermediate results
         lcc = np.zeros(self._target.shape)
         rot = np.zeros(self._target.shape)
         ind = np.zeros(lcc.shape, dtype=np.bool)
-        for n in range(self._njobs):
-            lcc_file = join(self._directory, '_lcc_part_{:d}.npy').format(n)
-            rot_file = join(self._directory, '_rot_part_{:d}.npy').format(n)
-            part_lcc = np.load(lcc_file)
-            part_rot = np.load(rot_file)
+        for n in ids:
+            # Get LCC and rotations from results
+            part_lcc = results[n][0]
+            part_rot = results[n][1]
+
             np.greater(part_lcc, lcc, ind)
             lcc[ind] = part_lcc[ind]
             # take care of the rotation index offset for each independent job
             rot[ind] = part_rot[ind] + self._nrot_per_job * n
-            remove(lcc_file)
-            remove(rot_file)
         self._lcc = lcc
         self._rot = rot
