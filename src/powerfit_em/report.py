@@ -113,7 +113,8 @@ def _create_snapshot_description(
             - Fitted model: [{fitted_model_file.name}]({fitted_model_file.name})
             - Cross correlation score: {solution["cc"]}
             - Fish-z score: {solution["Fish-z"]}
-            - Rel-z score: {solution["rel-z"]}
+            - Relative z-score (z-score/α: {solution["rel-z"]}
+            - Sigma difference (z₁-zₙ/α): {solution["sigma_dif"]}
             - Translation: {translation}
             - Rotation: {rotation}
         """)
@@ -170,6 +171,11 @@ def _read_solutions(path: Path, delimiter: str | None = None) -> list[dict]:
     with open(path, "r") as f:
         reader = csv.DictReader(f, delimiter=delimiter)
         solutions = list(reader)
+    # Calculate sigma_dif for each solution
+    if solutions:
+        best_z = float(solutions[0]["Fish-z"])
+        for solution in solutions:
+            solution["sigma_dif"] = round(float(solution["rel-z"]) - best_z, 3)
     return solutions
 
 
@@ -489,9 +495,8 @@ def generated_table(solutions: list[dict[str, Any]]) -> str:
         </thead>
         <tbody>
         """)
-    best_z = float(solutions[0]["Fish-z"])
     for solution in solutions:
-        sigma_dif = round(float(solution["rel-z"]) - best_z, 3)
+        sigma_dif = solution["sigma_dif"]
         if sigma_dif < 1:
             class_name = "close-sigma-lt1"
         elif sigma_dif < 2:
