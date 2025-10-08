@@ -171,9 +171,9 @@ def _read_solutions(path: Path, delimiter: str | None = None) -> list[dict]:
         solutions = list(reader)
     # Calculate sigma_dif for each solution and add fitted_model_file
     if solutions:
-        best_z = float(solutions[0]["Fish-z"])
+        best_z = float(solutions[0]["rel-z"])
         for i, solution in enumerate(solutions):
-            solution["sigma_dif"] = round(float(solution["rel-z"]) - best_z, 3)
+            solution["sigma_dif"] = round(best_z - float(solution["rel-z"]) , 3)
             solution["fitted_model_file"] = Path(path.parent) / f"fit_{i + 1}.pdb"
     return solutions
 
