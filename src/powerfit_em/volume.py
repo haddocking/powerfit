@@ -1,5 +1,7 @@
 
+import gzip
 from io import BufferedReader
+from pathlib import Path
 from struct import unpack as _unpack, pack as _pack
 import os.path
 from sys import byteorder as _BYTEORDER
@@ -18,10 +20,19 @@ class Volume(object):
         return cls(array, voxelspacing, origin)
 
     def __init__(self, array, voxelspacing=1.0, origin=(0, 0, 0)):
-
         self.array = array
         self.voxelspacing = voxelspacing
         self.origin = origin
+    
+    def __eq__(self, other):
+        if isinstance(other, Volume):
+            return (
+                (self.array == other.array).all() and
+                self.voxelspacing == other.voxelspacing and
+                self.origin == other.origin
+            )
+        else:
+            return NotImplemented
 
     @property
     def shape(self):
@@ -232,12 +243,20 @@ def parse_volume(fid, fmt=None):
         fname = fid
 
     if fmt is None:
-        fmt = os.path.splitext(fname)[-1][1:]
-    if fmt in ('ccp4', 'map'):
+        fp = Path(fname)
+        fmt = fp.suffix
+        if fmt == ".gz":
+            fmt = fp.suffixes[-2] + fmt
+    
+    if fmt in ('.ccp4', '.map'):
         p = CCP4Parser(fid)
-    elif fmt == 'mrc':
+    elif fmt in (".ccp4.gz", ".map.gz"):
+        p = CCP4Parser(fid, gzipped=True)
+    elif fmt == '.mrc':
         p = MRCParser(fname)
-    elif fmt in ('xplor', 'cns'):
+    elif fmt == ".mrc.gz":
+        p = MRCParser(fname, gzipped=True)
+    elif fmt in ('.xplor', '.cns'):
         p = XPLORParser(fname)
     else:
         raise ValueError('Extension of file is not supported.')
@@ -257,12 +276,17 @@ class CCP4Parser(object):
           ).split()
     HEADER_CHUNKS = [1] * 25 + [9, 3, 12] + [1] * 3 + [4, 4, 1, 1, 800]
 
-    def __init__(self, fid):
-
+    def __init__(self, fid, gzipped: bool = False):
         if isinstance(fid, str):
-            fhandle = open(fid, 'rb')
+            if gzipped:
+                fhandle = gzip.open(fid, mode="rb")
+            else:
+                fhandle = open(fid, mode="rb")
         elif isinstance(fid, BufferedReader):
-            fhandle = fid
+            if gzipped:
+                fhandle = gzip.GzipFile(fileobj=fid, mode="rb")
+            else:
+                fhandle = fid
         else:
             raise ValueError("Input should either be a file or filename.")
 
@@ -308,7 +332,7 @@ class CCP4Parser(object):
         # generate the density
         shape_fields = 'nz ny nx'.split()
         self.shape = [self.header[field] for field in shape_fields]
-        self._get_density()
+        self._get_density(gzipped)
 
     def _get_endiannes(self):
         self.fhandle.seek(212)
@@ -351,7 +375,7 @@ class CCP4Parser(object):
         start = [start[x - 1] for x in self.order]
         return np.asarray([x * self.voxelspacing for x in start])
 
-    def _get_density(self):
+    def _get_density(self, gzipped: bool):
 
         # Determine the dtype of the file based on the mode
         mode = self.header['mode']
@@ -361,8 +385,14 @@ class CCP4Parser(object):
             dtype = 'i2'
         elif mode == 2:
             dtype = 'f4'
+        else:
+            msg = f"Unknown mode '{mode}' in file header."
+            raise ValueError(msg)
 
-        density = np.fromfile(self.fhandle, dtype=self._endian + dtype).reshape(self.shape)
+        if gzipped:
+            density = np.frombuffer(self.fhandle.read(), dtype=self._endian + dtype).reshape(self.shape)
+        else:
+            density = np.fromfile(self.fhandle, dtype=self._endian + dtype).reshape(self.shape)
         if self.order == (1, 3, 2):
             self.density = np.swapaxes(self.density, 0, 1)
         elif self.order == (2, 1, 3):
@@ -381,7 +411,7 @@ class CCP4Parser(object):
             density = density.astype(np.int32)
         elif mode == 2:
             density = density.astype(np.float64)
-        self.density =density
+        self.density = density
 
     def _get_order(self):
         self.order = tuple(self.header[axis] for axis in ('mapc', 'mapr',
@@ -389,7 +419,6 @@ class CCP4Parser(object):
 
 
 class MRCParser(CCP4Parser):
-
     def _get_origin(self):
         origin_fields = 'xstart ystart zstart'.split()
         origin = [self.header[field] for field in origin_fields]
