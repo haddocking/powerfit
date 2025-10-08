@@ -236,23 +236,24 @@ The information should explain all options decently. In addtion, here are some
 examples for common operations.
 
 To perform a search with an approximate 24&deg; rotational sampling interval
+with laplace pre-filtering and core-weighted scoring function using 1 CPU
 
 ```shell
 powerfit <map> <resolution> <pdb> -a 24
 ```
 
-To use multiple CPU cores with laplace pre-filter and 5&deg; rotational
+To use multiple CPU cores without laplace pre-filter and 5&deg; rotational
 interval
 
 ```shell
-powerfit <map> <resolution> <pdb> -p 4 -l -a 5
+powerfit <map> <resolution> <pdb> -p 4 --no-laplace -a 5
 ```
 
-To off-load computations to the GPU and use the core-weighted scoring function
+To off-load computations to the GPU and do not use the core-weighted scoring function
 and write out the top 15 solutions
 
 ```shell
-powerfit <map> <resolution> <pdb> -g -cw -n 15
+powerfit <map> <resolution> <pdb> -g --no-core-weighted -n 15
 ```
 
 Note that all options can be combined except for the `-g` and `-p` flag:
