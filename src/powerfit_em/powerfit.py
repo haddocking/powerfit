@@ -7,7 +7,7 @@ from pathlib import Path
 from time import time
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, BooleanOptionalAction, FileType
 import logging
-from typing import BinaryIO, TextIO
+from typing import BinaryIO
 import warnings
 
 import numpy as np
@@ -80,20 +80,20 @@ def make_parser():
     )
     # Scoring flags
     p.add_argument(
-        "-l",
-        "--laplace",
-        dest="laplace",
+        "-nl",
+        "--no-laplace",
+        dest="no_laplace",
         action="store_true",
-        help="Use the Laplace pre-filter density data. "
+        help="Do not use the Laplace pre-filter density data. "
         "Can be combined "
         "with the core-weighted local cross-correlation.",
     )
     p.add_argument(
-        "-cw",
-        "--core-weighted",
-        dest="core_weighted",
+        "-ncw",
+        "--no-core-weighted",
+        dest="no_core_weighted",
         action="store_true",
-        help="Use core-weighted local cross-correlation score. "
+        help="Do not use core-weighted local cross-correlation score. "
         "Can be combined with the Laplace pre-filter.",
     )
     # Resampling
@@ -272,8 +272,8 @@ def main():
         resolution=args.resolution,
         template_structure=args.template,
         angle=args.angle,
-        laplace=args.laplace,
-        core_weighted=args.core_weighted,
+        laplace=not args.no_laplace,
+        core_weighted=not args.no_core_weighted,
         no_resampling=args.no_resampling,
         resampling_rate=args.resampling_rate,
         no_trimming=args.no_trimming,
@@ -291,8 +291,8 @@ def main():
         options = {
             'resolution': args.resolution,
             'angle': args.angle,
-            'laplace': args.laplace,
-            'core weighted': args.core_weighted,
+            'no laplace': args.no_laplace,
+            'no core weighted': args.no_core_weighted,
             'no resampling': args.no_resampling,
             'resampling rate': args.resampling_rate,
             'no trimming': args.no_trimming,
