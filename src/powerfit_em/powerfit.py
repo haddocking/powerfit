@@ -84,17 +84,14 @@ def make_parser():
         "--no-laplace",
         dest="no_laplace",
         action="store_true",
-        help="Do not use the Laplace pre-filter density data. "
-        "Can be combined "
-        "with the core-weighted local cross-correlation.",
+        help="Do not use the Laplace pre-filter density data.",
     )
     p.add_argument(
         "-ncw",
         "--no-core-weighted",
         dest="no_core_weighted",
         action="store_true",
-        help="Do not use core-weighted local cross-correlation score. "
-        "Can be combined with the Laplace pre-filter.",
+        help="Do not use core-weighted local cross-correlation score.",
     )
     # Resampling
     p.add_argument(
