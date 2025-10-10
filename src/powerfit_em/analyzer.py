@@ -96,7 +96,7 @@ class Analyzer:
         cutoff = max_cc
         positions = []
         mask = zeros(self._corr.shape, dtype=bool)
-        for n in range(self._steps):
+        for _ in range(self._steps):
             cutoff -= stepsize
             greater_equal(self._corr, cutoff, mask)
             labels, nfeatures = label(mask)

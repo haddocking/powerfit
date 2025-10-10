@@ -170,37 +170,37 @@ class Element:
         for i, j in enumerate(self.ionenergy):
             if i and (i % 5 == 0):
                 ionenergy.append("\n" + " " * 15)
-            ionenergy.append("%s, " % j)
+            ionenergy.append("%s, " % j)  # noqa: UP031
         ionenergy = "".join(ionenergy)
 
         isotopes = []
         for massnum in sorted(self.isotopes):
             iso = self.isotopes[massnum]
-            isotopes.append("%i: Isotope(%s, %s, %i)" % (
+            isotopes.append("%i: Isotope(%s, %s, %i)" % (  # noqa: UP031
                 massnum, iso.mass, iso.abundance, massnum))
         isotopes = ",\n              ".join(isotopes)
 
         description = word_wrap(self.description, linelen=66, indent=0,
                                 joinstr=""" "\n        \"""")
-        description = """    e['%s'].description = (\n        "%s\")""" % (
+        description = """    e['%s'].description = (\n        "%s\")""" % (  # noqa: UP031
             self.symbol, description)
         # return description
 
         result = [
-            "Element(\n    %i, '%s', '%s'" % (
+            "Element(\n    %i, '%s', '%s'" % (  # noqa: UP031
                 self.number, self.symbol, self.name),
-            "group=%s, period=%s, block='%s', series=%i" % (
+            "group=%s, period=%s, block='%s', series=%i" % (  # noqa: UP031
                 self.group, self.period, self.block, self.series),
-            "mass=%s, eleneg=%s, eleaffin=%s" % (
+            "mass=%s, eleneg=%s, eleaffin=%s" % (  # noqa: UP031
                 self.mass, self.eleneg, self.eleaffin),
-            "covrad=%s, atmrad=%s, vdwrad=%s" % (
+            "covrad=%s, atmrad=%s, vdwrad=%s" % (  # noqa: UP031
                 self.covrad, self.atmrad, self.vdwrad),
-            "tboil=%s, tmelt=%s, density=%s" % (
+            "tboil=%s, tmelt=%s, density=%s" % (  # noqa: UP031
                 self.tboil, self.tmelt, self.density),
-            "eleconfig='%s'" % self.eleconfig,
-            "oxistates='%s'" % self.oxistates,
-            "ionenergy=(%s)" % ionenergy,
-            "isotopes={%s})" % isotopes
+            "eleconfig='%s'" % self.eleconfig,  # noqa: UP031
+            "oxistates='%s'" % self.oxistates,  # noqa: UP031
+            "ionenergy=(%s)" % ionenergy,  # noqa: UP031
+            "isotopes={%s})" % isotopes  # noqa: UP031
         ]
         return ",\n    ".join(result)
 
@@ -258,10 +258,10 @@ class Element:
 
         if self.number != self.protons:
             raise ValueError(
-                "%s - atomic number must equal proton number" % self.symbol)
+                "%s - atomic number must equal proton number" % self.symbol)  # noqa: UP031
         if self.protons != sum(self.eleshells):
             raise ValueError(
-                "%s - number of protons must equal electrons" % self.symbol)
+                "%s - number of protons must equal electrons" % self.symbol)  # noqa: UP031
 
         mass = 0.0
         frac = 0.0
@@ -270,11 +270,11 @@ class Element:
             frac += iso.abundance
         if abs(mass - self.mass) > 0.03:
             raise ValueError(
-                "%s - average of isotope masses (%.4f) != mass (%.4f)" % (
+                "%s - average of isotope masses (%.4f) != mass (%.4f)" % (  # noqa: UP031
                     self.symbol, mass, self.mass))
         if abs(frac - 1.0) > 1e-9:
             raise ValueError(
-                "%s - sum of isotope abundances != 1.0" % self.symbol)
+                "%s - sum of isotope abundances != 1.0" % self.symbol)  # noqa: UP031
 
 
 class Isotope:
@@ -287,11 +287,11 @@ class Isotope:
         self.massnumber = massnumber
 
     def __str__(self):
-        return "%i, %.4f, %.6f%%" % (self.massnumber, self.mass,
+        return "%i, %.4f, %.6f%%" % (self.massnumber, self.mass,  # noqa: UP031
                                      self.abundance * 100)
 
     def __repr__(self):
-        return "Isotope(%s, %s, %s)" % (
+        return "Isotope(%s, %s, %s)" % (  # noqa: UP031
             repr(self.mass), repr(self.abundance), repr(self.massnumber))
 
 
@@ -312,7 +312,7 @@ class ElementsDict:
             self._dict[element.name] = element
 
     def __str__(self):
-        return "[%s]" % ", ".join(ele.symbol for ele in self._list)
+        return "[%s]" % ", ".join(ele.symbol for ele in self._list)  # noqa: UP031
 
     def __contains__(self, item):
         return item in self._dict
@@ -326,12 +326,12 @@ class ElementsDict:
     def __getitem__(self, key):
         try:
             return self._dict[key]
-        except KeyError:
+        except KeyError as err:
             try:
                 start, stop, step = key.indices(len(self._list))
                 return self._list[slice(start - 1, stop - 1, step)]
-            except:
-                raise KeyError
+            except:  # noqa: E722
+                raise KeyError from err
 
 
 ELEMENTS = ElementsDict(
@@ -2565,18 +2565,18 @@ def sqlite_script():
     """]
 
     for key, label in list(PERIODS.items()):
-        sql.append("""INSERT INTO "period" VALUES (%i, '%s', NULL);""" % (
+        sql.append("""INSERT INTO "period" VALUES (%i, '%s', NULL);""" % (  # noqa: UP031
             key, label))
 
     for key, (label, descr) in list(GROUPS.items()):
-        sql.append("""INSERT INTO "group" VALUES (%i, '%s', '%s');""" % (
+        sql.append("""INSERT INTO "group" VALUES (%i, '%s', '%s');""" % (  # noqa: UP031
             key, label, descr))
 
     for data in list(BLOCKS.items()):
-        sql.append("""INSERT INTO "block" VALUES ('%s', '%s');""" % data)
+        sql.append("""INSERT INTO "block" VALUES ('%s', '%s');""" % data)  # noqa: UP031
 
     for series in sorted(SERIES):
-        sql.append("""INSERT INTO "series" VALUES (%i, '%s', '');""" % (
+        sql.append("""INSERT INTO "series" VALUES (%i, '%s', '');""" % (  # noqa: UP031
             series, SERIES[series]))
 
     for ele in ELEMENTS:
@@ -2586,7 +2586,7 @@ def sqlite_script():
             %.4f, %.4f, %.4f, %.8f,
             '%s', '%s',
             '%s'
-        );""" % (
+        );""" % (  # noqa: UP031
             ele.number, ele.symbol, ele.name, ele.period, ele.group,
             ele.block, ele.series, ele.mass, ele.eleneg,
             ele.covrad, ele.atmrad, ele.vdwrad, ele.tboil, ele.tmelt,
@@ -2598,18 +2598,18 @@ def sqlite_script():
     for ele in ELEMENTS:
         for iso in list(ele.isotopes.values()):
             sql.append(
-                """INSERT INTO "isotope" VALUES (%i, %i, %.10f, %.8f);""" % (
+                """INSERT INTO "isotope" VALUES (%i, %i, %.10f, %.8f);""" % (  # noqa: UP031
                     ele.number, iso.massnumber, iso.mass, iso.abundance))
 
     for ele in ELEMENTS:
         for (shell, subshell), count in list(ele.eleconfig_dict.items()):
             sql.append(
-                """INSERT INTO "eleconfig" VALUES (%i, %i, '%s', %i);""" % (
+                """INSERT INTO "eleconfig" VALUES (%i, %i, '%s', %i);""" % (  # noqa: UP031
                     ele.number, shell, subshell, count))
 
     for ele in ELEMENTS:
         for i, ionenergy in enumerate(ele.ionenergy):
-            sql.append("""INSERT INTO "ionenergy" VALUES (%i, %i, %.4f);""" % (
+            sql.append("""INSERT INTO "ionenergy" VALUES (%i, %i, %.4f);""" % (  # noqa: UP031
                 ele.number, i + 1, ionenergy))
 
     return '\n'.join(sql).replace("        ", "")

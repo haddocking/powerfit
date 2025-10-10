@@ -18,7 +18,7 @@ f32 = np.float32
 i32 = np.int32
 
 T = TypeVar("T", np.ndarray, "ClArray")
-I = TypeVar("I", np.ndarray, "Image")
+I = TypeVar("I", np.ndarray, "Image")  # noqa: E741
 
 
 @dataclass

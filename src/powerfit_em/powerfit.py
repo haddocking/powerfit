@@ -564,7 +564,7 @@ def powerfit_many(
     logger.info("Analyzing results")
 
     analysis_results: list[Analyzer] = []
-    for result, template_var, template in zip(
+    for result, template_var, _ in zip(
         results, template_vars, template_structures, strict=True
     ):
         lcc, rot = result

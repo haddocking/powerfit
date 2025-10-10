@@ -161,7 +161,7 @@ def structure_to_shape(
     if shape not in ('vol', 'mask'):
         raise ValueError("shape should either be 'vol' or 'mask'")
 
-    if out is None and voxelspacing is None:
+    if out is None and voxelspacing is None:  # noqa: SIM108
         voxelspacing = resolution / 4.0
     else:
         voxelspacing = out.voxelspacing
@@ -275,15 +275,12 @@ class CCP4Parser:
 
     def __init__(self, fid, gzipped: bool = False):
         if isinstance(fid, str):
-            if gzipped:
-                fhandle = gzip.open(fid, mode="rb")
+            if gzipped:  # noqa: SIM108
+                fhandle = gzip.open(fid, mode="rb")  # noqa: SIM115
             else:
-                fhandle = open(fid, mode="rb")
+                fhandle = open(fid, mode="rb")  # noqa: SIM115
         elif isinstance(fid, BufferedReader):
-            if gzipped:
-                fhandle = gzip.GzipFile(fileobj=fid, mode="rb")
-            else:
-                fhandle = fid
+            fhandle = gzip.GzipFile(fileobj=fid, mode="rb") if gzipped else fid
         else:
             raise ValueError("Input should either be a file or filename.")
 
@@ -422,7 +419,7 @@ class MRCParser(CCP4Parser):
         return origin
 
 
-def to_mrc(fid, volume, labels=[], fmt=None):
+def to_mrc(fid, volume, labels=[], fmt=None):  # noqa: B006
 
     if fmt is None:
         fmt = os.path.splitext(fid)[-1][1:]
@@ -430,7 +427,6 @@ def to_mrc(fid, volume, labels=[], fmt=None):
     if fmt not in ('ccp4', 'mrc', 'map'):
         raise ValueError('Format is not recognized. Use ccp4, mrc, or map.')
 
-    voxelspacing = volume.voxelspacing
     nz, ny, nx = volume.shape
     dtype = volume.array.dtype.name
     if dtype == 'int8':
@@ -454,7 +450,7 @@ def to_mrc(fid, volume, labels=[], fmt=None):
     skwmat = [0.0]*9
     skwtrn = [0.0]*3
     fut_use = [0.0]*12
-    if fmt == 'mrc':
+    if fmt == 'mrc':  # noqa: SIM108
         origin = volume.origin
     else:
         origin = [0, 0, 0]
@@ -535,7 +531,7 @@ class XPLORParser:
             fname = fid.name
         elif isinstance(fid, str):
             fname = fid
-            fid = open(fid)
+            fid = open(fid)  # noqa: SIM115
         else:
             raise TypeError('Input should either be a file or filename')
 
@@ -590,7 +586,7 @@ class XPLORParser:
     @property
     def density(self):
         with open(self.source) as volumefile:
-            for n in range(2 + len(self.header['label']) + 3):
+            for _ in range(2 + len(self.header['label']) + 3):
                 volumefile.readline()
             nx = self.header['nx']
             ny = self.header['ny']
@@ -615,7 +611,7 @@ class XPLORParser:
         return array
 
 
-def to_xplor(outfile, volume, label=[]):
+def to_xplor(outfile: str | Path, volume: Volume, label: list = []):  # noqa: B006
 
     nz, ny, nx = volume.shape
     xstart, ystart, zstart = [int(round(x)) for x in volume.start]
@@ -643,7 +639,7 @@ def to_xplor(outfile, volume, label=[]):
             n = 0
             for y in range(ny):
                 for x in range(nx):
-                    out.write('%12.5E'%volume.array[z,y,x])
+                    out.write('%12.5E'%volume.array[z,y,x])  # noqa: UP031
                     n += 1
                     if (n % 6) == 0:
                         out.write('\n')

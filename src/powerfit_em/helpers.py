@@ -6,12 +6,12 @@ import numpy as np
 from scipy.ndimage import binary_erosion
 
 
-def pyfftw_available():
-    return True if find_spec("pyfftw") is not None else False
+def pyfftw_available() -> bool:
+    return True if find_spec("pyfftw") is not None else False  # noqa: SIM210
 
 
-def opencl_available():
-    return True if find_spec("pyopencl") is not None else False
+def opencl_available() -> bool:
+    return True if find_spec("pyopencl") is not None else False  # noqa: SIM210
 
 
 def determine_core_indices(mask):

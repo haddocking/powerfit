@@ -19,7 +19,7 @@ def build_ffts(target: np.ndarray, gcc: np.ndarray, ft_gcc: np.ndarray, fftw: bo
         rfftn = rfftn_builder(gcc)
         irfftn = irfftn_builder(ft_gcc, s=target.shape)
     else:
-        warnings.warn("Using numpy for calculating score. Install pyFFTW for faster calculation.")
+        warnings.warn("Using numpy for calculating score. Install pyFFTW for faster calculation.")  # noqa: B028
         def rfftn(src: np.ndarray, dst: np.ndarray):
             np.fft.rfftn(src, out=dst)
         def irfftn(src: np.ndarray, dst: np.ndarray):

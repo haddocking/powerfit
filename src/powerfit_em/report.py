@@ -602,7 +602,7 @@ def generate_report(
     solutions = _read_solutions(solutions_file, delimiter)
     fitted_model_files = [solution["fitted_model_file"] for solution in solutions[:num]]
     snapshots = []
-    for i, solution in enumerate(solutions[:num]):
+    for solution in solutions[:num]:
         snapshot = create_snapshot(solution, target_path, iso.value)
         snapshots.append(snapshot)
     snapshots.append(

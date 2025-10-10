@@ -70,7 +70,7 @@ def parse_pdb(infile):
 
 def tofile(pdb, out):
 
-    f = open(out, 'w')
+    f = open(out, 'w')  # noqa: SIM115
 
     nmodels = len(set(pdb['model']))
     natoms = len(pdb['id'])
