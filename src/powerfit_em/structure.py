@@ -1,6 +1,8 @@
 
 from collections import defaultdict, OrderedDict
-from io import TextIOWrapper
+from collections.abc import Sequence
+import gzip
+from io import BufferedReader, TextIOWrapper
 import operator
 from string import capwords
 
@@ -29,13 +31,7 @@ TER_DATA = 'id resn chain resi i'.split()
 
 
 def parse_pdb(infile):
-
-    if isinstance(infile, TextIOWrapper):
-        f = infile
-    elif isinstance(infile, str):
-        f = open(infile)
-    else:
-        raise TypeError('Input should be either a file or string.')
+    f = _open_maybe_gzipped_text_file(infile)
 
     pdb = defaultdict(list)
     model_number = 1
@@ -153,9 +149,10 @@ class Structure(object):
         except AttributeError:
             fname = fid
 
-        if fname[-3:] in ('pdb', 'ent'):
+        if fname.endswith('.pdb') or fname.endswith('.ent') or \
+           fname.endswith('.pdb.gz') or fname.endswith('.ent.gz'):
             arr = pdb_dict_to_array(parse_pdb(fid))
-        elif fname[-3:] == 'cif':
+        elif fname.endswith('.cif') or fname.endswith('.cif.gz'):
             arr = mmcif_dict_to_array(parse_mmcif(fid))
         else:
             raise IOError('Filetype not recognized.')
@@ -203,7 +200,7 @@ class Structure(object):
               np.asmatrix(rotmat) * np.asmatrix(self.coor)
               )
 
-    def select(self, identifier, values, loperator='==', return_ind=False):
+    def select(self, identifier, values, loperator='==', return_ind=False) -> "Structure":
         """A simple way of selecting atoms"""
         if loperator == '==':
             oper = operator.eq
@@ -256,18 +253,28 @@ class Structure(object):
         return self._get_property('vdwrad')
 
 
-def parse_mmcif(infile):
-    if isinstance(infile, file):
-        pass
+def _open_maybe_gzipped_text_file(infile: str | BufferedReader | TextIOWrapper) -> TextIOWrapper:
+    if isinstance(infile, BufferedReader):
+        if infile.name.endswith('.gz'):
+            return gzip.open(infile, 'rt')
+        else:
+            return TextIOWrapper(infile, encoding='utf-8')
     elif isinstance(infile, str):
-        infile = open(infile)
-    else:
-        raise TypeError("Input should either be a file or string.")
+        if infile.endswith('.gz'):
+            return gzip.open(infile, 'rt')
+        else:
+            return open(infile, 'rt')
+    elif not isinstance(infile, TextIOWrapper):
+        raise TypeError("Input should either be a file object or string.")
+    return infile
+
+
+def parse_mmcif(infile):
+    infile = _open_maybe_gzipped_text_file(infile)
 
     atom_site = OrderedDict()
     with infile as f:
         for line in f:
-
             if line.startswith('_atom_site.'):
                 words = line.split('.')
                 atom_site[words[1].strip()] = []
@@ -276,6 +283,7 @@ def parse_mmcif(infile):
                 words = line.split()
                 for key, word in zip(atom_site, words):
                     atom_site[key].append(word)
+    infile.close()
     return atom_site
 
 

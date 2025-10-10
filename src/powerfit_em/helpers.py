@@ -1,7 +1,5 @@
 
-import os
-import errno
-from math import sqrt, pi
+from math import sqrt
 
 import numpy as np
 from scipy.ndimage import binary_erosion
@@ -9,18 +7,6 @@ try:
     import pyopencl as cl
 except ImportError:
     pass
-
-from . import volume
-
-
-def mkdir_p(path):
-    try:
-        os.makedirs(path)
-    except OSError as exc:
-        if exc.errno == errno.EEXIST and os.path.isdir(path):
-            pass
-        else:
-            raise
 
 
 def determine_core_indices(mask):
