@@ -105,4 +105,4 @@ select = [
 pydocstyle.convention = "google"
 
 [tool.ruff.lint.isort]
-known-first-party = ["powerfit"]
+known-first-party = ["powerfit_em"]
