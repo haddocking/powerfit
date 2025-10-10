@@ -6,7 +6,7 @@ import warnings
 
 from tqdm import tqdm
 
-from powerfit_em.correlators.shared import Correlator, Vars, VarsFT, get_ft_shape, get_lcc_mask, get_normalization_factor, f32, i32
+from powerfit_em.correlators.shared import Correlator, Vars, VarsFT, get_ft_shape, get_lcc_mask, f32, i32
 
 try:
     from pyfftw.builders import rfftn as rfftn_builder, irfftn as irfftn_builder

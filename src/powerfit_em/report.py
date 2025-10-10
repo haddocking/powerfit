@@ -642,7 +642,6 @@ def generate_report(
 
 if __name__ == "__main__":
     import argparse
-    from argparse import FileType
 
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawTextHelpFormatter,

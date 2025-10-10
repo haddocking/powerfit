@@ -1,7 +1,6 @@
 import unittest
 
 import numpy as np
-from scipy.ndimage import laplace
 
 try:
     import pyfftw as _
@@ -16,9 +15,6 @@ try:
 except ImportError:
     OPENCL = False
 
-from powerfit_em.powerfitter import CPUCorrelator
-from powerfit_em.rotations import euler
-
 if OPENCL:
     from powerfit_em.correlators.clkernels import CLKernels
 
@@ -26,18 +22,6 @@ if OPENCL:
 @unittest.skipIf(not OPENCL, "GPU resources are not available.")
 class TestCLKernels(unittest.TestCase):
     """Tests for the OpenCL kernels"""
-
-    # @classmethod
-    # def setUpClass(cls):
-    #    p = cl.get_platforms()[0]
-    #    devs = p.get_devices()
-    #    cls.ctx = cl.Context(devices=devs)
-    #    cls.queue = cl.CommandQueue(cls.ctx, device=devs[0])
-    #    cls.k = CLKernels(cls.ctx)
-    #    cls.s_linear = cl.Sampler(cls.ctx, False, cl.addressing_mode.CLAMP,
-    #            cl.filter_mode.LINEAR)
-    #    cls.s_nearest = cl.Sampler(cls.ctx, False, cl.addressing_mode.CLAMP,
-    #            cl.filter_mode.NEAREST)
 
     def setUp(self):
         p = cl.get_platforms()[0]
@@ -84,111 +68,6 @@ class TestCLKernels(unittest.TestCase):
         cl_out = cl_array.to_device(self.queue, np.zeros(10, dtype=np.complex64))
         self.k.conj_multiply(cl_in1, cl_in2, cl_out)
         self.assertTrue(np.allclose(np_out, cl_out.get()))
-
-    # TODO
-    # def test_calc_lcc(self):
-    #    pass
-    # def test_take_best(self):
-    #    pass
-
-    @unittest.skip("kernel does not have rotate_template")
-    def test_rotate_template_mask(self):
-        shape = (5, 5, 5)
-        values = {
-            "shape_x": 5,
-            "shape_y": 5,
-            "shape_z": 5,
-            "llength": 2,
-        }
-        self.k = CLKernels(self.ctx, values=values)
-        template = np.zeros(shape, dtype=np.float32)
-        template[2, 2, 1:4] = 1
-        template[2, 1:4, 2] = 1
-        rotmat = np.asarray([1, 0, 0, 0, 1, 0, 0, 0, 1] + [0] * 7, dtype=np.float32)
-
-        self.queue.finish()
-        cl_template = cl.image_from_array(self.queue.context, template)
-        cl_out = cl_array.to_device(self.queue, np.zeros(shape, dtype=np.float32))
-        center = np.asarray([2, 2, 2, 0], dtype=np.float32)
-        shape = np.asarray([5, 5, 5, 125], dtype=np.int32)
-
-        self.k.rotate_template(
-            self.queue,
-            (125,),
-            None,
-            self.s_linear,
-            cl_template,
-            rotmat,
-            cl_out.data,
-            center,
-            shape,
-        )
-
-        answer = np.zeros((5, 5, 5), dtype=np.float32)
-        answer[0, 0, :2] = 1
-        answer[0, 0, -1] = 1
-        answer[0, :2, 0] = 1
-        answer[0, -1, 0] = 1
-
-        self.assertTrue(np.allclose(cl_out.get(), answer))
-
-    @unittest.skip("kernel does not have rotate_grids_and_multiply")
-    def test_rotate_grids_and_multiply(self):
-        shape = (5, 5, 5)
-        values = {
-            "shape_x": 5,
-            "shape_y": 5,
-            "shape_z": 5,
-            "llength": 2,
-        }
-        self.k = CLKernels(self.ctx, values=values)
-
-        template = np.zeros(shape, dtype=np.float32)
-        template[2, 2, 1:4] = 1
-        template[2, 1:4, 2] = 1
-        mask = template * 2
-        np_out_template = np.zeros(shape, dtype=np.float32)
-        np_out_template[0, 0, :2] = 1
-        np_out_template[0, 0, -1] = 1
-        np_out_template[0, :2, 0] = 1
-        np_out_template[0, -1, 0] = 1
-        np_out_mask = np_out_template * 2
-        np_out_mask2 = np_out_mask**2
-
-        cl_template = cl.image_from_array(self.ctx, template)
-        cl_mask = cl.image_from_array(self.ctx, mask)
-        cl_rotmat = np.asarray([1, 0, 0, 0, 1, 0, 0, 0, 1] + [0] * 7, dtype=np.float32)
-        cl_center = np.asarray([2, 2, 2, 0], dtype=np.float32)
-        cl_shape = np.asarray([5, 5, 5, 125], dtype=np.int32)
-        cl_radius = np.int32(2)
-
-        cl_out_template = cl_array.to_device(
-            self.queue, np.zeros(shape, dtype=np.float32)
-        )
-        cl_out_mask = cl_array.to_device(self.queue, np.zeros(shape, dtype=np.float32))
-        cl_out_mask2 = cl_array.to_device(self.queue, np.zeros(shape, dtype=np.float32))
-
-        gws = tuple([int(2 * cl_radius + 1)] * 3)
-        args = (
-            cl_template,
-            cl_mask,
-            cl_rotmat,
-            self.s_linear,
-            self.s_nearest,
-            cl_center,
-            cl_shape,
-            cl_radius,
-            cl_out_template.data,
-            cl_out_mask.data,
-            cl_out_mask2.data,
-        )
-        self.k.rotate_grids_and_multiply(self.queue, gws, None, *args)
-        self.queue.finish()
-
-        self.assertTrue(np.allclose(np_out_template, cl_out_template.get()))
-        self.assertTrue(np.allclose(np_out_mask, cl_out_mask.get()))
-        self.assertTrue(np.allclose(np_out_mask2, cl_out_mask2.get()))
-
 
 if __name__ == "__main__":
     unittest.main()
