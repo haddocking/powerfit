@@ -10,7 +10,7 @@ from scipy.ndimage import laplace as laplace_filter
 
 
 from powerfit_em.correlators.clkernels import CLKernels
-from powerfit_em.correlators.shared import Correlator, Vars, VarsFT, get_ft_shape, get_lcc_mask, get_normalization_factor, f32, i32
+from powerfit_em.correlators.shared import Correlator, Vars, VarsFT, get_ft_shape, get_lcc_mask, f32, i32
 
 
 def init_gpu_vars(

@@ -1,6 +1,4 @@
-import numpy as np
 import pyopencl as cl
-from pyopencl.array import Array as ClArray
 from pyopencl.elementwise import ElementwiseKernel
 
 
