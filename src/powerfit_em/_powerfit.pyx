@@ -3,6 +3,7 @@ import numpy as np
 cimport numpy as np
 from libc.math cimport ceil, exp, floor, sqrt, round
 
+
 @cython.boundscheck(False)
 def fsc_curve(np.ndarray[np.complex128_t, ndim=3] f1,
               np.ndarray[np.complex128_t, ndim=3] f2):
@@ -107,16 +108,17 @@ def blur_points(np.ndarray[np.float64_t, ndim=2] points,
                 for x in range(xmin, xmax+1):
                     x2y2z2 = (x - points[0, n])**2 + y2z2
                     if x2y2z2 <= extend2:
-                        out[z,y,x] += weights[n] * exp(-x2y2z2 / dsigma2)
+                        out[z, y, x] += weights[n] * exp(-x2y2z2 / dsigma2)
 
 
 @cython.boundscheck(False)
 @cython.cdivision(True)
-def dilate_points(np.ndarray[np.float64_t, ndim=2] points,
-                np.ndarray[np.float64_t] radii,
-                np.ndarray[np.float64_t, ndim=3] out,
-                wraparound=False,
-                ):
+def dilate_points(
+    np.ndarray[np.float64_t, ndim=2] points,
+    np.ndarray[np.float64_t] radii,
+    np.ndarray[np.float64_t, ndim=3] out,
+    wraparound=False,
+):
     """Dilate points into balls on a grid
 
     Parameters
@@ -173,4 +175,4 @@ def dilate_points(np.ndarray[np.float64_t, ndim=2] points,
                 for x in range(xmin, xmax):
                     x2y2z2 = (x - points[0, n])**2 + y2z2
                     if x2y2z2 <= radius2:
-                        out[z,y,x] = 1
+                        out[z, y, x] = 1
