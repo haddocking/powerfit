@@ -45,17 +45,6 @@ class CLKernels(object):
         self._rotate_image3d = self._program.rotate_image3d
         self._gws_rotate_grid3d = (96, 64, 1)
 
-    def rotate_grid3d(
-        self,
-        queue: cl.CommandQueue,
-        grid:ClArray,
-        rotmat: np.ndarray,
-        out: ClArray,
-        nearest: bool = False
-    ):
-        args = (grid.data, rotmat, out.data, np.int32(nearest))
-        self._program.rotate_grid3d(queue, self._gws_rotate_grid3d, None, *args)
-
     def rotate_image3d(self, queue: cl.CommandQueue, image, rotmat, out, nearest=False):
         if nearest:
             args = (image, self.sampler_nearest, rotmat, out.data)
