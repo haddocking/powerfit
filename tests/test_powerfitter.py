@@ -4,10 +4,10 @@ import numpy as np
 
 from powerfit_em.helpers import opencl_available
 
-
 if opencl_available():
     import pyopencl as cl
     import pyopencl.array as cl_array
+
     from powerfit_em.correlators.clkernels import CLKernels
 
 

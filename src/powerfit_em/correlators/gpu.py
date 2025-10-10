@@ -1,16 +1,16 @@
 from functools import partial
+
 import numpy as np
 import pyopencl as cl
 import pyopencl.array as cl_array
-from pyopencl.array import Array as ClArray
 from pyopencl import Image
-from pyvkfft.fft import rfftn, irfftn
-from tqdm import tqdm
+from pyopencl.array import Array as ClArray
+from pyvkfft.fft import irfftn, rfftn
 from scipy.ndimage import laplace as laplace_filter
-
+from tqdm import tqdm
 
 from powerfit_em.correlators.clkernels import CLKernels
-from powerfit_em.correlators.shared import Correlator, Vars, VarsFT, get_ft_shape, get_lcc_mask, f32, i32
+from powerfit_em.correlators.shared import Correlator, Vars, VarsFT, f32, get_ft_shape, get_lcc_mask, i32
 
 
 def init_gpu_vars(

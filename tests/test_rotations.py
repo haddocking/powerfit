@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from powerfit_em.rotations import random_rotmat, euler, euler_to_rotmat
+from powerfit_em.rotations import euler, euler_to_rotmat, random_rotmat
 
 
 class TestRotations(unittest.TestCase):

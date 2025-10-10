@@ -1,20 +1,21 @@
+import warnings
 from functools import partial
+
 import numpy as np
 from numpy import typing as npt
 from scipy.ndimage import laplace as laplace_filter
-import warnings
-
 from tqdm import tqdm
 
-from powerfit_em.correlators.shared import Correlator, Vars, VarsFT, get_ft_shape, get_lcc_mask, f32, i32
 from powerfit_em._extensions import rotate_grid3d
+from powerfit_em.correlators.shared import Correlator, Vars, VarsFT, f32, get_ft_shape, get_lcc_mask, i32
 from powerfit_em.helpers import pyfftw_available
 
 
 def build_ffts(target: np.ndarray, gcc: np.ndarray, ft_gcc: np.ndarray, fftw: bool):
     """Build the FFTs (in case of pyfftw), or patch the numpy fft interface to resemble pyfftw."""
     if fftw and pyfftw_available():
-        from pyfftw.builders import rfftn as rfftn_builder, irfftn as irfftn_builder
+        from pyfftw.builders import irfftn as irfftn_builder
+        from pyfftw.builders import rfftn as rfftn_builder
         rfftn = rfftn_builder(gcc)
         irfftn = irfftn_builder(ft_gcc, s=target.shape)
     else:
@@ -33,7 +34,7 @@ def rmax(target: np.ndarray) -> int:
 def zeros_array(shape: tuple[int], dtype: npt.DTypeLike, fftw: bool) -> np.ndarray:
     """Returns optimally SIMD aligned array if PyFFTW is used, for faster computation."""
     if fftw and pyfftw_available():
-        from pyfftw import zeros_aligned, simd_alignment
+        from pyfftw import simd_alignment, zeros_aligned
         return zeros_aligned(shape, dtype, n=simd_alignment)
     else:
         return np.zeros(shape, dtype)

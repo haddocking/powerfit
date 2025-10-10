@@ -3,6 +3,7 @@
 import numpy as np
 import numpy.linalg as la
 
+
 class ShapeDescriptor(object):
 
     """Class that calculates rotation-invariant shape descriptors based on the

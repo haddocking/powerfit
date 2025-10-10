@@ -1,7 +1,7 @@
-from functools import partial
 import multiprocessing
+from functools import partial
+from multiprocessing import Lock, Process, RawValue
 from multiprocessing.managers import DictProxy
-from multiprocessing import RawValue, Lock, Process
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -10,7 +10,6 @@ from tqdm.auto import tqdm
 from powerfit_em.correlators.cpu import CPUCorrelator
 from powerfit_em.helpers import opencl_available
 from powerfit_em.volume import Volume
-
 
 if TYPE_CHECKING:
     import pyopencl as cl  # noqa: I001

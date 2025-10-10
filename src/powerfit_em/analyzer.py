@@ -1,5 +1,6 @@
-from numpy import zeros, bool, greater_equal, log
+from numpy import bool, greater_equal, log, zeros
 from scipy.ndimage import label, maximum_position
+
 
 class Analyzer(object):
 

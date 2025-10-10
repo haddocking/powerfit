@@ -1,9 +1,8 @@
+import importlib.resources
+from string import Template
+
 import pyopencl as cl
 from pyopencl.elementwise import ElementwiseKernel
-
-
-from string import Template
-import importlib.resources
 
 import powerfit_em.correlators
 

@@ -1,7 +1,7 @@
 
+import importlib.resources
 from math import sqrt
 from random import random
-import importlib.resources
 
 import numpy as np
 

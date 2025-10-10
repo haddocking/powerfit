@@ -1,10 +1,9 @@
 
+from importlib.util import find_spec
 from math import sqrt
 
 import numpy as np
 from scipy.ndimage import binary_erosion
-
-from importlib.util import find_spec
 
 
 def pyfftw_available():

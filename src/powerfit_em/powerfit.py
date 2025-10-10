@@ -1,35 +1,35 @@
 #! ../env/bin/python
 
 
+import logging
+import warnings
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, BooleanOptionalAction, FileType
 from functools import partial
-from os.path import splitext, join, abspath
+from os.path import abspath, join, splitext
 from pathlib import Path
 from time import time
-from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, BooleanOptionalAction, FileType
-import logging
 from typing import TYPE_CHECKING, BinaryIO
-import warnings
 
 import numpy as np
 from rich.logging import RichHandler
 from tqdm import TqdmExperimentalWarning
-from tqdm.rich import tqdm as rich_tqdm
 from tqdm.auto import tqdm
+from tqdm.rich import tqdm as rich_tqdm
 
 from powerfit_em import (
-    __version__,
-    Volume,
     Structure,
-    structure_to_shape_like,
+    Volume,
+    __version__,
+    determine_core_indices,
     proportional_orientations,
     quat_to_rotmat,
-    determine_core_indices,
+    structure_to_shape_like,
 )
-from powerfit_em.powerfitter import PowerFitter
 from powerfit_em.analyzer import Analyzer
-from powerfit_em.helpers import opencl_available, write_fits_to_pdb, fisher_sigma
+from powerfit_em.helpers import fisher_sigma, opencl_available, write_fits_to_pdb
+from powerfit_em.powerfitter import PowerFitter
 from powerfit_em.report import generate_report
-from powerfit_em.volume import extend, nearest_multiple2357, trim, resample
+from powerfit_em.volume import extend, nearest_multiple2357, resample, trim
 
 if TYPE_CHECKING:
     import pyopencl as cl  # noqa: I001

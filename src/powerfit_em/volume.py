@@ -1,16 +1,18 @@
 
 import gzip
+import os.path
+import warnings
 from io import BufferedReader
 from pathlib import Path
-from struct import unpack as _unpack, pack as _pack
-import os.path
+from struct import pack as _pack
+from struct import unpack as _unpack
 from sys import byteorder as _BYTEORDER
-import warnings
 
 import numpy as np
-from scipy.ndimage import zoom, gaussian_filter
+from scipy.ndimage import gaussian_filter, zoom
 
 from ._powerfit import blur_points, dilate_points
+
 
 class Volume(object):
 

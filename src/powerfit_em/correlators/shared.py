@@ -4,13 +4,14 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from functools import partial
 from typing import TYPE_CHECKING, Callable, Generic, TypeVar
+
 import numpy as np
-from tqdm import tqdm
 from scipy.ndimage import laplace as laplace_filter
+from tqdm import tqdm
 
 if TYPE_CHECKING: 
-    from pyopencl.array import Array as ClArray  # noqa: I001
-    from pyopencl import Image  # noqa: I001
+    from pyopencl import Image
+    from pyopencl.array import Array as ClArray
 
 f32 = np.float32
 i32 = np.int32

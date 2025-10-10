@@ -1,9 +1,9 @@
 
-from collections import defaultdict, OrderedDict
-from collections.abc import Sequence
 import gzip
-from io import BufferedReader, TextIOWrapper
 import operator
+from collections import OrderedDict, defaultdict
+from collections.abc import Sequence
+from io import BufferedReader, TextIOWrapper
 from string import capwords
 
 import numpy as np
