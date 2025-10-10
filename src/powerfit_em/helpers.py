@@ -39,4 +39,4 @@ def write_fits_to_pdb(structure, solutions, basename='fit'):
         trans = sol[3:6]
         out.rotate(rot)
         out.translate(trans)
-        out.tofile(basename + '_{:d}.pdb'.format(n))
+        out.tofile(basename + f'_{n:d}.pdb')

@@ -7,7 +7,7 @@ from pyopencl.elementwise import ElementwiseKernel
 import powerfit_em.correlators
 
 
-class CLKernels(object):
+class CLKernels:
     def __init__(self, ctx, values):
         self.sampler_nearest = cl.Sampler(ctx, True,
                 cl.addressing_mode.REPEAT, cl.filter_mode.NEAREST)

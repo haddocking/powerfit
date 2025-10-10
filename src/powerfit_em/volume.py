@@ -14,7 +14,7 @@ from scipy.ndimage import gaussian_filter, zoom
 from ._powerfit import blur_points, dilate_points
 
 
-class Volume(object):
+class Volume:
 
     @classmethod
     def fromfile(cls, fid, fmt=None):
@@ -103,7 +103,7 @@ def trim(volume, cutoff, margin=2):
         extent.append(slice(low, high))
     sub_array = volume.array[tuple(extent)]
     origin = [coor_origin + volume.voxelspacing * ext.start
-            for coor_origin, ext in zip(volume.origin, extent[::-1])]
+            for coor_origin, ext in zip(volume.origin, extent[::-1], strict=False)]
     return Volume(sub_array, volume.voxelspacing, origin)
 
 
@@ -265,17 +265,12 @@ def parse_volume(fid, fmt=None):
     return p.density, p.voxelspacing, p.origin
 
 
-class CCP4Parser(object):
+class CCP4Parser:
 
     HEADER_SIZE = 1024
     HEADER_TYPE = ('i' * 10 + 'f' * 6 + 'i' * 3 + 'f' * 3 + 'i' * 3 +
                    'f' * 27 + 'c' * 8 + 'f' * 1 + 'i' * 1 + 'c' * 800)
-    HEADER_FIELDS = (
-          'nc nr ns mode ncstart nrstart nsstart nx ny nz xlength ylength '
-          'zlength alpha beta gamma mapc mapr maps amin amax amean ispg '
-          'nsymbt lskflg skwmat skwtrn extra xstart ystart zstart map '
-          'machst rms nlabel label'
-          ).split()
+    HEADER_FIELDS = ['nc', 'nr', 'ns', 'mode', 'ncstart', 'nrstart', 'nsstart', 'nx', 'ny', 'nz', 'xlength', 'ylength', 'zlength', 'alpha', 'beta', 'gamma', 'mapc', 'mapr', 'maps', 'amin', 'amax', 'amean', 'ispg', 'nsymbt', 'lskflg', 'skwmat', 'skwtrn', 'extra', 'xstart', 'ystart', 'zstart', 'map', 'machst', 'rms', 'nlabel', 'label']
     HEADER_CHUNKS = [1] * 25 + [9, 3, 12] + [1] * 3 + [4, 4, 1, 1, 800]
 
     def __init__(self, fid, gzipped: bool = False):
@@ -332,7 +327,7 @@ class CCP4Parser(object):
         self.voxelspacing = spacings[0]
         self.origin = self._get_origin()
         # generate the density
-        shape_fields = 'nz ny nx'.split()
+        shape_fields = ['nz', 'ny', 'nx']
         self.shape = [self.header[field] for field in shape_fields]
         self._get_density(gzipped)
 
@@ -353,7 +348,7 @@ class CCP4Parser(object):
                          self.fhandle.read(self.HEADER_SIZE))
         self.header = {}
         index = 0
-        for field, nchunks in zip(self.HEADER_FIELDS, self.HEADER_CHUNKS):
+        for field, nchunks in zip(self.HEADER_FIELDS, self.HEADER_CHUNKS, strict=False):
             end = index + nchunks
             if nchunks > 1:
                 self.header[field] = header[index: end]
@@ -371,7 +366,7 @@ class CCP4Parser(object):
         )
 
     def _get_origin(self):
-        start_fields = 'nsstart nrstart ncstart'.split()
+        start_fields = ['nsstart', 'nrstart', 'ncstart']
         start = [self.header[field] for field in start_fields]
         # Take care of axis order
         start = [start[x - 1] for x in self.order]
@@ -422,7 +417,7 @@ class CCP4Parser(object):
 
 class MRCParser(CCP4Parser):
     def _get_origin(self):
-        origin_fields = 'xstart ystart zstart'.split()
+        origin_fields = ['xstart', 'ystart', 'zstart']
         origin = [self.header[field] for field in origin_fields]
         return origin
 
@@ -445,7 +440,7 @@ def to_mrc(fid, volume, labels=[], fmt=None):
     elif dtype in ('float32', 'float64'):
         mode = 2
     else:
-        raise TypeError("Data type ({:})is not supported.".format(dtype))
+        raise TypeError(f"Data type ({dtype})is not supported.")
     if fmt in ('ccp4', 'map'):
         nxstart, nystart, nzstart = [int(round(x)) for x in volume.start]
     else:
@@ -464,12 +459,10 @@ def to_mrc(fid, volume, labels=[], fmt=None):
     else:
         origin = [0, 0, 0]
     str_map = b'MAP '
-    if _BYTEORDER == 'little':
-        machst = b'\x44\x41\x00\x00'
-    elif _BYTEORDER == 'big':
+    if _BYTEORDER == 'little' or _BYTEORDER == 'big':
         machst = b'\x44\x41\x00\x00'
     else:
-        raise ValueError("Byteorder {:} is not recognized".format(_BYTEORDER))
+        raise ValueError(f"Byteorder {_BYTEORDER} is not recognized")
     labels = b''.join([b' '] * 800)
     nlabels = 0
     min_density = volume.array.min()
@@ -531,7 +524,7 @@ def to_mrc(fid, volume, labels=[], fmt=None):
         volume.array.astype(modes[mode]).tofile(out)
 
 
-class XPLORParser(object):
+class XPLORParser:
     """
     Class for reading XPLOR volume files created by NIH-XPLOR or CNS.
     """
@@ -612,8 +605,7 @@ class XPLORParser(object):
             nslicelines = int(np.ceil(xextend*yextend/6.0))
             for i in range(zextend):
                 values = []
-                nslice = int(volumefile.readline()[0:8])
-                for m in range(nslicelines):
+                for _ in range(nslicelines):
                     line = volumefile.readline()
                     for n in range(len(line)//12):
                         value = float(line[n*12: (n+1)*12])
@@ -626,7 +618,6 @@ class XPLORParser(object):
 def to_xplor(outfile, volume, label=[]):
 
     nz, ny, nx = volume.shape
-    voxelspacing = volume.voxelspacing
     xstart, ystart, zstart = [int(round(x)) for x in volume.start]
     xlength, ylength, zlength = volume.dimensions
     alpha = beta = gamma = 90.0
@@ -634,7 +625,7 @@ def to_xplor(outfile, volume, label=[]):
     nlabel = len(label)
     with open(outfile,'w') as out:
         out.write('\n')
-        out.write('{:>8d} !NTITLE\n'.format(nlabel+1))
+        out.write(f'{nlabel+1:>8d} !NTITLE\n')
         # CNS requires at least one REMARK line
         out.write('REMARK\n')
         for n in range(nlabel):
@@ -648,7 +639,7 @@ def to_xplor(outfile, volume, label=[]):
         out.write('ZYX\n')
         #FIXME very inefficient way of writing out the volume ...
         for z in range(nz):
-            out.write('{:>8d}\n'.format(z))
+            out.write(f'{z:>8d}\n')
             n = 0
             for y in range(ny):
                 for x in range(nx):
@@ -658,5 +649,5 @@ def to_xplor(outfile, volume, label=[]):
                         out.write('\n')
             if (nx*ny)%6 > 0:
                 out.write('\n')
-        out.write('{:>8d}\n'.format(-9999))
-        out.write('{:12.4E} {:12.4E} '.format(volume.array.mean(), volume.array.std()))
+        out.write(f'{-9999:>8d}\n')
+        out.write(f'{volume.array.mean():12.4E} {volume.array.std():12.4E} ')

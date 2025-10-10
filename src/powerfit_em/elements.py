@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 # elements.py
 
 # Copyright (c) 2005-2015, Christoph Gohlke
@@ -75,7 +74,7 @@ __docformat__ = 'restructuredtext en'
 __all__ = 'ELEMENTS',
 
 
-class lazyattr(object):
+class lazyattr:
     """Lazy object attribute whose value is computed on first access."""
     __slots__ = ['func']
 
@@ -90,7 +89,7 @@ class lazyattr(object):
         return result
 
 
-class Element(object):
+class Element:
     """Chemical element.
 
     Attributes
@@ -278,7 +277,7 @@ class Element(object):
                 "%s - sum of isotope abundances != 1.0" % self.symbol)
 
 
-class Isotope(object):
+class Isotope:
     """Isotope massnumber, relative atomic mass, and abundance."""
     __slots__ = ['massnumber', 'mass', 'abundance']
 
@@ -296,7 +295,7 @@ class Isotope(object):
             repr(self.mass), repr(self.abundance), repr(self.massnumber))
 
 
-class ElementsDict(object):
+class ElementsDict:
     """Ordered dict of Elements with lookup by number, symbol, and name."""
     def __init__(self, *elements):
         self._list = []

@@ -24,7 +24,7 @@ def euler(angle, axis):
 
 def euler_to_rotmat(angles, order='zyz'):
     rotmat = np.asmatrix(np.identity(3, dtype=np.float64))
-    for angle, axis in zip(angles, order):
+    for angle, axis in zip(angles, order, strict=False):
         rotmat *= euler(angle, axis)
     return rotmat
 

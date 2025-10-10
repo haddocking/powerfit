@@ -100,7 +100,7 @@ def test_parse_pdb_fileobj_pdb(sample_pdb, tmp_path):
     fn = tmp_path / "sample.pdb"
     fn.write_text(sample_pdb)
 
-    with open(fn, "r") as f:
+    with open(fn) as f:
         result = parse_pdb(f)
 
     assert len(result) == 16

@@ -4,7 +4,7 @@ import numpy as np
 import numpy.linalg as la
 
 
-class ShapeDescriptor(object):
+class ShapeDescriptor:
 
     """Class that calculates rotation-invariant shape descriptors based on the
     radius of gyration tensor.

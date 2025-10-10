@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     import pyopencl as cl  # noqa: I001
 
 
-class _Counter(object):
+class _Counter:
     """Thread-safe counter object to follow PowerFit progress"""
 
     def __init__(self):
@@ -56,7 +56,7 @@ def run_correlator_instance(
     results[jobid] = (correlator.lcc, correlator.rot)
 
 
-class PowerFitter(object):
+class PowerFitter:
     """Wrapper around the Correlator classes for multiprocessing and GPU
     accelerated searches providing an easy interface.
     """
@@ -101,7 +101,7 @@ class PowerFitter(object):
 
     def set_template(self, template: Volume, mask: Volume):
         if not self._corr:
-            msg = f"No correlator available yet. First run scan."
+            msg = "No correlator available yet. First run scan."
             raise ValueError(msg)
         self._corr.set_template(template.array, mask.array)
         

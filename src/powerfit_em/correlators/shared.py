@@ -1,9 +1,10 @@
 """Shared functionality between GPU and CPU correlators."""
 
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass
 from functools import partial
-from typing import TYPE_CHECKING, Callable, Generic, TypeVar
+from typing import TYPE_CHECKING, Generic, TypeVar
 
 import numpy as np
 from scipy.ndimage import laplace as laplace_filter

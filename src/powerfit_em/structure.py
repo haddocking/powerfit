@@ -25,9 +25,8 @@ ATOM_LINE = '{:6s}' + '{:>5d}' + ' ' + '{:4s}' + '{:1s}' + '{:3s}' + ' ' + \
         ' ' * 10 + '{:<2s}' + '{:2s}\n'
 END_LINE = 'END   \n'
 
-ATOM_DATA = ('record id name alt resn chain resi i x y z q b ' \
-        'e charge').split()
-TER_DATA = 'id resn chain resi i'.split()
+ATOM_DATA = ['record', 'id', 'name', 'alt', 'resn', 'chain', 'resi', 'i', 'x', 'y', 'z', 'q', 'b', 'e', 'charge']
+TER_DATA = ['id', 'resn', 'chain', 'resi', 'i']
 
 
 def parse_pdb(infile):
@@ -139,7 +138,7 @@ def pdb_array_to_dict(pdb_array):
     return pdb
 
 
-class Structure(object):
+class Structure:
 
     @classmethod
     def fromfile(cls, fid):
@@ -155,7 +154,7 @@ class Structure(object):
         elif fname.endswith('.cif') or fname.endswith('.cif.gz'):
             arr = mmcif_dict_to_array(parse_mmcif(fid))
         else:
-            raise IOError('Filetype not recognized.')
+            raise OSError('Filetype not recognized.')
         return cls(arr)
 
     def __init__(self, pdb):
@@ -263,7 +262,7 @@ def _open_maybe_gzipped_text_file(infile: str | BufferedReader | TextIOWrapper) 
         if infile.endswith('.gz'):
             return gzip.open(infile, 'rt')
         else:
-            return open(infile, 'rt')
+            return open(infile)
     elif not isinstance(infile, TextIOWrapper):
         raise TypeError("Input should either be a file object or string.")
     return infile
@@ -281,7 +280,7 @@ def parse_mmcif(infile):
 
             if line.startswith('ATOM'):
                 words = line.split()
-                for key, word in zip(atom_site, words):
+                for key, word in zip(atom_site, words, strict=False):
                     atom_site[key].append(word)
     infile.close()
     return atom_site

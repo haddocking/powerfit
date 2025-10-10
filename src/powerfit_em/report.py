@@ -166,7 +166,7 @@ def create_snapshot_with_all_models(
 def _read_solutions(path: Path, delimiter: str | None = None) -> list[dict]:
     if delimiter is None:
         raise ValueError("Delimiter must be set to produce a report.")
-    with open(path, "r") as f:
+    with open(path) as f:
         reader = csv.DictReader(f, delimiter=delimiter)
         solutions = list(reader)
     # Calculate sigma_dif for each solution and add fitted_model_file

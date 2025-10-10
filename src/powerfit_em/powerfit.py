@@ -230,8 +230,8 @@ def get_filetype_template(fname):
     elif ext in ["map", "ccp4"]:
         ft = "map"
     else:
-        msg = "Filetype of file {:} is not recognized.".format(fname)
-        raise IOError(msg)
+        msg = f"Filetype of file {fname} is not recognized."
+        raise OSError(msg)
     return ft
 
 def configure_logging(log_file, log_level= "INFO"):
@@ -328,9 +328,9 @@ def setup_target(
     trimming_cutoff: float | None,
 ) -> Volume:
     """Load and preprocess the target density."""
-    logger.info("Target file read from: {:s}".format(abspath(target_volume.name)))
+    logger.info(f"Target file read from: {abspath(target_volume.name):s}")
     target = Volume.fromfile(target_volume)
-    logger.info("Target resolution: {:.2f}".format(resolution))
+    logger.info(f"Target resolution: {resolution:.2f}")
     logger.info(("Initial shape of density:" + " {:d}" * 3).format(*target.shape))
 
     # Resample target density if requested
@@ -363,7 +363,7 @@ def setup_template_structure(
 ) -> tuple[Structure, Volume, Volume, float]:
     """Load structure, setup template and mask, precompute Fisher sigma for scoring."""
     # Read in structure or high-resolution map
-    logger.info("Template file read from: {:s}".format(abspath(template_structure.name)))
+    logger.info(f"Template file read from: {abspath(template_structure.name):s}")
     structure = Structure.fromfile(template_structure)
     if chain is not None:
         logger.info("Selecting chains: " + chain)
@@ -410,8 +410,8 @@ def setup_rotational_matrix(
     logger.info("Reading in rotations.")
     q, _, degree = proportional_orientations(angle)
     rotmat = quat_to_rotmat(q)
-    logger.info("Requested rotational sampling density: {:.2f}".format(angle))
-    logger.info("Real rotational sampling density: {:}".format(degree))
+    logger.info(f"Requested rotational sampling density: {angle:.2f}")
+    logger.info(f"Real rotational sampling density: {degree}")
     return rotmat
 
 
@@ -450,7 +450,7 @@ def powerfit(
     if gpu:
         logger.info("Using GPU-accelerated search.")
     else:
-        logger.info("Requested number of processors: {:d}".format(nproc))
+        logger.info(f"Requested number of processors: {nproc:d}")
 
     logger.info("Starting search")
 
@@ -458,7 +458,7 @@ def powerfit(
     pf.scan(progress=progress)
     dtime = time() - time1
     if dtime < 10:
-        logger.info("Time for search: {:.3f} s".format(dtime))
+        logger.info(f"Time for search: {dtime:.3f} s")
     else:
         logger.info("Time for search: {:.0f}m {:.0f}s".format(*divmod(dtime, 60)))
     logger.info("Analyzing results")
@@ -545,11 +545,7 @@ def powerfit_many(
     pf: PowerFitter | None = None
     for i in range(len(template_vars)):
         _, template, mask, z_sigma = template_vars[i]
-        if pf is None or not reuse:
-            pf = PowerFitter(
-                target, rotmat, template, mask, queue, nproc, laplace=laplace
-            )
-        elif not gpu and nproc > 1:  # Can't reuse w/ multi-cpu search
+        if pf is None or not reuse or not gpu and nproc > 1:
             pf = PowerFitter(
                 target, rotmat, template, mask, queue, nproc, laplace=laplace
             )
@@ -561,7 +557,7 @@ def powerfit_many(
 
     dtime = time() - time1
     if dtime < 10:
-        logger.info("Time for searches: {:.3f} s".format(dtime))
+        logger.info(f"Time for searches: {dtime:.3f} s")
     else:
         logger.info("Time for searches: {:.0f}m {:.0f}s".format(*divmod(dtime, 60)))
 

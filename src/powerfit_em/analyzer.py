@@ -2,7 +2,7 @@ from numpy import bool, greater_equal, log, zeros
 from scipy.ndimage import label, maximum_position
 
 
-class Analyzer(object):
+class Analyzer:
 
 
     def __init__(
@@ -80,7 +80,7 @@ class Analyzer(object):
             rel_z = fishers_z / self._z_sigma
             solution.append(rel_z)
             z, y, x = [coor * self._voxelspacing  + shift for coor, shift in
-                    zip(pos, self._origin[::-1])]
+                    zip(pos, self._origin[::-1], strict=False)]
             rotmat = self._rotmat[int(self._rotmat_ind[pos])]
             solution += [x, y, z] + list(rotmat.ravel())
             solutions.append(solution)
@@ -120,7 +120,7 @@ class Analyzer(object):
 
 def write_file(solutions: list[list[str | float]], out: str, delimiter: str | None):
     fit_many = len(solutions[0]) == 16
-    headers = '#rank cc Fish-z rel-z x y z a11 a12 a13 a21 a22 a23 a31 a32 a33'.split()
+    headers = ['#rank', 'cc', 'Fish-z', 'rel-z', 'x', 'y', 'z', 'a11', 'a12', 'a13', 'a21', 'a22', 'a23', 'a31', 'a32', 'a33']
 
     max_name_length = 0
     if fit_many:
