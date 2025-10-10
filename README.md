@@ -1,6 +1,7 @@
 # PowerFit
 
-[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.1037227.svg)](https://doi.org/10.5281/zenodo.1037227)
+[![PyPI - Version](https://img.shields.io/pypi/v/powerfit-em)](https://pypi.org/project/powerfit-em/)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14185749.svg)](https://doi.org/10.5281/zenodo.14185749)
 [![Research Software Directory Badge](https://img.shields.io/badge/rsd-powerfit-00a3e3.svg)](https://www.research-software.nl/software/powerfit)
 
 ## About PowerFit
@@ -29,17 +30,18 @@ Minimal requirements for the CPU version:
 * FFTW3
 * pyFFTW 0.10+
 
-To offload computations to the GPU the following is also required
+To offload computations to a discrete or integrated\* GPU the following is also required
 
 * OpenCL1.1+
 * pyopencl
-* clFFT
-* gpyfft
+* pyvkfft
 
 Recommended for installation
 
 * git
 * pip
+
+\* _Integrated graphics on CPUs are able to signficantly outperform the native CPU implementation in some cases. This is mostly applicable to Intel devices, see the section [tested platfoms](#tested-platforms)_.
 
 ## Installation
 
@@ -47,12 +49,10 @@ If you already have fulfilled the requirements, the installation should be as
 easy as opening up a shell and typing
 
 ```shell
-git clone https://github.com/haddocking/powerfit.git
-cd powerfit
 # To run on CPU
-pip install .
+pip install powerfit-em
 # To run on GPU
-pip install .[opencl]
+pip install powerfit-em[opencl]
 ```
 
 If you are starting from a clean system, follow the instructions for your
@@ -89,31 +89,28 @@ sudo yum install python3-devel python3-pip git development-c development-tools
 If you want to use the GPU version of PowerFit, you need to install the
 drivers for your GPU. 
 
-After installing
-the drivers, you need to install the OpenCL development libraries and [OpenCL fft library](https://github.com/clMathLibraries/clFFT). For
-Debian/Ubuntu, this can be done by running
+After installing the drivers, you need to install the OpenCL development libraries.
+For Debian/Ubuntu, this can be done by running
 
 ```shell
-sudo apt install opencl-headers ocl-icd-opencl-dev libclfft-dev
+sudo apt install ocl-icd-opencl-dev ocl-icd-libopencl1
 ```
 For Fedora, this can be done by running
 
 ```shell
 sudo dnf install opencl-headers ocl-icd-devel
-# Manually install clFFT from https://github.com/clMathLibraries/clFFT
 ```
 
-Install gpyfft, a Python wrapper for OpenCL fft library, using
+Install pyvkfft, a Python wrapper for the VkFFT library, using
 
 ```shell
-pip install cython
-pip install --no-use-pep517 gpyfft@git+https://github.com/geggo/gpyfft@v0.8.0
+pip install pyvkfft
 ```
 
 Check that the OpenCL installation is working by running
 
 ```shell
-python -c 'import pyopencl as cl;from gpyfft import GpyFFT; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
+python -c 'import pyopencl as cl;from pyvkfft.fft import rfftn; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
 # Should print the name of your GPU
 ```
 </details>
@@ -130,13 +127,16 @@ instructions on their website, or using a package manager such as *brew*
 brew install git
 ```
 
-Next install [*pip*](https://pip.pypa.io/en/latest/installing.html), the
+Next install [*pip*](https://pip.pypa.io/en/latest/installation/), the
 Python package manager, by following the installation instructions on the
 website or open a terminal and type
 
 ```shell
-sudo easy_install pip
+python -m ensurepip --upgrade
 ```
+
+To get faster score calculation, install the pyFTTW Python package in your conda environment
+with `conda install -c conda-forge pyfftw`.
 
 Follow the general instructions above to
 install **PowerFit**.
@@ -176,7 +176,7 @@ a hypothetical `/path/to/data` on your machine can be done as follows
 
 ```shell
 docker run --rm -ti --user $(id -u):$(id -g) \
-    -v /path/to/data:/data ghcr.io/haddocking/powerfit:v3.0.0 \
+    -v /path/to/data:/data ghcr.io/haddocking/powerfit:v3.1.0 \
     /data/<map> <resolution> /data/<pdb> \
     -d /data/<results-dir>
 ```
@@ -186,7 +186,7 @@ To run tutorial example use
 ```shell
 # cd into powerfit-tutorial repo
 docker run --rm -ti --user $(id -u):$(id -g) \
-    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.0.0 \
+    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.1.0 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
     -a 20 -p 2 -l -d /data/run-KsgA-docker
 ```
@@ -195,9 +195,19 @@ To run on NVIDIA GPU using [NVIDIA container toolkit](https://docs.nvidia.com/da
 ```shell
 docker run --rm -ti \
     --runtime=nvidia --gpus all -v /etc/OpenCL:/etc/OpenCL \
-    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.0.0 \
+    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.1.0 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
-    -a 20 -p 2 -l -d /data/run-KsgA-docker-nv --gpu
+    -a 20 -l -d /data/run-KsgA-docker-nv --gpu
+```
+
+To run on Intel integrated graphics use
+
+```shell
+docker run --rm -ti \
+    --device=/dev/dri \
+    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.1.0 \
+    /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
+    -a 20 -l -d /data/run-KsgA-docker-nv --gpu
 ```
 
 To run on [AMD GPU](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/docker.html) use
@@ -207,9 +217,9 @@ sudo docker run --rm -ti \
     --device=/dev/kfd --device=/dev/dri \
     --security-opt seccomp=unconfined \
     --group-add video --ipc=host \
-    -v $PWD:/data ghcr.io/haddocking/powerfit-rocm:v3.0.0 \
+    -v $PWD:/data ghcr.io/haddocking/powerfit-rocm:v3.1.0 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
-    -a 20 -p 2 -l -d /data/run-KsgA-docker-amd--gpu
+    -a 20 -l -d /data/run-KsgA-docker-amd --gpu
 ```
 
 </details>
@@ -226,23 +236,24 @@ The information should explain all options decently. In addtion, here are some
 examples for common operations.
 
 To perform a search with an approximate 24&deg; rotational sampling interval
+with laplace pre-filtering and core-weighted scoring function using 1 CPU
 
 ```shell
 powerfit <map> <resolution> <pdb> -a 24
 ```
 
-To use multiple CPU cores with laplace pre-filter and 5&deg; rotational
+To use multiple CPU cores without laplace pre-filter and 5&deg; rotational
 interval
 
 ```shell
-powerfit <map> <resolution> <pdb> -p 4 -l -a 5
+powerfit <map> <resolution> <pdb> -p 4 --no-laplace -a 5
 ```
 
-To off-load computations to the GPU and use the core-weighted scoring function
+To off-load computations to the GPU and do not use the core-weighted scoring function
 and write out the top 15 solutions
 
 ```shell
-powerfit <map> <resolution> <pdb> -g -cw -n 15
+powerfit <map> <resolution> <pdb> -g --no-core-weighted -n 15
 ```
 
 Note that all options can be combined except for the `-g` and `-p` flag:
@@ -272,6 +283,8 @@ rotation matrix values.
 correlation score found during the rotational search.
 * *powerfit.log*: a log file, including the input parameters with date and
 timing information.
+* *report.html* and *state.mvsj*: an HTML report and its [MolViewSpec](https://molstar.org/mol-view-spec/) with interactive 3D visualization of the best fits.
+  Only written if the `--report --delimiter ,` arguments are passed.
 
 ## Creating an image-pyramid
 
@@ -313,6 +326,9 @@ Defining the limits and reliability of rigid-body fitting in cryo-EM maps using
 multi-scale image pyramids.
 *J. Struct. Biol.* 195, 252-258 (2016) [https://doi.org/10.1016/j.jsb.2016.06.011](https://doi.org/10.1016/j.jsb.2016.06.011).
 
+If you used PowerFit v1, please cite software with [https://doi.org/10.5281/zenodo.1037227](https://doi.org/10.5281/zenodo.1037227).
+For version 2 or higher, please cite software with [https://doi.org/10.5281/zenodo.14185749](https://doi.org/10.5281/zenodo.14185749).
+
 Apache License Version 2.0
 
 The elements.py module is licensed under MIT License (see header).
@@ -326,10 +342,16 @@ Copyright (c) 2005-2015, Christoph Gohlke
 |MacOSX           | Yes        | Yes       | No  |
 |Windows          | Yes        | Fail      | No  |
 
-The GPU version has been tested on:
+The GPU version has been successfully tested on Linux and with a Docker container for the following devices;
 
-* NVIDIA GeForce GTX 1050 Ti, GeForce RTX 4070 and AMD Radeon RX 7900 XTX on Linux 
-* NVIDIA GeForce GTX 1050 Ti, AMD Radeon RX 7800 XT and AMD Radeon RX 7900 XTX in Docker container
+* NVIDIA GeForce GTX 1050 Ti
+* NVIDIA GeForce RTX 4070
+* AMD Radeon RX 7800 XT
+* AMD Radeon RX 7900 XTX
+* Intel Iris Xe Graphics (on a Core i7-1185G7)
+
+The integrated graphics of AMD Ryzen CPUs do not officially support OpenCL.
+If they do seem available in PyOpenCL be aware that this [may lead to incorrect results](https://github.com/haddocking/powerfit/issues/76).
 
 ## Development
 
@@ -350,10 +372,14 @@ To run OpenCL on **C**PU install use `pip install -e .[pocl]` and make sure no o
 The Docker container, that works for cpu and NVIDIA gpus, can be build with
 
 ```shell
-docker build -t ghcr.io/haddocking/powerfit:v3.0.0 .
+docker build -t ghcr.io/haddocking/powerfit:v3.1.0 .
 ```
 The Docker container, that works for AMD gpus, can be build with
 
 ```shell
-docker build -t ghcr.io/haddocking/powerfit-rocm:v3.0.0 -f Dockerfile.rocm .
+docker build -t ghcr.io/haddocking/powerfit-rocm:v3.1.0 -f Dockerfile.rocm .
 ```
+
+The binary wheels can be build for all supported platforms by running the
+https://github.com/haddocking/powerfit/actions/workflows/pypi-publish.yml GitHub action and downloading the artifacts.
+The workflow is triggered by a push to the main branch, a release or can be manually triggered.

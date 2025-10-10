@@ -12,36 +12,36 @@ static PyObject *rotate_grid3d(PyObject *dummy, PyObject *args)
     PyArrayObject *py_grid=NULL, *py_rotmat=NULL, *py_out=NULL;
 
     // Pointers
-    double *grid, *rotmat, *out;
+    float *grid, *rotmat, *out;
     npy_intp *out_shape, *grid_shape;
 
     npy_intp out_size, out_slice, grid_size, grid_slice;
     int z, y, x, radius2, x0, y0, z0, dist2_z, dist2_zy, dist2_zyx, 
         out_z, out_zy, out_zyx, grid_zyx;
-    double xcoor_z, ycoor_z, zcoor_z, xcoor_zy, ycoor_zy, zcoor_zy,
+    float xcoor_z, ycoor_z, zcoor_z, xcoor_zy, ycoor_zy, zcoor_zy,
            xcoor_zyx, ycoor_zyx, zcoor_zyx;
     // Trilinear interpolation
     int x1, y1, z1, offset0, offset1;
-    double dx, dy, dz, dx1, dy1, dz1, c00, c10, c01, c11, c0, c1, c;
+    float dx, dy, dz, dx1, dy1, dz1, c00, c10, c01, c11, c0, c1, c;
 
     // Parse arguments
     if (!PyArg_ParseTuple(args, "OOiOi", &arg1, &arg2, &radius, &arg4, &nearest))
         return NULL;
 
-    py_grid = (PyArrayObject *) PyArray_FROM_OTF(arg1, NPY_FLOAT64, NPY_ARRAY_IN_ARRAY);
+    py_grid = (PyArrayObject *) PyArray_FROM_OTF(arg1, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
     if (py_grid == NULL)
         goto fail;
-    py_rotmat = (PyArrayObject *) PyArray_FROM_OTF(arg2, NPY_FLOAT64, NPY_ARRAY_IN_ARRAY);
+    py_rotmat = (PyArrayObject *) PyArray_FROM_OTF(arg2, NPY_FLOAT32, NPY_ARRAY_IN_ARRAY);
     if (py_rotmat == NULL)
         goto fail;
-    py_out = (PyArrayObject *) PyArray_FROM_OTF(arg4, NPY_FLOAT64, NPY_ARRAY_OUT_ARRAY);
+    py_out = (PyArrayObject *) PyArray_FROM_OTF(arg4, NPY_FLOAT32, NPY_ARRAY_OUT_ARRAY);
     if (py_out == NULL)
         goto fail;
 
     // Get pointers to arrays and shape info
-    grid = (double *) PyArray_DATA(py_grid);
-    rotmat = (double *) PyArray_DATA(py_rotmat);
-    out = (double *) PyArray_DATA(py_out);
+    grid = (float *) PyArray_DATA(py_grid);
+    rotmat = (float *) PyArray_DATA(py_rotmat);
+    out = (float *) PyArray_DATA(py_out);
 
     out_shape = PyArray_DIMS(py_out);
     out_slice = out_shape[2] * out_shape[1];
@@ -196,7 +196,6 @@ fail:
 }
 
 
-
 static PyObject *conj_multiply(PyObject *dummy, PyObject *args)
 {
     //Calculate conj(a) * (b)
@@ -205,27 +204,27 @@ static PyObject *conj_multiply(PyObject *dummy, PyObject *args)
     PyObject *arg1=NULL, *arg2=NULL, *arg3=NULL;
     PyArrayObject *py_in1=NULL, *py_in2=NULL, *py_out=NULL;
 
-    double complex *in1, *in2, *out;
+    float complex *in1, *in2, *out;
     npy_intp out_size, i;
 
     // Parse arguments
     if (!PyArg_ParseTuple(args, "OOO", &arg1, &arg2, &arg3))
         return NULL;
 
-    py_in1 = (PyArrayObject *) PyArray_FROM_OTF(arg1, NPY_COMPLEX128, NPY_ARRAY_IN_ARRAY);
+    py_in1 = (PyArrayObject *) PyArray_FROM_OTF(arg1, NPY_COMPLEX64, NPY_ARRAY_IN_ARRAY);
     if (py_in1 == NULL)
         goto fail;
-    py_in2 = (PyArrayObject *) PyArray_FROM_OTF(arg2, NPY_COMPLEX128, NPY_ARRAY_IN_ARRAY);
+    py_in2 = (PyArrayObject *) PyArray_FROM_OTF(arg2, NPY_COMPLEX64, NPY_ARRAY_IN_ARRAY);
     if (py_in2 == NULL)
         goto fail;
-    py_out = (PyArrayObject *) PyArray_FROM_OTF(arg3, NPY_COMPLEX128, NPY_ARRAY_OUT_ARRAY);
+    py_out = (PyArrayObject *) PyArray_FROM_OTF(arg3, NPY_COMPLEX64, NPY_ARRAY_OUT_ARRAY);
     if (py_out == NULL)
         goto fail;
 
     // Get pointers to arrays and shape info
-    in1 = (double complex *) PyArray_DATA(py_in1);
-    in2 = (double complex *) PyArray_DATA(py_in2);
-    out = (double complex *) PyArray_DATA(py_out);
+    in1 = (float complex *) PyArray_DATA(py_in1);
+    in2 = (float complex *) PyArray_DATA(py_in2);
+    out = (float complex *) PyArray_DATA(py_out);
     out_size = PyArray_SIZE(py_out);
 
     for (i = 0; i < out_size; i++)

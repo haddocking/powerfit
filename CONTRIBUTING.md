@@ -45,13 +45,14 @@ In case you feel like you've made a valuable contribution, but you don't know ho
 To create a release you need write permission on the repository.
 
 1. Check the author list in [`CITATION.cff`](CITATION.cff)
-1. Bump the version in [pyproject.toml](pyproject.toml).
+1. Bump the version in [src/powerfit_em/__init__.py](src/powerfit_em/__init__.py)
+1. In [README.md](README.md) adjust docker command to use new version
 1. Go to the [GitHub release page](https://github.com/haddocking/powerfit/releases)
 1. Press draft a new release button
 1. Fill tag, title and description field. For tag use version from pyproject.toml and prepend with "v" character. For description use "Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps." line plus press "Generate release notes" button.
 1. Press the Publish Release button
 1. Wait until [Build and upload to PyPI](https://github.com/haddocking/powerfit/actions/workflows/pypi-publish.yml) has completed
-1. Verify new release is on [PyPi](https://pypi.org/project/powerfit/#history)
-1. Verify Zenodo version was added to https://doi.org/10.5281/zenodo.1037227
+1. Verify new release is on [PyPi](https://pypi.org/project/powerfit-em/#history)
+1. Verify Zenodo version was added to https://doi.org/10.5281/zenodo.14185749
 1. Wait until [Create and publish a Docker image](https://github.com/haddocking/powerfit/actions/workflows/docker-publish.yml) has completed.
 1. Verify [new Docker images](https://github.com/haddocking/powerfit/pkgs/container/powerfit)
