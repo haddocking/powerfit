@@ -1,4 +1,3 @@
-
 from importlib.util import find_spec
 from math import sqrt
 
@@ -29,7 +28,7 @@ def fisher_sigma(mv, fsc):
     return 1 / sqrt(mv / fsc - 3)
 
 
-def write_fits_to_pdb(structure, solutions, basename='fit'):
+def write_fits_to_pdb(structure, solutions, basename="fit"):
     translated_structure = structure.duplicate()
     center = translated_structure.coor.mean(axis=1)
     translated_structure.translate(-center)
@@ -39,4 +38,4 @@ def write_fits_to_pdb(structure, solutions, basename='fit'):
         trans = sol[3:6]
         out.rotate(rot)
         out.translate(trans)
-        out.tofile(basename + f'_{n:d}.pdb')
+        out.tofile(basename + f"_{n:d}.pdb")

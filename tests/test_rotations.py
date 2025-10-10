@@ -6,9 +6,7 @@ from powerfit_em.rotations import euler, euler_to_rotmat, random_rotmat
 
 
 class TestRotations(unittest.TestCase):
-
     def test_random_rotmat(self):
-
         rotmat = random_rotmat()
         # the determinant of a rotmat is 1
         self.assertAlmostEqual(np.linalg.det(rotmat), 1)

@@ -19,7 +19,7 @@ class _Counter:
     """Thread-safe counter object to follow PowerFit progress"""
 
     def __init__(self):
-        self.val = RawValue('i', 0)
+        self.val = RawValue("i", 0)
         self.lock = Lock()
 
     def increment(self):
@@ -39,7 +39,7 @@ def run_correlator_instance(
     laplace: bool,
     jobid: int,
     counter: _Counter | None,
-    results: dict[int, Any]
+    results: dict[int, Any],
 ):
     correlator = CPUCorrelator(
         target.array,
@@ -69,7 +69,7 @@ class PowerFitter:
         mask: Volume,
         queue: "cl.CommandQueue | None",
         nproc: int = 1,
-        laplace: bool = False
+        laplace: bool = False,
     ):
         self._target = target
         self._rotations = rotations
@@ -104,7 +104,7 @@ class PowerFitter:
             msg = "No correlator available yet. First run scan."
             raise ValueError(msg)
         self._corr.set_template(template.array, mask.array)
-        
+
     def _gpu_scan(self, progress: partial[tqdm] | None):
         if opencl_available():
             from powerfit_em.correlators.gpu import GPUCorrelator
@@ -145,10 +145,17 @@ class PowerFitter:
             partial_rotations = self._rotations[start:stop]
             processes.append(
                 Process(
-                  target=run_correlator_instance,
-                  args=(self._target, self._template, self._mask,
-                        partial_rotations, self._laplace, id,
-                        self._counter, results)
+                    target=run_correlator_instance,
+                    args=(
+                        self._target,
+                        self._template,
+                        self._mask,
+                        partial_rotations,
+                        self._laplace,
+                        id,
+                        self._counter,
+                        results,
+                    ),
                 )
             )
 
@@ -160,7 +167,7 @@ class PowerFitter:
                 while self._counter.value() < nrot:
                     current_count = self._counter.value()
                     pbar.update(current_count - pbar.n)
-        
+
         for id in range(self._njobs):
             processes[id].join()
         self._combine(ids, results)

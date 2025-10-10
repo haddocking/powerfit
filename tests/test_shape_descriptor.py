@@ -6,7 +6,6 @@ from powerfit_em.shape_descriptor import ShapeDescriptor
 
 
 class TestShapeDescriptor(TestCase):
-
     def test_relative_shape_anisotropy(self):
         # coordinates on a line
         coor = np.zeros((3, 10), dtype=np.float64)

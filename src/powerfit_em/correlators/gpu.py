@@ -14,38 +14,40 @@ from powerfit_em.correlators.shared import Correlator, Vars, VarsFT, f32, get_ft
 
 
 def init_gpu_vars(
-    queue: cl.CommandQueue, target: np.ndarray, laplace: bool,
+    queue: cl.CommandQueue,
+    target: np.ndarray,
+    laplace: bool,
 ) -> tuple[Vars[ClArray, Image], VarsFT[ClArray]]:
     """Initialize all GPU variables on the specified queue."""
     lcc_mask = get_lcc_mask(target)
-    _t = laplace_filter(target, mode='wrap') if laplace else target
+    _t = laplace_filter(target, mode="wrap") if laplace else target
     zeros = np.zeros(target.shape, f32)
     gpu_vars = Vars(
-        target = cl_array.to_device(queue, _t.astype(f32)),
-        template = cl.image_from_array(queue.context, zeros),  # template is set through separate method
-        mask = cl.image_from_array(queue.context, zeros),  # mask is set through separate method
-        lcc_mask = cl_array.to_device(queue, lcc_mask.astype(i32)),
-        target2 = cl_array.to_device(queue, zeros),
-        rot_template = cl_array.to_device(queue, zeros),
-        rot_mask = cl_array.to_device(queue, zeros),
-        rot_mask2 = cl_array.to_device(queue, zeros),
-        gcc = cl_array.to_device(queue, zeros),
-        ave = cl_array.to_device(queue, zeros),
-        ave2 = cl_array.to_device(queue, zeros),
-        lcc = cl_array.to_device(queue, zeros),
-        rot = cl_array.to_device(queue, np.zeros(target.shape, i32)),
+        target=cl_array.to_device(queue, _t.astype(f32)),
+        template=cl.image_from_array(queue.context, zeros),  # template is set through separate method
+        mask=cl.image_from_array(queue.context, zeros),  # mask is set through separate method
+        lcc_mask=cl_array.to_device(queue, lcc_mask.astype(i32)),
+        target2=cl_array.to_device(queue, zeros),
+        rot_template=cl_array.to_device(queue, zeros),
+        rot_mask=cl_array.to_device(queue, zeros),
+        rot_mask2=cl_array.to_device(queue, zeros),
+        gcc=cl_array.to_device(queue, zeros),
+        ave=cl_array.to_device(queue, zeros),
+        ave2=cl_array.to_device(queue, zeros),
+        lcc=cl_array.to_device(queue, zeros),
+        rot=cl_array.to_device(queue, np.zeros(target.shape, i32)),
     )
     zeros_ft = np.zeros(get_ft_shape(target), dtype=np.complex64)
     gpu_vars_ft = VarsFT(
-        target = cl_array.to_device(queue, zeros_ft),
-        target2 = cl_array.to_device(queue, zeros_ft),
-        template = cl_array.to_device(queue, zeros_ft),
-        mask = cl_array.to_device(queue, zeros_ft),
-        mask2 = cl_array.to_device(queue, zeros_ft),
-        ave = cl_array.to_device(queue, zeros_ft),
-        ave2 = cl_array.to_device(queue, zeros_ft),
-        lcc = cl_array.to_device(queue, zeros_ft),
-        gcc = cl_array.to_device(queue, zeros_ft),
+        target=cl_array.to_device(queue, zeros_ft),
+        target2=cl_array.to_device(queue, zeros_ft),
+        template=cl_array.to_device(queue, zeros_ft),
+        mask=cl_array.to_device(queue, zeros_ft),
+        mask2=cl_array.to_device(queue, zeros_ft),
+        ave=cl_array.to_device(queue, zeros_ft),
+        ave2=cl_array.to_device(queue, zeros_ft),
+        lcc=cl_array.to_device(queue, zeros_ft),
+        gcc=cl_array.to_device(queue, zeros_ft),
     )
     return gpu_vars, gpu_vars_ft
 
@@ -53,10 +55,10 @@ def init_gpu_vars(
 def generate_kernels(queue: cl.CommandQueue, target: np.ndarray):
     """Generate the custom OpenCL kernels based on the target's shape"""
     kernel_values = {
-        'shape_x': target.shape[2],
-        'shape_y': target.shape[1],
-        'shape_z': target.shape[0],
-        'llength': i32(min(target.shape) // 2),
+        "shape_x": target.shape[2],
+        "shape_y": target.shape[1],
+        "shape_z": target.shape[0],
+        "llength": i32(min(target.shape) // 2),
     }
     return CLKernels(queue.context, kernel_values)
 
@@ -70,7 +72,7 @@ def precompute_squared_targets(gpu_vars: Vars[ClArray, Image], gpu_vars_ft: Vars
 
 def transform_rotations(rotations: np.ndarray) -> np.ndarray:
     """Transform rotation array for input into OpenCL kernels.
-    
+
     The OpenCL kernel requires a Float16 input (struct containing 16 single-
     precision floats). The rotation matrices need to occupy the first 9 entries.
     """
@@ -81,6 +83,7 @@ def transform_rotations(rotations: np.ndarray) -> np.ndarray:
 
 class GPUCorrelator(Correlator):
     """Compute the LCC score for a target and template combination."""
+
     def __init__(
         self,
         target: np.ndarray,
@@ -121,7 +124,7 @@ class GPUCorrelator(Correlator):
 
         self.cl_kernels = generate_kernels(queue, self.target)
         self.conj_multiply = self.cl_kernels.conj_multiply
-        self.square = lambda a,b: self.cl_kernels.multiply(a, a, b)
+        self.square = lambda a, b: self.cl_kernels.multiply(a, a, b)
         self.rfftn = rfftn
         self.irfftn = irfftn
         precompute_squared_targets(self.vars, self.vars_ft, self.cl_kernels)
@@ -134,14 +137,12 @@ class GPUCorrelator(Correlator):
 
     def rotate_grids(self, rotmat: np.ndarray):
         """Rotate the template and mask using the rotational matrix."""
-        self.cl_kernels.rotate_image3d(self.queue, self.vars.template, rotmat,
-                self.vars.rot_template)
-        self.cl_kernels.rotate_image3d(self.queue, self.vars.mask, rotmat,
-                self.vars.rot_mask, nearest=True)
+        self.cl_kernels.rotate_image3d(self.queue, self.vars.template, rotmat, self.vars.rot_template)
+        self.cl_kernels.rotate_image3d(self.queue, self.vars.mask, rotmat, self.vars.rot_mask, nearest=True)
 
     def compute_lcc_score_and_take_best(self, n: int):
         """Compute the LCC score and store best result.
-        
+
         Args:
             n: iteration number.
         """

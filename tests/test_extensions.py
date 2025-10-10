@@ -6,9 +6,7 @@ from powerfit_em._extensions import rotate_grid3d
 
 
 class TestExtensions(TestCase):
-
     def test_rotate_grid3d(self):
-
         grid = np.zeros((4, 5, 6), dtype=np.float32)
         grid[0, 0, 0] = 1
         grid[0, 0, 1] = 1
