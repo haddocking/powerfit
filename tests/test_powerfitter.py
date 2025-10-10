@@ -1,7 +1,6 @@
 import unittest
 
 import numpy as np
-from scipy.ndimage import laplace
 
 try:
     import pyfftw as _
@@ -16,9 +15,6 @@ try:
 except ImportError:
     OPENCL = False
 
-from powerfit_em.powerfitter import CPUCorrelator
-from powerfit_em.rotations import euler
-
 if OPENCL:
     from powerfit_em.correlators.clkernels import CLKernels
 
@@ -26,18 +22,6 @@ if OPENCL:
 @unittest.skipIf(not OPENCL, "GPU resources are not available.")
 class TestCLKernels(unittest.TestCase):
     """Tests for the OpenCL kernels"""
-
-    # @classmethod
-    # def setUpClass(cls):
-    #    p = cl.get_platforms()[0]
-    #    devs = p.get_devices()
-    #    cls.ctx = cl.Context(devices=devs)
-    #    cls.queue = cl.CommandQueue(cls.ctx, device=devs[0])
-    #    cls.k = CLKernels(cls.ctx)
-    #    cls.s_linear = cl.Sampler(cls.ctx, False, cl.addressing_mode.CLAMP,
-    #            cl.filter_mode.LINEAR)
-    #    cls.s_nearest = cl.Sampler(cls.ctx, False, cl.addressing_mode.CLAMP,
-    #            cl.filter_mode.NEAREST)
 
     def setUp(self):
         p = cl.get_platforms()[0]
