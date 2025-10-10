@@ -2,24 +2,16 @@ import unittest
 
 import numpy as np
 
-try:
-    import pyfftw as _
-    PYFFTW = True
-except ImportError:
-    PYFFTW = False
-try:
+from powerfit_em.helpers import opencl_available
+
+
+if opencl_available():
     import pyopencl as cl
     import pyopencl.array as cl_array
-
-    OPENCL = True
-except ImportError:
-    OPENCL = False
-
-if OPENCL:
     from powerfit_em.correlators.clkernels import CLKernels
 
 
-@unittest.skipIf(not OPENCL, "GPU resources are not available.")
+@unittest.skipIf(not opencl_available(), "GPU resources are not available.")
 class TestCLKernels(unittest.TestCase):
     """Tests for the OpenCL kernels"""
 

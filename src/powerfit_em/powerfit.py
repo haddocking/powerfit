@@ -7,7 +7,7 @@ from pathlib import Path
 from time import time
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, BooleanOptionalAction, FileType
 import logging
-from typing import BinaryIO
+from typing import TYPE_CHECKING, BinaryIO
 import warnings
 
 import numpy as np
@@ -27,15 +27,13 @@ from powerfit_em import (
 )
 from powerfit_em.powerfitter import PowerFitter
 from powerfit_em.analyzer import Analyzer
-from powerfit_em.helpers import write_fits_to_pdb, fisher_sigma
+from powerfit_em.helpers import opencl_available, write_fits_to_pdb, fisher_sigma
 from powerfit_em.report import generate_report
 from powerfit_em.volume import extend, nearest_multiple2357, trim, resample
 
-try:
-    import pyopencl as cl
-    OPENCL = True
-except:
-    OPENCL = False
+if TYPE_CHECKING:
+    import pyopencl as cl  # noqa: I001
+
 
 logger = logging.getLogger(__name__)
 
@@ -300,9 +298,11 @@ def main():
 
 def get_gpu_queue(gpu: str) -> "cl.CommandQueue":
     """Request an OpenCL Queue."""
-    if not OPENCL:
+    if not opencl_available():
         msg = "Running on GPU requires the pyopencl package, however importing pyopencl failed."
         raise ValueError(msg)
+    else:
+        import pyopencl as cl
     # TODO allow to omit platform, so gpu='4' runs 5th device on first platform
     if ':' in gpu:
         platform_idx, device_idx = map(int, gpu.split(':'))

@@ -8,9 +8,9 @@ import numpy as np
 from tqdm import tqdm
 from scipy.ndimage import laplace as laplace_filter
 
-if TYPE_CHECKING:
-    from pyopencl.array import Array as ClArray
-    from pyopencl import Image
+if TYPE_CHECKING: 
+    from pyopencl.array import Array as ClArray  # noqa: I001
+    from pyopencl import Image  # noqa: I001
 
 f32 = np.float32
 i32 = np.int32

@@ -3,10 +3,16 @@ from math import sqrt
 
 import numpy as np
 from scipy.ndimage import binary_erosion
-try:
-    import pyopencl as cl
-except ImportError:
-    pass
+
+from importlib.util import find_spec
+
+
+def pyfftw_available():
+    return True if find_spec("pyfftw") is not None else False
+
+
+def opencl_available():
+    return True if find_spec("pyopencl") is not None else False
 
 
 def determine_core_indices(mask):
@@ -18,19 +24,6 @@ def determine_core_indices(mask):
         core_indices += eroded_mask
         eroded_mask = binary_erosion(eroded_mask)
     return core_indices
-
-
-def get_queue(platformid=0, deviceid=0):
-    try:
-        platform = cl.get_platforms()[platformid]
-        devices = platform.get_devices()
-        context = cl.Context(devices=devices)
-        queue = cl.CommandQueue(context, device=devices[deviceid])
-    except Exception as e:
-        raise e
-        queue = None
-
-    return queue
 
 
 def fisher_sigma(mv, fsc):
