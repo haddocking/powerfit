@@ -51,3 +51,15 @@ jobs:
           ruff format --check
       - name: Check cython code
         run: cython-lint src/powerfit_em/_powerfit.pyx
+      - name: Install clang tools
+        run: |
+          apt-get update
+          apt-get install -y clang-format clang-tidy
+      - name: Check C code formatting
+        run: |
+          clang-format -i src/powerfit_em/_extensions.c --dry-run --Werror
+      - name: Check C code tidiness
+        run: |
+          clang-tidy src/powerfit_em/_extensions.c -- \
+            -I"$(python -c 'from sysconfig import get_paths; print(get_paths()["include"])')" \
+            -I"$(python -c 'import numpy; print(numpy.get_include())')"
