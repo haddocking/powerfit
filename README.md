@@ -286,31 +286,6 @@ timing information.
 * *report.html* and *state.mvsj*: an HTML report and its [MolViewSpec](https://molstar.org/mol-view-spec/) with interactive 3D visualization of the best fits.
   Only written if the `--report --delimiter ,` arguments are passed.
 
-## Creating an image-pyramid
-
-The use of multi-scale image pyramids can signicantly increase the speed of
-fitting. PowerFit comes with a script to quickly build a pyramid called
-`image-pyramid`. The calling signature of the script is
-
-```shell
-image-pyramid <map> <resolution> <target-resolutions ...>
-```
-
-where `<map` is the original cryo-EM data, `<resolution` is the original
-resolution, and `<target-resolutions>` is a sequence of resolutions for the
-resulting maps. The following example will create an image-pyramid with
-resolutions of 12, 13 and 20 angstrom
-
-```shell
-image-pyramid EMD-1884/1884.map 9.8 12 13 20
-```
-
-To see the other options type
-
-```shell
-image-pyramid --help
-```
-
 ## Licensing
 
 If this software was useful to your research, please cite us
