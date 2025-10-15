@@ -414,6 +414,7 @@ clang-format -i src/powerfit_em/_extensions.c
 To lint the C code, run
 
 ```shell
-clang-tidy src/powerfit_em/_extensions.c -- -I/usr/include/python3.10 -I.venv/lib/python3.10/site-packages/numpy/_core/include
+clang-tidy src/powerfit_em/_extensions.c -- \
+    -I"$(python -c 'from sysconfig import get_paths; print(get_paths()["include"])')" \
+    -I"$(python -c 'import numpy; print(numpy.get_include())')"
 ```
-(adjust the include paths to your Python installation)
