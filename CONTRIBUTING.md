@@ -56,3 +56,69 @@ To create a release you need write permission on the repository.
 1. Verify Zenodo version was added to https://doi.org/10.5281/zenodo.14185749
 1. Wait until [Create and publish a Docker image](https://github.com/haddocking/powerfit/actions/workflows/docker-publish.yml) has completed.
 1. Verify [new Docker images](https://github.com/haddocking/powerfit/pkgs/container/powerfit)
+
+# Development
+
+To develop PowerFit, you need to install the development version of it using.
+
+```shell
+pip install -e .[dev]
+```
+
+Tests can be run using
+
+```shell
+pytest
+```
+
+To run OpenCL on **C**PU install use `pip install -e .[pocl]` and make sure no other OpenCL platforms, like 'AMD Accelerated Parallel Processing' or 'NVIDIA CUDA', are installed .
+
+The Docker container, that works for cpu and NVIDIA gpus, can be build with
+
+```shell
+docker build -t ghcr.io/haddocking/powerfit:v3.1.0 .
+```
+The Docker container, that works for AMD gpus, can be build with
+
+```shell
+docker build -t ghcr.io/haddocking/powerfit-rocm:v3.1.0 -f Dockerfile.rocm .
+```
+
+The binary wheels can be build for all supported platforms by running the
+https://github.com/haddocking/powerfit/actions/workflows/pypi-publish.yml GitHub action and downloading the artifacts.
+The workflow is triggered by a push to the main branch, a release or can be manually triggered.
+
+### Linting & formatting
+
+To lint the Python code, run
+
+```shell
+ruff check
+```
+Use `--fix` to automatically fix some of the issues.
+
+To format the Python code, run
+
+```shell
+ruff format
+```
+
+To check Cython code, run
+
+```shell
+cython-lint src/powerfit_em/_powerfit.pyx
+```
+
+To format the C code, run
+
+```shell
+clang-format -i src/powerfit_em/_extensions.c
+```
+
+To lint the C code, run
+
+```shell
+clang-tidy src/powerfit_em/_extensions.c -- \
+    -I"$(python -c 'from sysconfig import get_paths; print(get_paths()["include"])')" \
+    -I"$(python -c 'import numpy; print(numpy.get_include())')"
+```
