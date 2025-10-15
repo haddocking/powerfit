@@ -53,8 +53,8 @@ jobs:
         run: cython-lint src/powerfit_em/_powerfit.pyx
       - name: Install clang tools
         run: |
-          apt-get update
-          apt-get install -y clang-format clang-tidy
+          sudo apt-get update
+          sudo apt-get install -y clang-format clang-tidy
       - name: Check C code formatting
         run: |
           clang-format -i src/powerfit_em/_extensions.c --dry-run --Werror
