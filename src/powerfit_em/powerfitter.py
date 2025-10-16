@@ -1,36 +1,25 @@
-
-
-from functools import partial
 import multiprocessing
+from functools import partial
+from multiprocessing import Lock, Process, RawValue
 from multiprocessing.managers import DictProxy
-from multiprocessing import RawValue, Lock, Process
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 from tqdm.auto import tqdm
 
 from powerfit_em.correlators.cpu import CPUCorrelator
+from powerfit_em.helpers import opencl_available
 from powerfit_em.volume import Volume
-try:
-    import pyfftw as _
-    PYFFTW = True
-except ImportError:
-    PYFFTW = False
-try:
-    import pyopencl as cl
-    OPENCL = True
-except:
-    OPENCL = False
 
-if OPENCL:
-    from powerfit_em.correlators.gpu import GPUCorrelator
+if TYPE_CHECKING:
+    import pyopencl as cl  # noqa: I001
 
 
-class _Counter(object):
+class _Counter:
     """Thread-safe counter object to follow PowerFit progress"""
 
     def __init__(self):
-        self.val = RawValue('i', 0)
+        self.val = RawValue("i", 0)
         self.lock = Lock()
 
     def increment(self):
@@ -50,7 +39,7 @@ def run_correlator_instance(
     laplace: bool,
     jobid: int,
     counter: _Counter | None,
-    results: dict[int, Any]
+    results: dict[int, Any],
 ):
     correlator = CPUCorrelator(
         target.array,
@@ -67,7 +56,7 @@ def run_correlator_instance(
     results[jobid] = (correlator.lcc, correlator.rot)
 
 
-class PowerFitter(object):
+class PowerFitter:
     """Wrapper around the Correlator classes for multiprocessing and GPU
     accelerated searches providing an easy interface.
     """
@@ -80,7 +69,7 @@ class PowerFitter(object):
         mask: Volume,
         queue: "cl.CommandQueue | None",
         nproc: int = 1,
-        laplace: bool = False
+        laplace: bool = False,
     ):
         self._target = target
         self._rotations = rotations
@@ -112,12 +101,14 @@ class PowerFitter(object):
 
     def set_template(self, template: Volume, mask: Volume):
         if not self._corr:
-            msg = f"No correlator available yet. First run scan."
+            msg = "No correlator available yet. First run scan."
             raise ValueError(msg)
         self._corr.set_template(template.array, mask.array)
-        
+
     def _gpu_scan(self, progress: partial[tqdm] | None):
-        if OPENCL:
+        if opencl_available():
+            from powerfit_em.correlators.gpu import GPUCorrelator
+
             if self._corr is None:
                 self._corr = GPUCorrelator(
                     self._target.array,
@@ -131,7 +122,7 @@ class PowerFitter(object):
             self._lcc = self._corr.lcc
             self._rot = self._corr.rot
         else:
-            raise ValueError("No OpenCL")
+            raise ValueError("No OpenCL available")
 
     def _multi_cpu_scan(self, progress: partial[tqdm] | None):
         nrot = self._rotations.shape[0]
@@ -154,10 +145,17 @@ class PowerFitter(object):
             partial_rotations = self._rotations[start:stop]
             processes.append(
                 Process(
-                  target=run_correlator_instance,
-                  args=(self._target, self._template, self._mask,
-                        partial_rotations, self._laplace, id,
-                        self._counter, results)
+                    target=run_correlator_instance,
+                    args=(
+                        self._target,
+                        self._template,
+                        self._mask,
+                        partial_rotations,
+                        self._laplace,
+                        id,
+                        self._counter,
+                        results,
+                    ),
                 )
             )
 
@@ -169,7 +167,7 @@ class PowerFitter(object):
                 while self._counter.value() < nrot:
                     current_count = self._counter.value()
                     pbar.update(current_count - pbar.n)
-        
+
         for id in range(self._njobs):
             processes[id].join()
         self._combine(ids, results)

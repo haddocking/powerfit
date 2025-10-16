@@ -1,31 +1,25 @@
+import importlib.resources
+from string import Template
+
 import pyopencl as cl
 from pyopencl.elementwise import ElementwiseKernel
-
-
-from string import Template
-import importlib.resources
 
 import powerfit_em.correlators
 
 
-class CLKernels(object):
+class CLKernels:
     def __init__(self, ctx, values):
-        self.sampler_nearest = cl.Sampler(ctx, True,
-                cl.addressing_mode.REPEAT, cl.filter_mode.NEAREST)
-        self.sampler_linear = cl.Sampler(ctx, True,
-                cl.addressing_mode.REPEAT, cl.filter_mode.LINEAR)
-        self.multiply = ElementwiseKernel(ctx,
-                "float *x, float *y, float *z",
-                "z[i] = x[i] * y[i];"
-                )
-        self.conj_multiply = ElementwiseKernel(ctx,
-                "cfloat_t *x, cfloat_t *y, cfloat_t *z",
-                "z[i] = cfloat_mul(cfloat_conj(x[i]), y[i]);"
-                )
-        self.calc_lcc_and_take_best = ElementwiseKernel(ctx,
-                """float *gcc, float *ave, float *ave2, int *mask,
+        self.sampler_nearest = cl.Sampler(ctx, True, cl.addressing_mode.REPEAT, cl.filter_mode.NEAREST)
+        self.sampler_linear = cl.Sampler(ctx, True, cl.addressing_mode.REPEAT, cl.filter_mode.LINEAR)
+        self.multiply = ElementwiseKernel(ctx, "float *x, float *y, float *z", "z[i] = x[i] * y[i];")
+        self.conj_multiply = ElementwiseKernel(
+            ctx, "cfloat_t *x, cfloat_t *y, cfloat_t *z", "z[i] = cfloat_mul(cfloat_conj(x[i]), y[i]);"
+        )
+        self.calc_lcc_and_take_best = ElementwiseKernel(
+            ctx,
+            """float *gcc, float *ave, float *ave2, int *mask,
                     float norm_factor, int nrot, float *lcc, int *grot""",
-                """float _lcc;
+            """float _lcc;
                     if (mask[i] > 0) {
                         _lcc = gcc[i] / sqrt(ave2[i] * norm_factor - ave[i] * ave[i]);
                         if (_lcc > lcc[i]) {
@@ -33,8 +27,8 @@ class CLKernels(object):
                             grot[i] = nrot;
                         };
                     };
-                """
-                )
+                """,
+        )
 
         t = importlib.resources.read_text(powerfit_em.correlators, "kernels.cl")
         t = Template(t).substitute(**values)

@@ -1,12 +1,16 @@
-
+from importlib.util import find_spec
 from math import sqrt
 
 import numpy as np
 from scipy.ndimage import binary_erosion
-try:
-    import pyopencl as cl
-except ImportError:
-    pass
+
+
+def pyfftw_available() -> bool:
+    return find_spec("pyfftw") is not None
+
+
+def opencl_available() -> bool:
+    return find_spec("pyopencl") is not None
 
 
 def determine_core_indices(mask):
@@ -20,24 +24,11 @@ def determine_core_indices(mask):
     return core_indices
 
 
-def get_queue(platformid=0, deviceid=0):
-    try:
-        platform = cl.get_platforms()[platformid]
-        devices = platform.get_devices()
-        context = cl.Context(devices=devices)
-        queue = cl.CommandQueue(context, device=devices[deviceid])
-    except Exception as e:
-        raise e
-        queue = None
-
-    return queue
-
-
 def fisher_sigma(mv, fsc):
     return 1 / sqrt(mv / fsc - 3)
 
 
-def write_fits_to_pdb(structure, solutions, basename='fit'):
+def write_fits_to_pdb(structure, solutions, basename="fit"):
     translated_structure = structure.duplicate()
     center = translated_structure.coor.mean(axis=1)
     translated_structure.translate(-center)
@@ -47,4 +38,4 @@ def write_fits_to_pdb(structure, solutions, basename='fit'):
         trans = sol[3:6]
         out.rotate(rot)
         out.translate(trans)
-        out.tofile(basename + '_{:d}.pdb'.format(n))
+        out.tofile(basename + f"_{n:d}.pdb")

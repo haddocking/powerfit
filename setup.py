@@ -2,9 +2,9 @@
 import os.path
 
 import numpy
+from Cython.Build import cythonize
 from setuptools import setup
 from setuptools.extension import Extension
-from Cython.Build import cythonize
 
 
 def main():

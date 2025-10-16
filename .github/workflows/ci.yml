@@ -35,3 +35,31 @@ jobs:
         with:
           project-token: ${{ secrets.CODACY_PROJECT_TOKEN }}
           coverage-reports: ./coverage.xml
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: install python deps from pypi
+        run: pip install -e .[dev]
+      - name: Check style against standards using ruff
+        run: |
+          ruff check
+          ruff format --check
+      - name: Check cython code
+        run: cython-lint src/powerfit_em/_powerfit.pyx
+      - name: Install clang tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format clang-tidy
+      - name: Check C code formatting
+        run: |
+          clang-format -i src/powerfit_em/_extensions.c --dry-run --Werror
+      - name: Check C code tidiness
+        run: |
+          clang-tidy src/powerfit_em/_extensions.c -- \
+            -I"$(python -c 'from sysconfig import get_paths; print(get_paths()["include"])')" \
+            -I"$(python -c 'import numpy; print(numpy.get_include())')"

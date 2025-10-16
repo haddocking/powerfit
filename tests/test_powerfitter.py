@@ -2,24 +2,16 @@ import unittest
 
 import numpy as np
 
-try:
-    import pyfftw as _
-    PYFFTW = True
-except ImportError:
-    PYFFTW = False
-try:
+from powerfit_em.helpers import opencl_available
+
+if opencl_available():
     import pyopencl as cl
     import pyopencl.array as cl_array
 
-    OPENCL = True
-except ImportError:
-    OPENCL = False
-
-if OPENCL:
     from powerfit_em.correlators.clkernels import CLKernels
 
 
-@unittest.skipIf(not OPENCL, "GPU resources are not available.")
+@unittest.skipIf(not opencl_available(), "GPU resources are not available.")
 class TestCLKernels(unittest.TestCase):
     """Tests for the OpenCL kernels"""
 
@@ -35,12 +27,8 @@ class TestCLKernels(unittest.TestCase):
             "llength": 5,
         }
         self.k = CLKernels(self.ctx, values=values)
-        self.s_linear = cl.Sampler(
-            self.ctx, False, cl.addressing_mode.CLAMP, cl.filter_mode.LINEAR
-        )
-        self.s_nearest = cl.Sampler(
-            self.ctx, False, cl.addressing_mode.CLAMP, cl.filter_mode.NEAREST
-        )
+        self.s_linear = cl.Sampler(self.ctx, False, cl.addressing_mode.CLAMP, cl.filter_mode.LINEAR)
+        self.s_nearest = cl.Sampler(self.ctx, False, cl.addressing_mode.CLAMP, cl.filter_mode.NEAREST)
 
     def test_multiply(self):
         np_in1 = np.arange(10, dtype=np.float32)
@@ -68,6 +56,7 @@ class TestCLKernels(unittest.TestCase):
         cl_out = cl_array.to_device(self.queue, np.zeros(10, dtype=np.complex64))
         self.k.conj_multiply(cl_in1, cl_in2, cl_out)
         self.assertTrue(np.allclose(np_out, cl_out.get()))
+
 
 if __name__ == "__main__":
     unittest.main()

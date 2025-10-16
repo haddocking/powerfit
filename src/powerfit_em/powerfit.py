@@ -1,41 +1,39 @@
 #! ../env/bin/python
 
 
+import logging
+import warnings
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, BooleanOptionalAction, FileType
 from functools import partial
-from os.path import splitext, join, abspath
+from os.path import abspath, join, splitext
 from pathlib import Path
 from time import time
-from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, BooleanOptionalAction, FileType
-import logging
-from typing import BinaryIO
-import warnings
+from typing import TYPE_CHECKING, BinaryIO
 
 import numpy as np
 from rich.logging import RichHandler
 from tqdm import TqdmExperimentalWarning
-from tqdm.rich import tqdm as rich_tqdm
 from tqdm.auto import tqdm
+from tqdm.rich import tqdm as rich_tqdm
 
 from powerfit_em import (
-    __version__,
-    Volume,
     Structure,
-    structure_to_shape_like,
+    Volume,
+    __version__,
+    determine_core_indices,
     proportional_orientations,
     quat_to_rotmat,
-    determine_core_indices,
+    structure_to_shape_like,
 )
-from powerfit_em.powerfitter import PowerFitter
 from powerfit_em.analyzer import Analyzer
-from powerfit_em.helpers import write_fits_to_pdb, fisher_sigma
+from powerfit_em.helpers import fisher_sigma, opencl_available, write_fits_to_pdb
+from powerfit_em.powerfitter import PowerFitter
 from powerfit_em.report import generate_report
-from powerfit_em.volume import extend, nearest_multiple2357, trim, resample
+from powerfit_em.volume import extend, nearest_multiple2357, resample, trim
 
-try:
-    import pyopencl as cl
-    OPENCL = True
-except:
-    OPENCL = False
+if TYPE_CHECKING:
+    import pyopencl as cl  # noqa: I001
+
 
 logger = logging.getLogger(__name__)
 
@@ -46,16 +44,13 @@ def make_parser():
     """Create the command-line argument parser."""
     p = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
 
-    p.add_argument(
-        "--version", action="version", version=f"%(prog)s {__version__}"
-    )
+    p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
 
     # Positional arguments
     p.add_argument(
         "target",
         type=FileType("rb"),
-        help="Target density map to fit the model in. "
-        "Data should either be in CCP4 or MRC format",
+        help="Target density map to fit the model in. Data should either be in CCP4 or MRC format",
     )
     p.add_argument("resolution", type=float, help="Resolution of map in angstrom")
     p.add_argument(
@@ -125,8 +120,7 @@ def make_parser():
         type=float,
         default=None,
         metavar="<float>",
-        help="Intensity cutoff to which the map will be trimmed. "
-        "Default is 10 percent of maximum intensity.",
+        help="Intensity cutoff to which the map will be trimmed. Default is 10 percent of maximum intensity.",
     )
     # Selection parameter
     p.add_argument(
@@ -159,8 +153,7 @@ def make_parser():
         type=int,
         default=10,
         metavar="<int>",
-        help="Number of models written to file. This number "
-        "will be capped if less solutions are found as requested.",
+        help="Number of models written to file. This number will be capped if less solutions are found as requested.",
     )
     # Computational resources parameters
     p.add_argument(
@@ -171,7 +164,7 @@ def make_parser():
         const="0:0",
         default=None,
         metavar="[<platform>:<device>]",
-        help="Off-load the intensive calculations to the GPU. Optionally specify platform and device as <platform>:<device> (e.g., --gpu 0:3). If not specified, uses first device in first platform. If omitted, does not use GPU.",
+        help="Off-load the intensive calculations to the GPU. Optionally specify platform and device as <platform>:<device> (e.g., --gpu 0:3). If not specified, uses first device in first platform. If omitted, does not use GPU.",  # noqa: E501
     )
     p.add_argument(
         "-p",
@@ -211,10 +204,11 @@ def make_parser():
         "--report",
         dest="report",
         action="store_true",
-        help="Generate a html report with Mol* 3D viewer of the fitted models."
+        help="Generate a html report with Mol* 3D viewer of the fitted models.",
     )
 
     return p
+
 
 def parse_args():
     """Parse command-line options."""
@@ -232,11 +226,12 @@ def get_filetype_template(fname):
     elif ext in ["map", "ccp4"]:
         ft = "map"
     else:
-        msg = "Filetype of file {:} is not recognized.".format(fname)
-        raise IOError(msg)
+        msg = f"Filetype of file {fname} is not recognized."
+        raise OSError(msg)
     return ft
 
-def configure_logging(log_file, log_level= "INFO"):
+
+def configure_logging(log_file, log_level="INFO"):
     for handler in logging.root.handlers:
         logging.root.removeHandler(handler)
 
@@ -246,7 +241,7 @@ def configure_logging(log_file, log_level= "INFO"):
         file_handler.setLevel(log_level)
         file_handler.setFormatter(logging.Formatter("%(asctime)s %(message)s"))
         logging.root.addHandler(file_handler)
-    
+
     # Write to console with rich formatting
     console_handler = RichHandler(show_time=False, show_path=False, show_level=False)
     console_handler.setLevel(log_level)
@@ -256,13 +251,11 @@ def configure_logging(log_file, log_level= "INFO"):
 
 def main():
     args = parse_args()
-    
+
     Path(args.directory).mkdir(exist_ok=True)
     configure_logging(join(args.directory, "powerfit.log"), args.log_level)
-    
-    progress = partial(
-        rich_tqdm, desc="Processing rotations", unit="rot"
-    ) if args.progressbar else None
+
+    progress = partial(rich_tqdm, desc="Processing rotations", unit="rot") if args.progressbar else None
 
     powerfit(
         target_volume=args.target,
@@ -281,31 +274,33 @@ def main():
         gpu=args.gpu,
         nproc=args.nproc,
         delimiter=args.delimiter,
-        progress=progress
+        progress=progress,
     )
     if args.report:
         # Report shows all options that affect the fitting
         options = {
-            'resolution': args.resolution,
-            'angle': args.angle,
-            'no laplace': args.no_laplace,
-            'no core weighted': args.no_core_weighted,
-            'no resampling': args.no_resampling,
-            'resampling rate': args.resampling_rate,
-            'no trimming': args.no_trimming,
-            'trimming cutoff': args.trimming_cutoff,
+            "resolution": args.resolution,
+            "angle": args.angle,
+            "no laplace": args.no_laplace,
+            "no core weighted": args.no_core_weighted,
+            "no resampling": args.no_resampling,
+            "resampling rate": args.resampling_rate,
+            "no trimming": args.no_trimming,
+            "trimming cutoff": args.trimming_cutoff,
         }
         generate_report(args.directory, args.target.name, args.num, args.delimiter, options=options)
 
 
 def get_gpu_queue(gpu: str) -> "cl.CommandQueue":
     """Request an OpenCL Queue."""
-    if not OPENCL:
+    if not opencl_available():
         msg = "Running on GPU requires the pyopencl package, however importing pyopencl failed."
         raise ValueError(msg)
+    else:
+        import pyopencl as cl
     # TODO allow to omit platform, so gpu='4' runs 5th device on first platform
-    if ':' in gpu:
-        platform_idx, device_idx = map(int, gpu.split(':'))
+    if ":" in gpu:
+        platform_idx, device_idx = map(int, gpu.split(":"))
     else:
         platform_idx, device_idx = 0, 0
     platforms = cl.get_platforms()
@@ -328,9 +323,9 @@ def setup_target(
     trimming_cutoff: float | None,
 ) -> Volume:
     """Load and preprocess the target density."""
-    logger.info("Target file read from: {:s}".format(abspath(target_volume.name)))
+    logger.info(f"Target file read from: {abspath(target_volume.name):s}")
     target = Volume.fromfile(target_volume)
-    logger.info("Target resolution: {:.2f}".format(resolution))
+    logger.info(f"Target resolution: {resolution:.2f}")
     logger.info(("Initial shape of density:" + " {:d}" * 3).format(*target.shape))
 
     # Resample target density if requested
@@ -355,15 +350,11 @@ def setup_target(
 
 
 def setup_template_structure(
-    template_structure: BinaryIO,
-    chain: str | None,
-    target: Volume,
-    resolution: float,
-    core_weighted: bool
+    template_structure: BinaryIO, chain: str | None, target: Volume, resolution: float, core_weighted: bool
 ) -> tuple[Structure, Volume, Volume, float]:
     """Load structure, setup template and mask, precompute Fisher sigma for scoring."""
     # Read in structure or high-resolution map
-    logger.info("Template file read from: {:s}".format(abspath(template_structure.name)))
+    logger.info(f"Template file read from: {abspath(template_structure.name):s}")
     structure = Structure.fromfile(template_structure)
     if chain is not None:
         logger.info("Selecting chains: " + chain)
@@ -380,9 +371,7 @@ def setup_template_structure(
         weights=structure.atomnumber,
         shape="vol",
     )
-    mask = structure_to_shape_like(
-        target, structure.coor, resolution=resolution, shape="mask"
-    )
+    mask = structure_to_shape_like(target, structure.coor, resolution=resolution, shape="mask")
 
     # Apply core-weighted mask if requested
     if core_weighted:
@@ -404,14 +393,12 @@ def setup_template_structure(
     return structure, template, mask, z_sigma
 
 
-def setup_rotational_matrix(
-    angle: float        
-) -> np.ndarray:
+def setup_rotational_matrix(angle: float) -> np.ndarray:
     logger.info("Reading in rotations.")
     q, _, degree = proportional_orientations(angle)
     rotmat = quat_to_rotmat(q)
-    logger.info("Requested rotational sampling density: {:.2f}".format(angle))
-    logger.info("Real rotational sampling density: {:}".format(degree))
+    logger.info(f"Requested rotational sampling density: {angle:.2f}")
+    logger.info(f"Real rotational sampling density: {degree}")
     return rotmat
 
 
@@ -419,18 +406,18 @@ def powerfit(
     target_volume: BinaryIO,
     resolution: float,
     template_structure: BinaryIO,
-    angle: float=10,
-    laplace: bool=False,
-    core_weighted: bool=False,
-    no_resampling: bool=False,
-    resampling_rate: float=2,
-    no_trimming: bool=False,
-    trimming_cutoff: float | None=None,
-    chain: str | None =None,
-    directory: str='.',
-    num: int=10,
-    gpu: str | None = None, 
-    nproc: int=1,
+    angle: float = 10,
+    laplace: bool = False,
+    core_weighted: bool = False,
+    no_resampling: bool = False,
+    resampling_rate: float = 2,
+    no_trimming: bool = False,
+    trimming_cutoff: float | None = None,
+    chain: str | None = None,
+    directory: str = ".",
+    num: int = 10,
+    gpu: str | None = None,
+    nproc: int = 1,
     delimiter: str | None = None,
     progress: partial[tqdm] | None = tqdm,
 ):
@@ -443,14 +430,16 @@ def powerfit(
         queue = get_gpu_queue(gpu)
 
     target = setup_target(target_volume, resolution, no_resampling, resampling_rate, no_trimming, trimming_cutoff)
-    structure, template, mask, z_sigma = setup_template_structure(template_structure, chain, target, resolution, core_weighted)
+    structure, template, mask, z_sigma = setup_template_structure(
+        template_structure, chain, target, resolution, core_weighted
+    )
     rotmat = setup_rotational_matrix(angle)
 
     pf = PowerFitter(target, rotmat, template, mask, queue, nproc, laplace=laplace)
     if gpu:
         logger.info("Using GPU-accelerated search.")
     else:
-        logger.info("Requested number of processors: {:d}".format(nproc))
+        logger.info(f"Requested number of processors: {nproc:d}")
 
     logger.info("Starting search")
 
@@ -458,7 +447,7 @@ def powerfit(
     pf.scan(progress=progress)
     dtime = time() - time1
     if dtime < 10:
-        logger.info("Time for search: {:.3f} s".format(dtime))
+        logger.info(f"Time for search: {dtime:.3f} s")
     else:
         logger.info("Time for search: {:.0f}m {:.0f}s".format(*divmod(dtime, 60)))
     logger.info("Analyzing results")
@@ -473,16 +462,12 @@ def powerfit(
     )
 
     logger.info("Writing solutions to file.")
-    Volume(pf.lcc, target.voxelspacing, target.origin).tofile(
-        join(directory, "lcc.mrc")
-    )
+    Volume(pf.lcc, target.voxelspacing, target.origin).tofile(join(directory, "lcc.mrc"))
     analyzer.tofile(join(directory, "solutions.out"), delimiter=delimiter)
 
     logger.info("Writing PDBs to file.")
     n = min(num, len(analyzer.solutions))
-    write_fits_to_pdb(
-        structure, analyzer.solutions[:n], basename=join(directory, "fit")
-    )
+    write_fits_to_pdb(structure, analyzer.solutions[:n], basename=join(directory, "fit"))
 
     logger.info("Total time: {:.0f}m {:.0f}s".format(*divmod(time() - time0, 60)))
 
@@ -493,21 +478,21 @@ def powerfit_many(
     template_structures: list[Path],
     angle: float = 10,
     laplace: bool = False,
-    core_weighted: bool=False,
-    no_resampling: bool=False,
-    resampling_rate: float=2,
-    no_trimming: bool=False,
-    trimming_cutoff: float | None=None,
-    gpu: str | None = None, 
+    core_weighted: bool = False,
+    no_resampling: bool = False,
+    resampling_rate: float = 2,
+    no_trimming: bool = False,
+    trimming_cutoff: float | None = None,
+    gpu: str | None = None,
     reuse: bool = True,
-    nproc: int=1,
+    nproc: int = 1,
 ) -> list[list[list[float]]]:
     """Run powerfit on multiple templates, returning the solution table for each.
 
     For a slight efficiency boost, and to avoid continuously creating many new OpenCL
     queues, the queues are reused. This can be disabled by setting reuse=False
     Outer list is same order as template_structures. Middle list is ordered on cc score. Inner list is the data for a solution.  Each solution has the following columns: cc Fish-z rel-z x y z a11 a12 a13 a21 a22 a23 a31 a32 a33.
-    """
+    """  # noqa: E501
     time0 = time()
 
     # Get GPU queue if requested
@@ -528,9 +513,7 @@ def powerfit_many(
     template_vars: list[tuple[Structure, Volume, Volume, float]] = []
     for template_structure in template_structures:
         with template_structure.open("r") as f:
-            template_vars.append(setup_template_structure(
-                f, None, target, resolution, core_weighted
-            ))
+            template_vars.append(setup_template_structure(f, None, target, resolution, core_weighted))
     rotmat = setup_rotational_matrix(angle)
 
     if gpu:
@@ -545,14 +528,8 @@ def powerfit_many(
     pf: PowerFitter | None = None
     for i in range(len(template_vars)):
         _, template, mask, z_sigma = template_vars[i]
-        if pf is None or not reuse:
-            pf = PowerFitter(
-                target, rotmat, template, mask, queue, nproc, laplace=laplace
-            )
-        elif not gpu and nproc > 1:  # Can't reuse w/ multi-cpu search
-            pf = PowerFitter(
-                target, rotmat, template, mask, queue, nproc, laplace=laplace
-            )
+        if pf is None or not reuse or not gpu and nproc > 1:
+            pf = PowerFitter(target, rotmat, template, mask, queue, nproc, laplace=laplace)
         else:
             pf.set_template(template, mask)
 
@@ -561,31 +538,30 @@ def powerfit_many(
 
     dtime = time() - time1
     if dtime < 10:
-        logger.info("Time for searches: {:.3f} s".format(dtime))
+        logger.info(f"Time for searches: {dtime:.3f} s")
     else:
         logger.info("Time for searches: {:.0f}m {:.0f}s".format(*divmod(dtime, 60)))
 
     logger.info("Analyzing results")
 
     analysis_results: list[Analyzer] = []
-    for result, template_var, template in zip(
-        results, template_vars, template_structures, strict=True
-    ):
+    for result, template_var, _ in zip(results, template_vars, template_structures, strict=True):
         lcc, rot = result
         _, _, _, z_sigma = template_var
 
         analysis = Analyzer(
-                lcc,
-                rotmat,
-                rot,
-                voxelspacing=target.voxelspacing,
-                origin=target.origin,
-                z_sigma=z_sigma,
+            lcc,
+            rotmat,
+            rot,
+            voxelspacing=target.voxelspacing,
+            origin=target.origin,
+            z_sigma=z_sigma,
         )
         analysis_results.append(analysis)
 
     logger.info("Total time: {:.0f}m {:.0f}s".format(*divmod(time() - time0, 60)))
     return [r.solutions for r in analysis_results]
+
 
 if __name__ == "__main__":
     main()

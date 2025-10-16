@@ -1,10 +1,8 @@
-
-
 import numpy as np
 import numpy.linalg as la
 
-class ShapeDescriptor(object):
 
+class ShapeDescriptor:
     """Class that calculates rotation-invariant shape descriptors based on the
     radius of gyration tensor.
     """
@@ -46,10 +44,9 @@ class ShapeDescriptor(object):
         See Arkin and Janke. Journal of Chemical Physics 138, 2013.
         """
         lx, ly, lz = self.principal_moments
-        return 1 - 3 * (lx * ly + ly * lz + lz * lx) / self.Rg2 ** 2
+        return 1 - 3 * (lx * ly + ly * lz + lz * lx) / self.Rg2**2
 
     @property
     def shape_anisotropy(self):
         ave_moment = self.principal_moments.mean()
-        return np.prod(self.principal_moments - ave_moment) / ave_moment ** 3
-
+        return np.prod(self.principal_moments - ave_moment) / ave_moment**3

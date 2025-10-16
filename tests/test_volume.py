@@ -23,11 +23,12 @@ def example_mrc_file(tmp_path: Path, example_volume: Volume) -> Path:
     example_volume.tofile(fn)
     return fn
 
+
 @pytest.fixture
 def example_gz_file(tmp_path: Path, example_mrc_file: Path) -> Path:
     with open(example_mrc_file, mode="rb") as f:
         mrc_file = f.read()
-    
+
     fn = tmp_path / "example_volume.mrc.gz"
     with gzip.open(fn, "wb") as f:
         f.write(mrc_file)

@@ -286,31 +286,6 @@ timing information.
 * *report.html* and *state.mvsj*: an HTML report and its [MolViewSpec](https://molstar.org/mol-view-spec/) with interactive 3D visualization of the best fits.
   Only written if the `--report --delimiter ,` arguments are passed.
 
-## Creating an image-pyramid
-
-The use of multi-scale image pyramids can signicantly increase the speed of
-fitting. PowerFit comes with a script to quickly build a pyramid called
-`image-pyramid`. The calling signature of the script is
-
-```shell
-image-pyramid <map> <resolution> <target-resolutions ...>
-```
-
-where `<map` is the original cryo-EM data, `<resolution` is the original
-resolution, and `<target-resolutions>` is a sequence of resolutions for the
-resulting maps. The following example will create an image-pyramid with
-resolutions of 12, 13 and 20 angstrom
-
-```shell
-image-pyramid EMD-1884/1884.map 9.8 12 13 20
-```
-
-To see the other options type
-
-```shell
-image-pyramid --help
-```
-
 ## Licensing
 
 If this software was useful to your research, please cite us
@@ -353,33 +328,6 @@ The GPU version has been successfully tested on Linux and with a Docker containe
 The integrated graphics of AMD Ryzen CPUs do not officially support OpenCL.
 If they do seem available in PyOpenCL be aware that this [may lead to incorrect results](https://github.com/haddocking/powerfit/issues/76).
 
-## Development
+## Contributing
 
-To develop PowerFit, you need to install the development version of it using.
-
-```shell
-pip install -e .[dev]
-```
-
-Tests can be run using
-
-```shell
-pytest
-```
-
-To run OpenCL on **C**PU install use `pip install -e .[pocl]` and make sure no other OpenCL platforms, like 'AMD Accelerated Parallel Processing' or 'NVIDIA CUDA', are installed .
-
-The Docker container, that works for cpu and NVIDIA gpus, can be build with
-
-```shell
-docker build -t ghcr.io/haddocking/powerfit:v3.1.0 .
-```
-The Docker container, that works for AMD gpus, can be build with
-
-```shell
-docker build -t ghcr.io/haddocking/powerfit-rocm:v3.1.0 -f Dockerfile.rocm .
-```
-
-The binary wheels can be build for all supported platforms by running the
-https://github.com/haddocking/powerfit/actions/workflows/pypi-publish.yml GitHub action and downloading the artifacts.
-The workflow is triggered by a push to the main branch, a release or can be manually triggered.
+To contribute to PowerFit, see [CONTRIBUTING.md](CONTRIBUTING.md).

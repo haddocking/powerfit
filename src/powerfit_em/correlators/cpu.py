@@ -1,89 +1,93 @@
+import warnings
 from functools import partial
+
 import numpy as np
 from numpy import typing as npt
 from scipy.ndimage import laplace as laplace_filter
-import warnings
-
 from tqdm import tqdm
 
-from powerfit_em.correlators.shared import Correlator, Vars, VarsFT, get_ft_shape, get_lcc_mask, f32, i32
-
-try:
-    from pyfftw.builders import rfftn as rfftn_builder, irfftn as irfftn_builder
-    from pyfftw import zeros_aligned, simd_alignment
-    PYFFTW = True
-except ImportError:
-    PYFFTW = False
-
 from powerfit_em._extensions import rotate_grid3d
+from powerfit_em.correlators.shared import Correlator, Vars, VarsFT, f32, get_ft_shape, get_lcc_mask, i32
+from powerfit_em.helpers import pyfftw_available
 
 
 def build_ffts(target: np.ndarray, gcc: np.ndarray, ft_gcc: np.ndarray, fftw: bool):
     """Build the FFTs (in case of pyfftw), or patch the numpy fft interface to resemble pyfftw."""
-    if fftw:
+    if fftw and pyfftw_available():
+        from pyfftw.builders import irfftn as irfftn_builder
+        from pyfftw.builders import rfftn as rfftn_builder
+
         rfftn = rfftn_builder(gcc)
         irfftn = irfftn_builder(ft_gcc, s=target.shape)
     else:
-        warnings.warn("Using numpy for calculating score. Install pyFFTW for faster calculation.")
+        warnings.warn("Using numpy for calculating score. Install pyFFTW for faster calculation.")  # noqa: B028
+
         def rfftn(src: np.ndarray, dst: np.ndarray):
             np.fft.rfftn(src, out=dst)
+
         def irfftn(src: np.ndarray, dst: np.ndarray):
             np.fft.irfft(src, out=dst)
+
     return rfftn, irfftn
 
 
 def rmax(target: np.ndarray) -> int:
-    return (min(target.shape) // 2)
+    return min(target.shape) // 2
 
 
 def zeros_array(shape: tuple[int], dtype: npt.DTypeLike, fftw: bool) -> np.ndarray:
     """Returns optimally SIMD aligned array if PyFFTW is used, for faster computation."""
-    if fftw:
+    if fftw and pyfftw_available():
+        from pyfftw import simd_alignment, zeros_aligned
+
         return zeros_aligned(shape, dtype, n=simd_alignment)
     else:
         return np.zeros(shape, dtype)
 
 
 def init_cpu_vars(
-    target: np.ndarray, laplace: bool, fftw: bool,
-)-> tuple[Vars[np.ndarray, np.ndarray], VarsFT[np.ndarray]]:
+    target: np.ndarray,
+    laplace: bool,
+    fftw: bool,
+) -> tuple[Vars[np.ndarray, np.ndarray], VarsFT[np.ndarray]]:
     """Initialize all CPU variables on the specified queue."""
 
     lcc_mask = get_lcc_mask(target)
-    _t = laplace_filter(target, mode='wrap') if laplace else target
-    
+    _t = laplace_filter(target, mode="wrap") if laplace else target
+
     vars = Vars(
-        target = _t.astype(f32),
-        template = zeros_array(target.shape, f32, fftw),
-        mask = zeros_array(target.shape, f32, fftw),
-        lcc_mask = lcc_mask.astype(np.uint8),
-        target2 = zeros_array(target.shape, f32, fftw),
-        rot_template = zeros_array(target.shape, f32, fftw),
-        rot_mask = zeros_array(target.shape, f32, fftw),
-        rot_mask2 = zeros_array(target.shape, f32, fftw),
-        gcc = zeros_array(target.shape, f32, fftw),
-        ave = zeros_array(target.shape, f32, fftw),
-        ave2 = zeros_array(target.shape, f32, fftw),
-        lcc = zeros_array(target.shape, f32, fftw),
-        rot = zeros_array(target.shape, i32, fftw),
+        target=_t.astype(f32),
+        template=zeros_array(target.shape, f32, fftw),
+        mask=zeros_array(target.shape, f32, fftw),
+        lcc_mask=lcc_mask.astype(np.uint8),
+        target2=zeros_array(target.shape, f32, fftw),
+        rot_template=zeros_array(target.shape, f32, fftw),
+        rot_mask=zeros_array(target.shape, f32, fftw),
+        rot_mask2=zeros_array(target.shape, f32, fftw),
+        gcc=zeros_array(target.shape, f32, fftw),
+        ave=zeros_array(target.shape, f32, fftw),
+        ave2=zeros_array(target.shape, f32, fftw),
+        lcc=zeros_array(target.shape, f32, fftw),
+        rot=zeros_array(target.shape, i32, fftw),
     )
 
     vars_ft = VarsFT(
-        target = zeros_array(get_ft_shape(target), np.complex64, fftw),
-        target2 = zeros_array(get_ft_shape(target), np.complex64, fftw),
-        template = zeros_array(get_ft_shape(target), np.complex64, fftw),
-        mask = zeros_array(get_ft_shape(target), np.complex64, fftw),
-        mask2 = zeros_array(get_ft_shape(target), np.complex64, fftw),
-        ave = zeros_array(get_ft_shape(target), np.complex64, fftw),
-        ave2 = zeros_array(get_ft_shape(target), np.complex64, fftw),
-        lcc = zeros_array(get_ft_shape(target), np.complex64, fftw),
-        gcc = zeros_array(get_ft_shape(target), np.complex64, fftw),
+        target=zeros_array(get_ft_shape(target), np.complex64, fftw),
+        target2=zeros_array(get_ft_shape(target), np.complex64, fftw),
+        template=zeros_array(get_ft_shape(target), np.complex64, fftw),
+        mask=zeros_array(get_ft_shape(target), np.complex64, fftw),
+        mask2=zeros_array(get_ft_shape(target), np.complex64, fftw),
+        ave=zeros_array(get_ft_shape(target), np.complex64, fftw),
+        ave2=zeros_array(get_ft_shape(target), np.complex64, fftw),
+        lcc=zeros_array(get_ft_shape(target), np.complex64, fftw),
+        gcc=zeros_array(get_ft_shape(target), np.complex64, fftw),
     )
     return vars, vars_ft
 
 
 class CPUCorrelator(Correlator):
     """Compute the LCC score for a target and template combination."""
+
     def __init__(
         self,
         target: np.ndarray,
@@ -112,7 +116,7 @@ class CPUCorrelator(Correlator):
         self.rotations = rotations
 
         self.vars, self.vars_ft = init_cpu_vars(self.target, self.laplace, fftw)
-    
+
         self.lcc_scan = np.zeros(self.target.shape, dtype=f32)
         self.lcc = np.zeros(self.target.shape, dtype=f32)
         self.rot = np.zeros(self.target.shape, dtype=i32)
@@ -120,8 +124,8 @@ class CPUCorrelator(Correlator):
         self.set_template(template, mask)
 
         # set methods in the same was as GPUCorrelator implementation;
-        self.conj_multiply = lambda a,b,c: np.multiply(np.conjugate(a), b, out=c)
-        self.square = lambda a,b: np.square(a, out=b)
+        self.conj_multiply = lambda a, b, c: np.multiply(np.conjugate(a), b, out=c)
+        self.square = lambda a, b: np.square(a, out=b)
         self.rfftn, self.irfftn = build_ffts(self.target, self.vars.gcc, self.vars_ft.gcc, fftw)
 
         # pre-calculate the FFTs of the target
@@ -136,18 +140,12 @@ class CPUCorrelator(Correlator):
 
     def rotate_grids(self, rotmat: np.ndarray):
         """Rotate the template and mask using the rotational matrix."""
-        rotate_grid3d(
-            self.vars.template, rotmat.astype(f32), rmax(self.target),
-            self.vars.rot_template, False
-        )
-        rotate_grid3d(
-            self.vars.mask, rotmat.astype(f32), rmax(self.target),
-            self.vars.rot_mask, True
-        )
+        rotate_grid3d(self.vars.template, rotmat.astype(f32), rmax(self.target), self.vars.rot_template, False)
+        rotate_grid3d(self.vars.mask, rotmat.astype(f32), rmax(self.target), self.vars.rot_mask, True)
 
     def compute_lcc_score_and_take_best(self, n: int):
         """Compute the LCC score and store best result.
-        
+
         Args:
             n: iteration number.
         """
@@ -157,9 +155,7 @@ class CPUCorrelator(Correlator):
         # Ignore division and invalid sqrt errors
         #    see: https://github.com/haddocking/powerfit/issues/72
         with np.errstate(divide="ignore", invalid="ignore"):
-            self.lcc_scan = np.where(
-                self.vars.lcc_mask, self.vars.gcc / np.sqrt(var), 0.0
-            )
+            self.lcc_scan = np.where(self.vars.lcc_mask, self.vars.gcc / np.sqrt(var), 0.0)
         ind = np.greater(self.lcc_scan, self.lcc)
         # store lcc and rotation index
         self.lcc[ind] = self.lcc_scan[ind]
@@ -173,6 +169,6 @@ class CPUCorrelator(Correlator):
         _range = range(0, self.rotations.shape[0])
         if progress is not None:
             _range = progress(_range)
-        
+
         for n in _range:
             self.compute_rotation(n, self.rotations[n])

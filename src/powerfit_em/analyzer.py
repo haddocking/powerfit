@@ -1,9 +1,8 @@
-from numpy import zeros, bool, greater_equal, log
+from numpy import bool, greater_equal, log, zeros
 from scipy.ndimage import label, maximum_position
 
-class Analyzer(object):
 
-
+class Analyzer:
     def __init__(
         self,
         corr,
@@ -78,8 +77,7 @@ class Analyzer(object):
             solution.append(fishers_z)
             rel_z = fishers_z / self._z_sigma
             solution.append(rel_z)
-            z, y, x = [coor * self._voxelspacing  + shift for coor, shift in
-                    zip(pos, self._origin[::-1])]
+            z, y, x = [coor * self._voxelspacing + shift for coor, shift in zip(pos, self._origin[::-1], strict=False)]
             rotmat = self._rotmat[int(self._rotmat_ind[pos])]
             solution += [x, y, z] + list(rotmat.ravel())
             solutions.append(solution)
@@ -95,14 +93,14 @@ class Analyzer(object):
         cutoff = max_cc
         positions = []
         mask = zeros(self._corr.shape, dtype=bool)
-        for n in range(self._steps):
+        for _ in range(self._steps):
             cutoff -= stepsize
             greater_equal(self._corr, cutoff, mask)
             labels, nfeatures = label(mask)
             positions += maximum_position(self._corr, labels, list(range(1, nfeatures + 1)))
         self._positions = set(positions)
 
-    def tofile(self, out='solutions.out', delimiter=None):
+    def tofile(self, out="solutions.out", delimiter=None):
         """Write solutions to file.
 
         Arguments:
@@ -119,35 +117,57 @@ class Analyzer(object):
 
 def write_file(solutions: list[list[str | float]], out: str, delimiter: str | None):
     fit_many = len(solutions[0]) == 16
-    headers = '#rank cc Fish-z rel-z x y z a11 a12 a13 a21 a22 a23 a31 a32 a33'.split()
+    headers = [
+        "#rank",
+        "cc",
+        "Fish-z",
+        "rel-z",
+        "x",
+        "y",
+        "z",
+        "a11",
+        "a12",
+        "a13",
+        "a21",
+        "a22",
+        "a23",
+        "a31",
+        "a32",
+        "a33",
+    ]
 
     max_name_length = 0
     if fit_many:
         headers.insert(1, "pdb-filename")
         max_name_length = max([len(x[0]) for x in solutions])
 
-    with open(out, 'w') as f:
+    with open(out, "w") as f:
         if delimiter is None:
-            header_fmt = ['{:<6s}'] + ['{:>6s}'] * 3 + ['{:>8s}'] * 3 + ['{:>6s}'] * 9
+            header_fmt = ["{:<6s}"] + ["{:>6s}"] * 3 + ["{:>8s}"] * 3 + ["{:>6s}"] * 9
             if fit_many:
-                header_fmt.insert(1, '{:<'+ str(max_name_length) +'s}')
-            line = ' '.join(header_fmt) + '\n'
+                header_fmt.insert(1, "{:<" + str(max_name_length) + "s}")
+            line = " ".join(header_fmt) + "\n"
             f.write(line.format(*headers))
 
-            line_fmt = ['{:<6d}'] + ['{:6.3f}'] * 3 + ['{:8.3f}'] * 3 + ['{:6.3f}'] * 9
+            line_fmt = ["{:<6d}"] + ["{:6.3f}"] * 3 + ["{:8.3f}"] * 3 + ["{:6.3f}"] * 9
             if fit_many:
-                line_fmt.insert(1, '{:<'+ str(max_name_length) +'s}')
-            line = ' '.join(line_fmt) + '\n'
+                line_fmt.insert(1, "{:<" + str(max_name_length) + "s}")
+            line = " ".join(line_fmt) + "\n"
             for n, sol in enumerate(solutions):
                 f.write(line.format(n + 1, *sol))
         else:
             # Write header
-            headers[0] = headers[0].lstrip('#')
-            f.write(delimiter.join(headers) + '\n')
+            headers[0] = headers[0].lstrip("#")
+            f.write(delimiter.join(headers) + "\n")
             for n, sol in enumerate(solutions):
                 row = [n + 1] + sol
                 # Format all values as floats with 3 decimals except rank (int)
-                row_str = [str(row[0])] + [f"{v:.3f}" for v in row[1:4]] + [f"{v:.3f}" for v in row[4:7]] + [f"{v:.3f}" for v in row[7:]]
+                row_str = (
+                    [str(row[0])]
+                    + [f"{v:.3f}" for v in row[1:4]]
+                    + [f"{v:.3f}" for v in row[4:7]]
+                    + [f"{v:.3f}" for v in row[7:]]
+                )
                 if fit_many:
                     row_str.insert(1, str(row[1]))
-                f.write(delimiter.join(row_str) + '\n')
+                f.write(delimiter.join(row_str) + "\n")

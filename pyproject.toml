@@ -32,7 +32,12 @@ dependencies = [
 [project.optional-dependencies]
 opencl = ["pyopencl", "siphash24", "pyvkfft"]
 pocl = ["pyopencl[pocl]", "siphash24", "pyvkfft"]
-dev = ["pytest", "pytest-cov"]
+dev = [
+    "pytest",
+    "pytest-cov",
+    "ruff",
+    "cython-lint",
+]
 
 [project.urls]
 issues = "https://github.com/haddocking/powerfit"
@@ -42,11 +47,6 @@ tutorial = "https://www.bonvinlab.org/education/Others/"
 
 [project.scripts]
 powerfit = "powerfit_em.powerfit:main"
-image-pyramid = "powerfit_em.scripts:image_pyramid"
-em2em = "powerfit_em.scripts:em2em"
-rot-search = "powerfit_em.scripts.rot_search:main"
-fsc-curve = "powerfit_em.scripts.fsc_curve:main"
-atom2dens = "powerfit_em.scripts.atom2dens:main"
 
 [tool.setuptools]
 # ext_modules is still in setup.py as numpy.get_include() 
@@ -78,3 +78,26 @@ before-test = "yum install -y fftw-devel"
 [[tool.cibuildwheel.overrides]]
 select = "*-musllinux*"
 before-all = "apk add fftw-dev"
+
+[tool.ruff]
+line-length = 120
+
+[tool.ruff.lint]
+select = [
+    # pycodestyle
+    "E",
+    # Pyflakes
+    "F",
+    # pyupgrade
+    "UP",
+    # flake8-bugbear
+    "B",
+    # flake8-simplify
+    "SIM",
+    # isort
+    "I",
+]
+pydocstyle.convention = "google"
+
+[tool.ruff.lint.isort]
+known-first-party = ["powerfit_em"]

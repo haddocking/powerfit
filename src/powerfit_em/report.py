@@ -1,9 +1,9 @@
-from dataclasses import dataclass
+import csv
 import logging
 import os
-from pathlib import Path
-import csv
 import shutil
+from dataclasses import dataclass
+from pathlib import Path
 from string import Template
 from textwrap import dedent
 from typing import Any
@@ -45,9 +45,7 @@ def _calc_rel_isovalue(volume_path: Path) -> Iso:
     elif volume_path.suffix == ".mrc":
         p = MRCParser(str(volume_path))
     else:
-        logger.warning(
-            "Could not determine relative iso value for density map, using default values."
-        )
+        logger.warning("Could not determine relative iso value for density map, using default values.")
         return Iso(2, -10, 10, 0.1)
     # Logic taken from
     # https://github.com/molstar/molstar/blob/e4edb67f62cf92f31ce220f3d250bfd9c8f77572/src/mol-model/volume/volume.ts#L113-L127
@@ -71,30 +69,19 @@ def _calc_rel_isovalue(volume_path: Path) -> Iso:
     return Iso(rel_isovalue, rel_min, rel_max, step)
 
 
-def _add_density_to_builder(
-    builder: Root, density: Path, rel_iso_value: float
-) -> VolumeRepresentation:
+def _add_density_to_builder(builder: Root, density: Path, rel_iso_value: float) -> VolumeRepresentation:
     return (
         builder.download(url=density.name)
         .parse(format="map")
         .volume()
-        .representation(
-            type="isosurface", relative_isovalue=rel_iso_value, show_wireframe=True
-        )
+        .representation(type="isosurface", relative_isovalue=rel_iso_value, show_wireframe=True)
         .color(color="gray")
         .opacity(opacity=0.2)
     )
 
 
-def _add_model_to_builder(
-    builder: Root, model: Path, label: str | None = None
-) -> Representation:
-    component = (
-        builder.download(url=model.name)
-        .parse(format="pdb")
-        .model_structure()
-        .component()
-    )
+def _add_model_to_builder(builder: Root, model: Path, label: str | None = None) -> Representation:
+    component = builder.download(url=model.name).parse(format="pdb").model_structure().component()
     if label:
         component = component.label(text=label)
     # Focus on fitted model with some of the density around it
@@ -145,9 +132,7 @@ def create_snapshot_with_all_models(
         label = fitted_model_file.stem.replace("fit_", "")
         _add_model_to_builder(builder, fitted_model_file, label=label)
     maxed = len(fitted_model_files) > max_models
-    description_first_line = (
-        f"First {max_models} fitted models." if maxed else "All fitted models."
-    )
+    description_first_line = f"First {max_models} fitted models." if maxed else "All fitted models."
     description = dedent(f"""
         {description_first_line}
 
@@ -166,14 +151,14 @@ def create_snapshot_with_all_models(
 def _read_solutions(path: Path, delimiter: str | None = None) -> list[dict]:
     if delimiter is None:
         raise ValueError("Delimiter must be set to produce a report.")
-    with open(path, "r") as f:
+    with open(path) as f:
         reader = csv.DictReader(f, delimiter=delimiter)
         solutions = list(reader)
     # Calculate sigma_dif for each solution and add fitted_model_file
     if solutions:
         best_z = float(solutions[0]["rel-z"])
         for i, solution in enumerate(solutions):
-            solution["sigma_dif"] = round(best_z - float(solution["rel-z"]) , 3)
+            solution["sigma_dif"] = round(best_z - float(solution["rel-z"]), 3)
             solution["fitted_model_file"] = Path(path.parent) / f"fit_{i + 1}.pdb"
     return solutions
 
@@ -503,11 +488,9 @@ def generate_html(
             </body>
 
             </html>
-    """)
+    """)  # noqa: E501
     )
-    li_options = "\n".join(
-        [f"<li>{key}: {value}</li>" for key, value in options.items()]
-    )
+    li_options = "\n".join([f"<li>{key}: {value}</li>" for key, value in options.items()])
 
     return template.safe_substitute(
         state=state_path.name,
@@ -560,7 +543,7 @@ def generated_table(solutions: list[dict[str, Any]]) -> str:
               <td>{sigma_dif}</td>
               <td><button data-snapshot-key="{snapshot_key}" onclick="jumpToSnapshot('{snapshot_key}')">View in 3D</button></td>
             </tr>
-        """)
+        """)  # noqa: E501
     table += "</tbody></table>\n"
     return table
 
@@ -591,9 +574,7 @@ def generate_report(
     if not target_path.exists():
         rtarget = Path(os.path.relpath(target, Path.cwd()))
         rrun_dir = Path(os.path.relpath(run_dir, Path.cwd()))
-        logger.warning(
-            f"Copying target file ({rtarget}) to report directory ({rrun_dir})."
-        )
+        logger.warning(f"Copying target file ({rtarget}) to report directory ({rrun_dir}).")
         shutil.copyfile(target, target_path)
 
     iso = _calc_rel_isovalue(target_path)
@@ -602,12 +583,10 @@ def generate_report(
     solutions = _read_solutions(solutions_file, delimiter)
     fitted_model_files = [solution["fitted_model_file"] for solution in solutions[:num]]
     snapshots = []
-    for i, solution in enumerate(solutions[:num]):
+    for solution in solutions[:num]:
         snapshot = create_snapshot(solution, target_path, iso.value)
         snapshots.append(snapshot)
-    snapshots.append(
-        create_snapshot_with_all_models(fitted_model_files, target_path, iso.value)
-    )
+    snapshots.append(create_snapshot_with_all_models(fitted_model_files, target_path, iso.value))
     # could add snapshot with lcc.mrc,
     # but could not make tutorial map look interesting,
     # so skip for now
@@ -653,7 +632,7 @@ if __name__ == "__main__":
             powerfit ribosome-KsgA.map 13 KsgA.pdb -d run -n 20 --delimiter , -a 20 -l
             # Later generate report.html with
             python3 -m powerfit_em.report run ribosome-KsgA.map -n 20 --delimiter , --option resolution 13 --option angle 20 --option laplace True
-        """),
+        """),  # noqa: E501
     )
     parser.add_argument(
         "directory",
@@ -663,8 +642,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "target",
         type=str,
-        help="Target density map to fit the model in. "
-        "Data should either be in CCP4 or MRC format",
+        help="Target density map to fit the model in. Data should either be in CCP4 or MRC format",
     )
     parser.add_argument(
         "-n",
@@ -673,8 +651,7 @@ if __name__ == "__main__":
         type=int,
         default=10,
         metavar="<int>",
-        help="Number of models written to file. This number "
-        "will be capped if less solutions are found as requested.",
+        help="Number of models written to file. This number will be capped if less solutions are found as requested.",
     )
     parser.add_argument(
         "--delimiter",
@@ -695,6 +672,4 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    generate_report(
-        args.directory, args.target, args.num, args.delimiter, dict(args.option)
-    )
+    generate_report(args.directory, args.target, args.num, args.delimiter, dict(args.option))
