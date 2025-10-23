@@ -71,6 +71,7 @@ conda activate powerfit
 conda install -c conda-forge python=3.12 ocl-icd pyopencl pyvkfft
 # pick either "intel-compute-runtime" (Intel*), "rocm-opencl-runtime" (AMD), or "cuda-opencl" (Nvidia) as driver:
 conda install -c conda-forge <hardware opencl driver>
+# For some reason the cuda-opencl does not work out of the box and needs a `cp /etc/OpenCL/vendors/nvidia.icd  <CONDA ENV ROOT>/etc/OpenCL/vendors/cuda.icd
 pip install powerfit-em[opencl]
 ```
 *note that older Intel processors might need to use 'intel-opencl-rt' instead
