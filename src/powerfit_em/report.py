@@ -174,8 +174,8 @@ def generate_html(
         dedent("""\
             <!DOCTYPE html>
             <html lang="en">
-
             <head>
+                <title>PowerFit Report</title>
                 <style>
                     * {
                         margin: 0;
@@ -183,15 +183,7 @@ def generate_html(
                         box-sizing: border-box;
                     }
 
-                    html,
                     body {
-                        height: 100%;
-                        width: 100%;
-                    }
-
-                    body {
-                        min-height: 100vh;
-                        min-width: 100vw;
                         display: flex;
                         flex-direction: column;
                     }
@@ -217,9 +209,7 @@ def generate_html(
                         display: flex;
                         flex-direction: row;
                         width: 100vw;
-                        height: 0;
-                        /* let flexbox control height */
-                        min-height: 0;
+                        height: 600px;
                     }
 
                     #viewer {
