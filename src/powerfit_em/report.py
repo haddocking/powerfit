@@ -540,7 +540,7 @@ def generated_table(solutions: list[dict[str, Any]]) -> str:
         sigma_dif = solution["sigma_dif"]
         style = ""
         if sigma_dif < coloring_threshold and not all_solutions_below_threshold:
-            gradient_index = floor(30 - 10 * sigma_dif)
+            gradient_index = min(30, max(0, floor(30 - 10 * sigma_dif)))
             color = green_gradient[gradient_index]
             if gradient_index in invert_text_color_indices:
                 style = f"background-color: {color}; color: white; font-weight: 900;"
