@@ -16,8 +16,8 @@ from ._powerfit import blur_points, dilate_points
 class Volume:
     @classmethod
     def fromfile(cls, fid, fmt=None):
-        array, voxelspacing, origin = parse_volume(fid, fmt)
-        return cls(array, voxelspacing, origin)
+        p = parse_volume(fid, fmt)
+        return cls(p.density, p.voxelspacing, p.origin)
 
     def __init__(self, array, voxelspacing=1.0, origin=(0, 0, 0)):
         self.array = array
@@ -232,7 +232,7 @@ def structure_to_shape_like(vol, xyz, resolution=None, weights=None, radii=None,
 
 
 # Volume parsers
-def parse_volume(fid, fmt=None):
+def parse_volume(fid, fmt=None) -> "CCP4Parser | MRCParser | XPLORParser":
     try:
         fname = fid.name
     except AttributeError:
@@ -245,18 +245,17 @@ def parse_volume(fid, fmt=None):
             fmt = fp.suffixes[-2] + fmt
 
     if fmt in (".ccp4", ".map"):
-        p = CCP4Parser(fid)
+        return CCP4Parser(fid)
     elif fmt in (".ccp4.gz", ".map.gz"):
-        p = CCP4Parser(fid, gzipped=True)
+        return CCP4Parser(fid, gzipped=True)
     elif fmt == ".mrc":
-        p = MRCParser(fname)
+        return MRCParser(fname)
     elif fmt == ".mrc.gz":
-        p = MRCParser(fname, gzipped=True)
+        return MRCParser(fname, gzipped=True)
     elif fmt in (".xplor", ".cns"):
-        p = XPLORParser(fname)
+        return XPLORParser(fname)
     else:
         raise ValueError("Extension of file is not supported.")
-    return p.density, p.voxelspacing, p.origin
 
 
 class CCP4Parser:

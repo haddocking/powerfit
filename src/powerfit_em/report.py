@@ -17,7 +17,7 @@ from molviewspec import (
 )
 from molviewspec.builder import Representation, Root, VolumeRepresentation
 
-from powerfit_em.volume import CCP4Parser, MRCParser
+from powerfit_em.volume import parse_volume
 
 logger = logging.getLogger(__name__)
 
@@ -34,17 +34,14 @@ def _calc_rel_isovalue(volume_path: Path) -> Iso:
     """Calculate relative iso value from volume file.
 
     Args:
-        volume_path: Path to volume file (.mrc or .map or .ccp4)
+        volume_path: Path to volume file (.mrc or .map or .ccp4 optionally gzipped)
 
     Returns:
         A Iso object.
     """
-    p = None
-    if volume_path.suffix in [".ccp4", ".map"]:
-        p = CCP4Parser(str(volume_path))
-    elif volume_path.suffix == ".mrc":
-        p = MRCParser(str(volume_path))
-    else:
+    try:
+        p = parse_volume(str(volume_path))
+    except (KeyError, AttributeError):
         logger.warning("Could not determine relative iso value for density map, using default values.")
         return Iso(2, -10, 10, 0.1)
     # Logic taken from
