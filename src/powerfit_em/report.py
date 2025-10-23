@@ -245,18 +245,6 @@ def generate_html(
                                 padding: 8px 10px;
                             }
                         }
-                        .close-sigma-lt1 {
-                            background-color: #b2e5b2; /* lighter green */
-                            font-weight: bold;
-                        }
-                        .close-sigma-1to2 {
-                            background-color: #c8f7c8; /* lighter medium green */
-                            font-weight: bold;
-                        }
-                        .close-sigma-2to3 {
-                            background-color: #e6ffe6; /* very light green */
-                            font-weight: bold;
-                        }
                         button {
                             display: inline-block;
                             padding: 0.25rem 0.5rem;
@@ -511,20 +499,55 @@ def generated_table(solutions: list[dict[str, Any]]) -> str:
         </thead>
         <tbody>
         """)
+    green_gradient = (
+        "#FFFFFF",
+        "#F8FAF8",
+        "#F2F5F2",
+        "#EBF1EB",
+        "#E5ECE5",
+        "#DEE8DE",
+        "#D8E3D8",
+        "#D1DFD1",
+        "#CBDACB",
+        "#C4D5C4",
+        "#BED1BE",
+        "#B7CCB7",
+        "#B1C8B1",
+        "#AAC3AA",
+        "#A4BFA4",
+        "#9DBA9E",
+        "#97B597",
+        "#90B191",
+        "#8AAC8A",
+        "#83A884",
+        "#7DA37D",
+        "#769F77",
+        "#709A70",
+        "#69956A",
+        "#639163",
+        "#5C8C5D",
+        "#568856",
+        "#4F8350",
+        "#497F49",
+        "#427A43",
+        "#3C763D",
+    )
+    # Improve contrast by using white text on dark green backgrounds
+    invert_text_color_indices = {30}
     for solution in solutions:
         sigma_dif = solution["sigma_dif"]
-        if sigma_dif < 1:
-            class_name = "close-sigma-lt1"
-        elif sigma_dif < 2:
-            class_name = "close-sigma-1to2"
-        elif sigma_dif < 3:
-            class_name = "close-sigma-2to3"
-        else:
-            class_name = "close-sigma-gt3"
+        style = ""
+        if sigma_dif < 3:
+            gradient_index = floor(30 - 10 * sigma_dif)
+            color = green_gradient[gradient_index]
+            if gradient_index in invert_text_color_indices:
+                style = f"background-color: {color}; color: white; font-weight: 900;"
+            else:
+                style = f"background-color: {color}; font-weight: 900;"
         snapshot_key = f"fit_{solution['rank']}"
         fitted_model_file = solution["fitted_model_file"]
         table += dedent(f"""\
-            <tr class="{class_name}">
+            <tr style="{style}">
               <td><a href="{fitted_model_file.name}" target="_blank" title="Download fitted model">{solution["rank"]}</a></td>
               <td>{solution["cc"]}</td>
               <td>{solution["Fish-z"]}</td>
