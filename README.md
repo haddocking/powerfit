@@ -59,6 +59,27 @@ If you are starting from a clean system, follow the instructions for your
 particular operating system as described below, they should get you up and
 running in no time.
 
+### Conda
+
+If you do not have system admin rights, installing powerfit in a conda environment
+can still allow you to run computations on GPU. If you have Conda or Mamba available
+on your system, do;
+
+```sh
+conda create -n powerfit -c conda-forge
+conda activate powerfit
+conda install -c conda-forge python=3.12 ocl-icd pyopencl pyvkfft
+# pick either "intel-compute-runtime" (Intel*), "rocm-opencl-runtime" (AMD), or "cuda-opencl" (Nvidia) as driver:
+conda install -c conda forge <hardware opencl driver>
+pip install powerfit-em[opencl]
+```
+*note that older Intel processors might need to use 'intel-opencl-rt' instead
+
+Check that the OpenCL installation is working by running
+```sh
+python -c 'import pyopencl as cl;from pyvkfft.fft import rfftn; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
+```
+
 ### Docker
 
 Powerfit can be run in a Docker container. 
