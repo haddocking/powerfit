@@ -534,10 +534,12 @@ def generated_table(solutions: list[dict[str, Any]]) -> str:
     )
     # Improve contrast by using white text on dark green backgrounds
     invert_text_color_indices = {30}
+    coloring_threshold = 3
+    all_solutions_below_threshold = solutions[-1]["sigma_dif"] < coloring_threshold
     for solution in solutions:
         sigma_dif = solution["sigma_dif"]
         style = ""
-        if sigma_dif < 3:
+        if sigma_dif < coloring_threshold and not all_solutions_below_threshold:
             gradient_index = floor(30 - 10 * sigma_dif)
             color = green_gradient[gradient_index]
             if gradient_index in invert_text_color_indices:
