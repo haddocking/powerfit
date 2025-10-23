@@ -1,8 +1,10 @@
 import csv
+import gzip
 import logging
 import os
 import shutil
 from dataclasses import dataclass
+from math import floor
 from pathlib import Path
 from string import Template
 from textwrap import dedent
@@ -545,6 +547,26 @@ def generated_table(solutions: list[dict[str, Any]]) -> str:
     return table
 
 
+def copy_target_to_report_dir(target: str, run_dir: Path) -> Path:
+    target_path = run_dir / Path(target).name
+    gunzip_needed = False
+    if target_path.suffix == ".gz":
+        target_path = target_path.with_suffix("")
+        gunzip_needed = True
+    if not target_path.exists():
+        rtarget = Path(os.path.relpath(target, Path.cwd()))
+        rrun_dir = Path(os.path.relpath(run_dir, Path.cwd()))
+        if gunzip_needed:
+            # Mol* stories can not render gzipped files.
+            logger.warning(f"Uncompressing target file ({rtarget}) to report directory ({rrun_dir})")
+            with gzip.open(target, "rb") as f_in, open(target_path, "wb") as f_out:
+                shutil.copyfileobj(f_in, f_out)
+        else:
+            logger.warning(f"Copying target file ({rtarget}) to report directory ({rrun_dir}).")
+            shutil.copyfile(target, target_path)
+    return target_path
+
+
 def generate_report(
     directory: str,
     target: str,
@@ -567,13 +589,7 @@ def generate_report(
     run_dir = Path(directory)
 
     # To render report all files need to be in the same directory
-    target_path = run_dir / Path(target).name
-    if not target_path.exists():
-        rtarget = Path(os.path.relpath(target, Path.cwd()))
-        rrun_dir = Path(os.path.relpath(run_dir, Path.cwd()))
-        logger.warning(f"Copying target file ({rtarget}) to report directory ({rrun_dir}).")
-        shutil.copyfile(target, target_path)
-
+    target_path = copy_target_to_report_dir(target, run_dir)
     iso = _calc_rel_isovalue(target_path)
 
     solutions_file = run_dir / "solutions.out"
@@ -639,7 +655,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "target",
         type=str,
-        help="Target density map to fit the model in. Data should either be in CCP4 or MRC format",
+        help="Target density map to fit the model in.",
     )
     parser.add_argument(
         "-n",
