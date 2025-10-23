@@ -642,9 +642,9 @@ if __name__ == "__main__":
                            
             Example usage:
             
-            powerfit ribosome-KsgA.map 13 KsgA.pdb -d run -n 20 --delimiter , -a 20 -l
+            powerfit ribosome-KsgA.map 13 KsgA.pdb -d run -n 20 --delimiter , -a 20
             # Later generate report.html with
-            python3 -m powerfit_em.report run ribosome-KsgA.map -n 20 --delimiter , --option resolution 13 --option angle 20 --option laplace True
+            python3 -m powerfit_em.report run ribosome-KsgA.map -n 20 --delimiter , --option resolution 13 --option angle 20
         """),  # noqa: E501
     )
     parser.add_argument(
