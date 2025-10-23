@@ -1,8 +1,10 @@
 import csv
+import gzip
 import logging
 import os
 import shutil
 from dataclasses import dataclass
+from math import floor
 from pathlib import Path
 from string import Template
 from textwrap import dedent
@@ -17,7 +19,7 @@ from molviewspec import (
 )
 from molviewspec.builder import Representation, Root, VolumeRepresentation
 
-from powerfit_em.volume import CCP4Parser, MRCParser
+from powerfit_em.volume import parse_volume
 
 logger = logging.getLogger(__name__)
 
@@ -34,17 +36,14 @@ def _calc_rel_isovalue(volume_path: Path) -> Iso:
     """Calculate relative iso value from volume file.
 
     Args:
-        volume_path: Path to volume file (.mrc or .map or .ccp4)
+        volume_path: Path to volume file (.mrc or .map or .ccp4 optionally gzipped)
 
     Returns:
         A Iso object.
     """
-    p = None
-    if volume_path.suffix in [".ccp4", ".map"]:
-        p = CCP4Parser(str(volume_path))
-    elif volume_path.suffix == ".mrc":
-        p = MRCParser(str(volume_path))
-    else:
+    try:
+        p = parse_volume(str(volume_path))
+    except (KeyError, AttributeError):
         logger.warning("Could not determine relative iso value for density map, using default values.")
         return Iso(2, -10, 10, 0.1)
     # Logic taken from
@@ -175,8 +174,8 @@ def generate_html(
         dedent("""\
             <!DOCTYPE html>
             <html lang="en">
-
             <head>
+                <title>PowerFit Report</title>
                 <style>
                     * {
                         margin: 0;
@@ -184,15 +183,7 @@ def generate_html(
                         box-sizing: border-box;
                     }
 
-                    html,
                     body {
-                        height: 100%;
-                        width: 100%;
-                    }
-
-                    body {
-                        min-height: 100vh;
-                        min-width: 100vw;
                         display: flex;
                         flex-direction: column;
                     }
@@ -218,9 +209,7 @@ def generate_html(
                         display: flex;
                         flex-direction: row;
                         width: 100vw;
-                        height: 0;
-                        /* let flexbox control height */
-                        min-height: 0;
+                        height: 600px;
                     }
 
                     #viewer {
@@ -255,18 +244,6 @@ def generate_html(
                                 border: 1px solid rgb(160 160 160);
                                 padding: 8px 10px;
                             }
-                        }
-                        .close-sigma-lt1 {
-                            background-color: #b2e5b2; /* lighter green */
-                            font-weight: bold;
-                        }
-                        .close-sigma-1to2 {
-                            background-color: #c8f7c8; /* lighter medium green */
-                            font-weight: bold;
-                        }
-                        .close-sigma-2to3 {
-                            background-color: #e6ffe6; /* very light green */
-                            font-weight: bold;
                         }
                         button {
                             display: inline-block;
@@ -522,20 +499,57 @@ def generated_table(solutions: list[dict[str, Any]]) -> str:
         </thead>
         <tbody>
         """)
+    green_gradient = (
+        "#FFFFFF",
+        "#F8FAF8",
+        "#F2F5F2",
+        "#EBF1EB",
+        "#E5ECE5",
+        "#DEE8DE",
+        "#D8E3D8",
+        "#D1DFD1",
+        "#CBDACB",
+        "#C4D5C4",
+        "#BED1BE",
+        "#B7CCB7",
+        "#B1C8B1",
+        "#AAC3AA",
+        "#A4BFA4",
+        "#9DBA9E",
+        "#97B597",
+        "#90B191",
+        "#8AAC8A",
+        "#83A884",
+        "#7DA37D",
+        "#769F77",
+        "#709A70",
+        "#69956A",
+        "#639163",
+        "#5C8C5D",
+        "#568856",
+        "#4F8350",
+        "#497F49",
+        "#427A43",
+        "#3C763D",
+    )
+    # Improve contrast by using white text on dark green backgrounds
+    invert_text_color_indices = {30}
+    coloring_threshold = 3
+    all_solutions_below_threshold = solutions[-1]["sigma_dif"] < coloring_threshold
     for solution in solutions:
         sigma_dif = solution["sigma_dif"]
-        if sigma_dif < 1:
-            class_name = "close-sigma-lt1"
-        elif sigma_dif < 2:
-            class_name = "close-sigma-1to2"
-        elif sigma_dif < 3:
-            class_name = "close-sigma-2to3"
-        else:
-            class_name = "close-sigma-gt3"
+        style = ""
+        if sigma_dif < coloring_threshold and not all_solutions_below_threshold:
+            gradient_index = min(30, max(0, floor(30 - 10 * sigma_dif)))
+            color = green_gradient[gradient_index]
+            if gradient_index in invert_text_color_indices:
+                style = f"background-color: {color}; color: white; font-weight: 900;"
+            else:
+                style = f"background-color: {color}; font-weight: 900;"
         snapshot_key = f"fit_{solution['rank']}"
         fitted_model_file = solution["fitted_model_file"]
         table += dedent(f"""\
-            <tr class="{class_name}">
+            <tr style="{style}">
               <td><a href="{fitted_model_file.name}" target="_blank" title="Download fitted model">{solution["rank"]}</a></td>
               <td>{solution["cc"]}</td>
               <td>{solution["Fish-z"]}</td>
@@ -546,6 +560,26 @@ def generated_table(solutions: list[dict[str, Any]]) -> str:
         """)  # noqa: E501
     table += "</tbody></table>\n"
     return table
+
+
+def copy_target_to_report_dir(target: str, run_dir: Path) -> Path:
+    target_path = run_dir / Path(target).name
+    gunzip_needed = False
+    if target_path.suffix == ".gz":
+        target_path = target_path.with_suffix("")
+        gunzip_needed = True
+    if not target_path.exists():
+        rtarget = Path(os.path.relpath(target, Path.cwd()))
+        rrun_dir = Path(os.path.relpath(run_dir, Path.cwd()))
+        if gunzip_needed:
+            # Mol* stories can not render gzipped files.
+            logger.warning(f"Uncompressing target file ({rtarget}) to report directory ({rrun_dir})")
+            with gzip.open(target, "rb") as f_in, open(target_path, "wb") as f_out:
+                shutil.copyfileobj(f_in, f_out)
+        else:
+            logger.warning(f"Copying target file ({rtarget}) to report directory ({rrun_dir}).")
+            shutil.copyfile(target, target_path)
+    return target_path
 
 
 def generate_report(
@@ -570,13 +604,7 @@ def generate_report(
     run_dir = Path(directory)
 
     # To render report all files need to be in the same directory
-    target_path = run_dir / Path(target).name
-    if not target_path.exists():
-        rtarget = Path(os.path.relpath(target, Path.cwd()))
-        rrun_dir = Path(os.path.relpath(run_dir, Path.cwd()))
-        logger.warning(f"Copying target file ({rtarget}) to report directory ({rrun_dir}).")
-        shutil.copyfile(target, target_path)
-
+    target_path = copy_target_to_report_dir(target, run_dir)
     iso = _calc_rel_isovalue(target_path)
 
     solutions_file = run_dir / "solutions.out"
@@ -629,9 +657,9 @@ if __name__ == "__main__":
                            
             Example usage:
             
-            powerfit ribosome-KsgA.map 13 KsgA.pdb -d run -n 20 --delimiter , -a 20 -l
+            powerfit ribosome-KsgA.map 13 KsgA.pdb -d run -n 20 --delimiter , -a 20
             # Later generate report.html with
-            python3 -m powerfit_em.report run ribosome-KsgA.map -n 20 --delimiter , --option resolution 13 --option angle 20 --option laplace True
+            python3 -m powerfit_em.report run ribosome-KsgA.map -n 20 --delimiter , --option resolution 13 --option angle 20
         """),  # noqa: E501
     )
     parser.add_argument(
@@ -642,7 +670,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "target",
         type=str,
-        help="Target density map to fit the model in. Data should either be in CCP4 or MRC format",
+        help="Target density map to fit the model in.",
     )
     parser.add_argument(
         "-n",
