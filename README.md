@@ -61,25 +61,38 @@ running in no time.
 
 ### Conda
 
-If you do not have system admin rights, installing powerfit in a conda environment
-can still allow you to run computations on GPU. If you have Conda or Mamba available
-on your system, do;
+If you do not have system admin rights, you likely cannot compile `pyvkfft` locally.
+However, by installing powerfit in a conda environment, you can still do computations
+on GPU. If you have Conda or Mamba available on your system, follow these instructions;
 
-```sh
-conda create -n powerfit -c conda-forge
+<details><summary>Steps for running on GPU with Conda</summary>
+
+For AMD or NVIDIA GPUs you can run the following command. Note that this relies
+on OpenCL drivers being available system wide (under `/etc/OpenCL/vendors/`).
+
+```shell
+conda create -n powerfit -c conda-forge python=3.12 ocl-icd ocl-icd-system pyopencl pyvkfft
 conda activate powerfit
-conda install -c conda-forge python=3.12 ocl-icd pyopencl pyvkfft
-# pick either "intel-compute-runtime" (Intel*), "rocm-opencl-runtime" (AMD), or "cuda-opencl" (Nvidia) as driver:
-conda install -c conda-forge <hardware opencl driver>
-# For some reason the cuda-opencl does not work out of the box and needs a `cp /etc/OpenCL/vendors/nvidia.icd  <CONDA ENV ROOT>/etc/OpenCL/vendors/cuda.icd
 pip install powerfit-em[opencl]
 ```
-*note that older Intel processors might need to use 'intel-opencl-rt' instead
 
-Check that the OpenCL installation is working by running
-```sh
+On Intel integrated graphics you can use the following command. This includes
+the OpenCL runtime and does not rely on your system setup:
+
+```shell
+conda create -n powerfit -c conda-forge python=3.12 ocl-icd intel-compute-runtime pyopencl pyvkfft
+conda activate powerfit
+pip install powerfit-em[opencl]
+```
+Some older Intel processors might need to use `intel-opencl-rt` instead of `intel-compute-runtime`.
+
+After installation, you can check that the OpenCL installation is working by running
+
+```shell
 python -c 'import pyopencl as cl;from pyvkfft.fft import rfftn; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
 ```
+
+</details>
 
 ### Docker
 
