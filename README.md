@@ -63,7 +63,8 @@ running in no time.
 
 If you do not have system admin rights, you likely cannot compile `pyvkfft` locally.
 However, by installing powerfit in a conda environment, you can still do computations
-on GPU. If you have Conda or Mamba available on your system, follow these instructions;
+on GPU. If you are on a Linux system and have Conda or Mamba available, follow
+these instructions;
 
 <details><summary>Steps for running on GPU with Conda</summary>
 
