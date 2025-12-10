@@ -5,7 +5,6 @@
 [![Research Software Directory Badge](https://img.shields.io/badge/rsd-powerfit-00a3e3.svg)](https://www.research-software.nl/software/powerfit)
 [![SBGrid Badge](https://img.shields.io/badge/PowerFit-green?label=SBGrid&labelColor=blue)](https://sbgrid.org/software/titles/powerfit)
 
-
 ## About PowerFit
 
 PowerFit is a Python package and simple command-line program to automatically
