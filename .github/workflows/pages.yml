@@ -29,12 +29,12 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y openmpi-bin libopenmpi3 libopenmpi-dev
 
-      - name: install haddock3 with extra dependencies
+      - name: install powerfit with extra dependencies
         run: pip install '.[docs]'
 
       - name: Build MkDocs site
         run: |
-          uv run mkdocs build
+          mkdocs build
         env:
           # Force colored output from rich library
           TTY_COMPATIBLE: "1"
