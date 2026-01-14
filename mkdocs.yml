@@ -1,5 +1,5 @@
 site_name: PowerFit
-site_url: https://bonvinlab.org/PowerFit
+site_url: https://bonvinlab.org/powerfit
 repo_name: haddocking/powerfit
 repo_url: https://github.com/haddocking/powerfit
 watch: [mkdocs.yml, README.md, src/powerfit_em]
@@ -40,9 +40,9 @@ plugins:
   - autorefs
   - mkdocs-autoapi:
       autoapi_dir: src
-  - mkdocs-rich-argparse:
-      module: powerfit_em.powerfit
-      factory: make_parser
+#  - mkdocs-rich-argparse:
+#      module: powerfit_em.powerfit
+#      factory: make_parser
   - mkdocstrings:
       handlers:
         python:
@@ -62,11 +62,6 @@ markdown_extensions:
         base_path: [!relative $config_dir]
         check_paths: true
     - pymdownx.highlight
-    - pymdownx.superfences:
-        custom_fences:
-          - name: mermaid
-            class: mermaid
-            format: !!python/name:pymdownx.superfences.fence_code_format
 
 nav:
   - Home: index.md

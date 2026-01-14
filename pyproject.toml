@@ -38,10 +38,18 @@ dev = [
     "ruff",
     "cython-lint",
 ]
+docs = [
+    "mkdocs>=1.6.1",
+    "mkdocs-autoapi>=0.4.1",
+    "mkdocs-material>=9.6.14",
+    "mkdocs-rich-argparse>=0.1.2",
+    "mkdocstrings-python>=2.0.1",
+]
 
 [project.urls]
 issues = "https://github.com/haddocking/powerfit"
 homepage = "https://github.com/haddocking/powerfit"
+documentation = "https://bonvinlab.org/powerfit"
 source = "https://github.com/haddocking/powerfit"
 tutorial = "https://www.bonvinlab.org/education/Others/"
 
