@@ -24,11 +24,13 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
+      - name: install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openmpi-bin libopenmpi3 libopenmpi-dev
 
-      - name: Install dependencies
-        run: uv sync --locked --group docs
+      - name: install haddock3 with extra dependencies
+        run: pip install '.[docs]'
 
       - name: Build MkDocs site
         run: |
