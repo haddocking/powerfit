@@ -38,8 +38,8 @@ theme:
 plugins:
   - search
   - autorefs
-  - mkdocs-autoapi:
-      autoapi_dir: src
+#  - mkdocs-autoapi:
+#      autoapi_dir: src
 #  - mkdocs-rich-argparse:
 #      module: powerfit_em.powerfit
 #      factory: make_parser
@@ -64,5 +64,8 @@ markdown_extensions:
     - pymdownx.highlight
 
 nav:
-  - Home: index.md
-  - CLI Reference: cli.md
+  - Home: README.md
+  - Installation: installation.md
+  - Manual: manual.md
+#  - CLI Reference: cli.md
+  - Contributing guidelines: CONTRIBUTING.md
