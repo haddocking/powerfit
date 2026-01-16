@@ -1,6 +1,6 @@
 # Contributing guidelines
 
-We welcome any kind of contribution to our software, from simple comment or question to a full fledged [pull request](https://help.github.com/articles/about-pull-requests/). Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+We welcome any kind of contribution to our software, from simple comment or question to a full fledged [pull request](https://help.github.com/articles/about-pull-requests/). Please read and follow our [Code of Conduct](https://github.com/haddocking/powerfit/blob/master/CODE_OF_CONDUCT.md).
 
 A contribution can be one of the following cases:
 
@@ -31,7 +31,7 @@ The sections below outline the steps in each case.
 1. (**important**) announce your plan to the rest of the community *before you start working*. This announcement should be in the form of a (new) issue;
 1. (**important**) wait until some kind of consensus is reached about your idea being a good idea;
 1. if needed, fork the repository to your own Github profile and create your own feature branch off of the latest main commit. While working on your feature branch, make sure to stay up to date with the main branch by pulling in changes, possibly from the 'upstream' repository (follow the instructions [here](https://help.github.com/articles/configuring-a-remote-for-a-fork/) and [here](https://help.github.com/articles/syncing-a-fork/));
-1. install dependencies (see the [development documentation](README.md#development));
+1. install dependencies (see the [development documentation](#development));
 1. make sure the existing tests still work by running ``pytest``;
 1. add your own tests (if necessary);
 1. update or expand the documentation;
@@ -44,8 +44,8 @@ In case you feel like you've made a valuable contribution, but you don't know ho
 
 To create a release you need write permission on the repository.
 
-1. Check the author list in [`CITATION.cff`](CITATION.cff)
-1. Bump the version in [src/powerfit_em/__init__.py](src/powerfit_em/__init__.py)
+1. Check the author list in [`CITATION.cff`](https://github.com/haddocking/powerfit/blob/master/CITATION.cff)
+1. Bump the version in [src/powerfit_em/__init__.py](https://github.com/haddocking/powerfit/blob/master/src/powerfit_em/__init__.py)
 1. In [README.md](README.md) adjust docker command to use new version
 1. Go to the [GitHub release page](https://github.com/haddocking/powerfit/releases)
 1. Press draft a new release button
