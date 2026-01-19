@@ -38,8 +38,6 @@ theme:
 plugins:
   - search
   - autorefs
-#  - mkdocs-autoapi:
-#      autoapi_dir: src
 #  - mkdocs-rich-argparse:
 #      module: powerfit_em.powerfit
 #      factory: make_parser
