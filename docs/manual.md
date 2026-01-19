@@ -102,19 +102,33 @@ Using GPU-accelerated search.
 
 ## Report Page
 
-The report page provides links to the output files when run from the webserver and shows an overview of the results. For a description of all the output files see [here](README.md#output)
+The report page provides links to the output files when run from the webserver and shows 
+an overview of the results. For a description of all the output files see [here](README.md#output)
 
 ![Powerfit Report](Powerfit_result_page.png)
 
 ### Vizualisation
 
-At the top of the report page is an interactive [MolViewSpec](https://molstar.org/mol-view-spec/) with 3D visualization of the best fits. It shows the best 15 non-redundant solutions found by powerfit as reported in the *solutions.out* file. While clicking through the different models, the viewer reports the rank, cross correlation score, Fisher z-score, and Sigma difference. When opening the Options dropdown you can see which parameters where used for the fitting.
+At the top of the report page is an interactive [MolViewSpec](https://molstar.org/mol-view-spec/) 
+with 3D visualization of the best fits. It shows the best 15 non-redundant solutions found by 
+PowerFit as reported in the *solutions.out* file. While clicking through the different models, 
+the viewer reports the rank, cross correlation score, Fisher z-score, and Sigma difference.
+ When opening the Options dropdown you can see which parameters where used for the fitting.
 
 ### Solutions table
-The table below the interactive viewer reports the values of the models in one overview. In a previous investigation we fitted 379 individual chains in 6 ribosome cryo-EM density maps starting at a resolution of 6Å up to 30Å. Successful fits were obtained in >99% of the cases for which the difference in error-normalized z-score between the two top scoring solutions was larger than ~2.5. Conversely, in less than 3% of the failed cases did the difference exceed one. [Van Zundert and Bonvin 2016](https://www.sciencedirect.com/science/article/pii/S1047847716301174)
+The table below the interactive viewer reports the values of the models in one overview. 
+In a previous investigation we fitted 379 individual chains in 6 ribosome cryo-EM density 
+maps starting at a resolution of 6Å up to 30Å. Successful fits were obtained in >99% of the
+cases for which the difference in error-normalized z-score between the two top scoring solutions 
+was larger than ~2.5. Conversely, in less than 3% of the failed cases did the difference exceed 
+one. [Van Zundert and Bonvin 2016](https://www.sciencedirect.com/science/article/pii/S1047847716301174)
 
 ![Sigma](Sigma_difference.png)
-*The true-positive rate is given versus the difference in Fisher z-score standard deviations between the top 2 solutions. The fitting results were binned in 6 bins, starting from 0 to 3 sigma with a step size of 0.5.*
+*The true-positive rate is given versus the difference in Fisher z-score standard deviations 
+between the top 2 solutions. The fitting results were binned in 6 bins, starting from 0 to 3 
+sigma with a step size of 0.5.*
 
-To enhance the interpretation of the results, the entries in the table are colored in a green gradient up to a sigma difference of 3. Coloring is however only applied if the sigma difference to Fit 10 is below 3 in order to avoid higlighting runs with no distinction between the fits.
+To enhance the interpretation of the results, the entries in the table are colored in a green 
+gradient up to a sigma difference of 3. Coloring is however only applied if the sigma difference 
+to Fit 10 is below 3 in order to avoid higlighting runs with no distinction between the fits.
 Note that in case of symmetrical complexes multiple equally well scoring fits might be reported.
