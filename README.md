@@ -14,10 +14,10 @@ atomic structure and the density. It takes as input an atomic structure in
 PDB-format and a cryo-EM density with its resolution; and outputs positions and
 rotations of the atomic structure corresponding to high correlation values.
 PowerFit uses the local cross-correlation function as its base score. The
-score can optionally be enhanced by a Laplace pre-filter and/or a core-weighted
-version to minimize overlapping densities from neighboring subunits. It can
-further be hardware-accelerated by leveraging multi-core CPU machines out of
-the box or by GPU via the OpenCL framework. PowerFit is Free Software and has
+score is enhanced by a Laplace pre-filter and a core-weighted score to 
+minimize overlapping densities from neighboring subunits. It can be
+hardware-accelerated by leveraging multi-core CPU machines out of the box
+or by GPU via the OpenCL framework. PowerFit is Free Software and has
 been succesfully installed and used on Linux and MacOSX machines.
 
 ## Requirements
@@ -42,11 +42,11 @@ Recommended for installation
 * git
 * pip
 
-\* _Integrated graphics on CPUs are able to signficantly outperform the native CPU implementation in some cases. This is mostly applicable to Intel devices, see the section [tested platfoms](CONTRIBUTING.md#tested-platforms)_.
+\* _Integrated graphics on CPUs are able to signficantly outperform the native CPU implementation in some cases. This is mostly applicable to Intel devices, see the section [tested platfoms](installation.md#tested-platforms)_.
 
 ## Installation
 
-If you want to run PowerFit on just the CPU the installation should be as easy as opening up a shell and typing
+If you want to run PowerFit on just the CPU, the installation should be as easy as opening up a shell and typing
 
 ```shell
 # To run on CPU
@@ -76,7 +76,7 @@ Please refer to the [PowerFit tutorial](https://www.bonvinlab.org/education/Othe
 
 Please refer to the [PowerFit webserver tutorial](https://www.bonvinlab.org/education/Others/powerfit-webserver/) to learn how to use PowerFit on the webserver.
 
-For more information and details please look at the [general manual](https://bonvinlab.org/powerfit/manual.html)
+For more information and details please look at the [general manual](https://bonvinlab.org/powerfit/manual.html).
 
 <details>
 <summary>Usage in Docker</summary>
@@ -136,9 +136,9 @@ sudo docker run --rm -ti \
 
 </details>
 
-### Output
+## Output
 
-When the search is finished, several output files are created
+When the search is finished, several output files are created:
 
 * *fit_N.pdb*: the top *N* best fits.
 * *solutions.out*: all the non-redundant solutions found, ordered by their
@@ -152,7 +152,8 @@ correlation score found during the rotational search.
 * *powerfit.log*: a log file, including the input parameters with date and
 timing information.
 * *report.html* and *state.mvsj*: an HTML report and its [MolViewSpec](https://molstar.org/mol-view-spec/) with interactive 3D visualization of the best fits.
-  Only written if the `--report --delimiter ,` arguments are passed.
+  Only written if the `--report --delimiter ,` arguments are passed. For an explanation
+  of the HTML report please look [here](https://bonvinlab.org/powerfit/manual.html).
 
 ## Licensing
 

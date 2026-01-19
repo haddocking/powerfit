@@ -1,7 +1,7 @@
 # Installation 
 
-If you already have fulfilled the [requirements](https://github.com/haddocking/powerfit?tab=readme-ov-file#requirements) for offloading to the GPU, the installation should be as
-easy as opening up a shell and typing
+If you already have fulfilled the [requirements](https://github.com/haddocking/powerfit?tab=readme-ov-file#requirements) 
+for offloading to the GPU, the installation should be as easy as opening up a shell and typing
 
 ```shell
 # To run on GPU
@@ -103,7 +103,7 @@ python -c 'import pyopencl as cl;from pyvkfft.fft import rfftn; ps=cl.get_platfo
 ```
 </details>
 
-Your system is now prepared, follow the general instructions above to install
+Your system is now prepared, follow the general instructions [here](README.md#installation) to install
 **PowerFit**.
 
 ### MacOSX
@@ -126,8 +126,8 @@ python -m ensurepip --upgrade
 To get faster score calculation, install the pyFTTW Python package in your conda environment
 with `conda install -c conda-forge pyfftw`.
 
-Follow the general instructions above to
-install **PowerFit**.
+Follow the general instructions [here](README.md#installation) to install
+**PowerFit**.
 
 ### Windows
 
