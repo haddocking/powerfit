@@ -42,8 +42,7 @@ warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
 
 def make_parser():
     """Create the command-line argument parser.
-       Any changes here should be reflected in the documentation at docs/manual.md#parameters"""
-    
+    Any changes here should be reflected in the documentation at docs/manual.md#parameters"""
     p = ArgumentParser(prog="powerfit", formatter_class=ArgumentDefaultsHelpFormatter)
 
     p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
