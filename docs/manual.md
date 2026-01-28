@@ -66,8 +66,8 @@ powerfit --help
 ```
 You can also see all the options in the [CLI Reference](cli.md).
 The information should explain all options decently. In addtion, here are some
-examples for common operations. These exampls can also be used in the webserver
-by adapting the Optional Parameters 
+examples for common operations. These examples can also be used in the webserver
+by adapting the Optional Parameters. 
 
 To perform a search with an approximate 24&deg; rotational sampling interval
 with laplace pre-filtering and core-weighted scoring function using 1 CPU
@@ -124,8 +124,7 @@ timing information.
 
 ![Powerfit Report](Powerfit_result_page.png)
 
-## Result page
-
+## Report page
 
 At the top of the report page is an interactive [MolViewSpec](https://molstar.org/mol-view-spec/) 
 with 3D visualization of the best fits. It shows the best 15 non-redundant solutions found by 
