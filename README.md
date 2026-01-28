@@ -74,7 +74,7 @@ Please refer to the [PowerFit webserver tutorial](https://www.bonvinlab.org/educ
 
 For more information and details please look at the [general manual](https://bonvinlab.org/powerfit/manual.html).
 
-## Licensing
+## Citing PowerFit
 
 If this software was useful to your research, please cite us
 
@@ -91,6 +91,8 @@ multi-scale image pyramids.
 
 If you used PowerFit v1, please cite software with [https://doi.org/10.5281/zenodo.1037227](https://doi.org/10.5281/zenodo.1037227).
 For version 2 or higher, please cite software with [https://doi.org/10.5281/zenodo.14185749](https://doi.org/10.5281/zenodo.14185749).
+
+## Licensing
 
 Apache License Version 2.0
 
