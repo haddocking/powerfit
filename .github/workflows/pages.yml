@@ -1,0 +1,70 @@
+name: Deploy MkDocs to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+  pull_request:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Only have one deployment in progress at a time
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y openmpi-bin libopenmpi3 libopenmpi-dev
+
+      - name: install powerfit with extra dependencies
+        run: pip install '.[docs]'
+
+      - name: Build MkDocs site
+        run: |
+          mkdocs build
+        env:
+          # Force colored output from rich library
+          TTY_COMPATIBLE: "1"
+          TTY_INTERACTIVE: "0"
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    # Add a dependency to the build job
+    needs: build
+
+    # Only deploy on pushes to main or manual trigger of main branch
+    if: github.ref == 'refs/heads/main'
+
+    # Grant GITHUB_TOKEN the permissions required to make a Pages deployment
+    permissions:
+      pages: write # to deploy to Pages
+      id-token: write # to verify the deployment originates from an appropriate source
+
+    # Deploy to the github-pages environment
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    # Specify runner + deployment step
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,0 +1,69 @@
+site_name: PowerFit
+site_url: https://bonvinlab.org/powerfit
+repo_name: haddocking/powerfit
+repo_url: https://github.com/haddocking/powerfit
+watch: [mkdocs.yml, README.md, src/powerfit_em]
+use_directory_urls: false
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - content.code.copy
+  palette:
+    # Palette toggle for automatic mode
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
+    # Palette toggle for light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    # Palette toggle for dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      accent: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to system preference
+    
+plugins:
+  - search
+  - autorefs
+  - mkdocs-rich-argparse:
+      module: powerfit_em.powerfit
+      factory: make_parser
+  - mkdocstrings:
+      handlers:
+        python:
+          paths:
+            - src
+          inventories:
+            - https://docs.python.org/3/objects.inv
+            - https://numpy.org/doc/stable/objects.inv
+            - https://docs.scipy.org/doc/scipy/reference/objects.inv
+          options:
+            docstring_style: google
+            show_source: false
+
+markdown_extensions:
+    # Use to render part of README as home
+    - pymdownx.snippets:
+        base_path: [!relative $config_dir]
+        check_paths: true
+    - pymdownx.highlight
+
+nav:
+  - Home: README.md
+  - Installation: installation.md
+  - Manual: manual.md
+  - Contributing guidelines: CONTRIBUTING.md
+  - CLI Reference: cli.md
