@@ -20,7 +20,7 @@ hardware-accelerated by leveraging multi-core CPU machines out of the box
 or by GPU via the OpenCL framework. PowerFit is Free Software and has
 been succesfully installed and used on Linux and MacOSX machines.
 
-![Powerfit Report](Powerfit_result_page.png)
+![Powerfit Report](http://bonvinlab.org/powerfit/Powerfit_result_page.png)
 
 ## Requirements
 
