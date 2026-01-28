@@ -38,9 +38,9 @@ theme:
 plugins:
   - search
   - autorefs
-#  - mkdocs-rich-argparse:
-#      module: powerfit_em.powerfit
-#      factory: make_parser
+  - mkdocs-rich-argparse:
+      module: powerfit_em.powerfit
+      factory: make_parser
   - mkdocstrings:
       handlers:
         python:
@@ -65,5 +65,5 @@ nav:
   - Home: README.md
   - Installation: installation.md
   - Manual: manual.md
-#  - CLI Reference: cli.md
   - Contributing guidelines: CONTRIBUTING.md
+  - CLI Reference: cli.md

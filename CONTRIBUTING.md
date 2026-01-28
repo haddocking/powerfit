@@ -57,6 +57,30 @@ To create a release you need write permission on the repository.
 1. Wait until [Create and publish a Docker image](https://github.com/haddocking/powerfit/actions/workflows/docker-publish.yml) has completed.
 1. Verify [new Docker images](https://github.com/haddocking/powerfit/pkgs/container/powerfit)
 
+## Contributing to documentation
+
+Whenever you have changed something in the codebase, this also needs to be reflected in the documentation.
+To work on the PowerFit documentation you need to install the documentation version of using:
+
+```shell
+pip install -e .[docs]
+```
+
+Start the live-reloading docs server with:
+
+```shell
+mkdocs serve
+```
+
+Build the documentation site with:
+
+```shell
+mkdocs build
+# The site will be built in the 'site/' directory.
+# You can preview it with
+python3 -m http.server -d site
+```
+
 # Development
 
 To develop PowerFit, you need to install the development version of it using.

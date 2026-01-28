@@ -47,12 +47,65 @@ python -c 'import pyopencl as cl;from pyvkfft.fft import rfftn; ps=cl.get_platfo
 
 </details>
 
-### Docker
+### Usage in Docker
 
 Powerfit can be run in a Docker container. 
 
 Install [docker](https://docs.docker.com/engine/install/) by following the
 instructions.
+
+The Docker images of PowerFit are available in the [GitHub Container Registry](https://github.com/haddocking/powerfit/pkgs/container/powerfit).
+
+Running PowerFit in a Docker container with data located at
+a hypothetical `/path/to/data` on your machine can be done as follows
+
+```shell
+docker run --rm -ti --user $(id -u):$(id -g) \
+    -v /path/to/data:/data ghcr.io/haddocking/powerfit:v3.1.0 \
+    /data/<map> <resolution> /data/<pdb> \
+    -d /data/<results-dir>
+```
+For `<map>`, `<pdb>`, `<results-dir>` use paths relative to `/path/to/data`.
+
+To run tutorial example use
+```shell
+# cd into powerfit-tutorial repo
+docker run --rm -ti --user $(id -u):$(id -g) \
+    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.1.0 \
+    /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
+    -a 20 -p 2 -l -d /data/run-KsgA-docker
+```
+
+To run on NVIDIA GPU using [NVIDIA container toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/index.html) use
+```shell
+docker run --rm -ti \
+    --runtime=nvidia --gpus all -v /etc/OpenCL:/etc/OpenCL \
+    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.1.0 \
+    /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
+    -a 20 -l -d /data/run-KsgA-docker-nv --gpu
+```
+
+To run on Intel integrated graphics use
+
+```shell
+docker run --rm -ti \
+    --device=/dev/dri \
+    -v $PWD:/data ghcr.io/haddocking/powerfit:v3.1.0 \
+    /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
+    -a 20 -l -d /data/run-KsgA-docker-nv --gpu
+```
+
+To run on [AMD GPU](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/docker.html) use
+
+```shell
+sudo docker run --rm -ti \
+    --device=/dev/kfd --device=/dev/dri \
+    --security-opt seccomp=unconfined \
+    --group-add video --ipc=host \
+    -v $PWD:/data ghcr.io/haddocking/powerfit-rocm:v3.1.0 \
+    /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
+    -a 20 -l -d /data/run-KsgA-docker-amd --gpu
+```
 
 ### Linux
 

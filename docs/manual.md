@@ -9,6 +9,8 @@ file or result page on the webserver.
 
 ```shell
 powerfit <map> <resolution> <pdb>
+# To generate the report page after the run:
+powerfit <map> <resolution> <pdb> --report --delimiter ','
 ```
 ## Parameters
 
@@ -100,14 +102,30 @@ Using GPU-accelerated search.
 ...
 ```
 
-## Report Page
+## Output
 
-The report page provides links to the output files when run from the webserver and shows 
-an overview of the results. For a description of all the output files see [here](README.md#output)
+When the search is finished, several output files are created. These output 
+files can be downloaded from the result page when run on the webserver and 
+are automatically created and saved when run using the CLI.
+
+* *fit_N.pdb*: the top *N* best fits.
+* *solutions.out*: all the non-redundant solutions found, ordered by their
+correlation score. The first column shows the rank, column 2 the correlation
+score, column 3 and 4 the Fisher z-score and the number of standard deviations
+(see N. Volkmann 2009, and Van Zundert and Bonvin 2016); column 5 to 7 are the
+x, y and z coordinate of the center of the chain; column 8 to 17 are the
+rotation matrix values.
+* *lcc.mrc*: a cross-correlation map, showing at each grid position the highest
+correlation score found during the rotational search.
+* *powerfit.log*: a log file, including the input parameters with date and
+timing information.
+* *report.html* and *state.mvsj*: an HTML report and its [MolViewSpec](https://molstar.org/mol-view-spec/) with interactive 3D visualization of the best fits.
+  Only written if the `--report --delimiter ,` arguments are passed.
 
 ![Powerfit Report](Powerfit_result_page.png)
 
-### Vizualisation
+## Result page
+
 
 At the top of the report page is an interactive [MolViewSpec](https://molstar.org/mol-view-spec/) 
 with 3D visualization of the best fits. It shows the best 15 non-redundant solutions found by 
