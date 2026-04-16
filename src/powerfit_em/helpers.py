@@ -1,3 +1,4 @@
+import sys
 from importlib.util import find_spec
 from math import sqrt
 
@@ -11,6 +12,13 @@ def pyfftw_available() -> bool:
 
 def opencl_available() -> bool:
     return find_spec("pyopencl") is not None
+
+
+def cuda_available() -> bool:
+    try:
+        return find_spec("cupy") is not None
+    except ValueError:
+        return "cupy" in sys.modules
 
 
 def determine_core_indices(mask):

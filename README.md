@@ -305,6 +305,29 @@ Using GPU-accelerated search.
 ...
 ```
 
+To run on CUDA explicitly (first CUDA device):
+
+```shell
+powerfit <map> <resolution> <pdb> --gpu cuda:0
+```
+
+To force OpenCL explicitly (platform 0, device 0):
+
+```shell
+powerfit <map> <resolution> <pdb> --gpu 0:0
+```
+
+#### CUDA Notes
+
+* Install CUDA dependencies with `pip install powerfit-em[cuda]`.
+* `pyvkfft` only enables CUDA support when it was built with CUDA toolkit tools available (notably `nvcc`).
+* If `pyvkfft` CUDA support is not available, PowerFit will fall back to `cupy.fft` for CUDA FFTs.
+* You can check CUDA visibility with:
+
+```shell
+python -c 'import cupy; print(cupy.cuda.runtime.getDeviceProperties(0))'
+```
+
 ### Output
 
 When the search is finished, several output files are created

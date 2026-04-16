@@ -1,14 +1,12 @@
 """Shared functionality between GPU and CPU correlators."""
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from functools import partial
 from typing import TYPE_CHECKING, Generic, TypeVar
 
 import numpy as np
 from scipy.ndimage import laplace as laplace_filter
-from tqdm import tqdm
 
 if TYPE_CHECKING:
     from pyopencl import Image
@@ -19,6 +17,7 @@ i32 = np.int32
 
 T = TypeVar("T", np.ndarray, "ClArray")
 I = TypeVar("I", np.ndarray, "Image")  # noqa: E741
+ProgressFactory = Callable[[range], Iterable[int]]
 
 
 @dataclass
@@ -195,5 +194,5 @@ class Correlator(ABC):
         self.compute_lcc_score_and_take_best(n)
 
     @abstractmethod
-    def scan(self, progress: partial[tqdm] | None):
+    def scan(self, progress: ProgressFactory | None):
         pass

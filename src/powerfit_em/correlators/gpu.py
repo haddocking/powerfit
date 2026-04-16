@@ -1,5 +1,3 @@
-from functools import partial
-
 import numpy as np
 import pyopencl as cl
 import pyopencl.array as cl_array
@@ -7,10 +5,18 @@ from pyopencl import Image
 from pyopencl.array import Array as ClArray
 from pyvkfft.fft import irfftn, rfftn
 from scipy.ndimage import laplace as laplace_filter
-from tqdm import tqdm
 
 from powerfit_em.correlators.clkernels import CLKernels
-from powerfit_em.correlators.shared import Correlator, Vars, VarsFT, f32, get_ft_shape, get_lcc_mask, i32
+from powerfit_em.correlators.shared import (
+    Correlator,
+    ProgressFactory,
+    Vars,
+    VarsFT,
+    f32,
+    get_ft_shape,
+    get_lcc_mask,
+    i32,
+)
 
 
 def init_gpu_vars(
@@ -81,7 +87,7 @@ def transform_rotations(rotations: np.ndarray) -> np.ndarray:
     return rot_trans
 
 
-class GPUCorrelator(Correlator):
+class OpenCLCorrelator(Correlator):
     """Compute the LCC score for a target and template combination."""
 
     def __init__(
@@ -163,7 +169,7 @@ class GPUCorrelator(Correlator):
         self.vars.rot.get(ary=self.rot)
         self.queue.finish()
 
-    def scan(self, progress: partial[tqdm] | None):
+    def scan(self, progress: ProgressFactory | None):
         """Scan all provided rotations to find the best fit."""
         self.vars.lcc.fill(0)
         self.vars.rot.fill(0)
@@ -177,3 +183,6 @@ class GPUCorrelator(Correlator):
                 self.compute_rotation(n, self._rotations[n])
                 self.queue.finish()
         self.retrieve_results()
+
+
+GPUCorrelator = OpenCLCorrelator

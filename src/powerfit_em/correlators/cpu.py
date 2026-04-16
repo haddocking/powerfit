@@ -1,13 +1,20 @@
 import warnings
-from functools import partial
 
 import numpy as np
 from numpy import typing as npt
 from scipy.ndimage import laplace as laplace_filter
-from tqdm import tqdm
 
 from powerfit_em._extensions import rotate_grid3d
-from powerfit_em.correlators.shared import Correlator, Vars, VarsFT, f32, get_ft_shape, get_lcc_mask, i32
+from powerfit_em.correlators.shared import (
+    Correlator,
+    ProgressFactory,
+    Vars,
+    VarsFT,
+    f32,
+    get_ft_shape,
+    get_lcc_mask,
+    i32,
+)
 from powerfit_em.helpers import pyfftw_available
 
 
@@ -123,7 +130,7 @@ class CPUCorrelator(Correlator):
 
         self.set_template(template, mask)
 
-        # set methods in the same was as GPUCorrelator implementation;
+        # set methods in the same way as the OpenCL correlator implementation;
         self.conj_multiply = lambda a, b, c: np.multiply(np.conjugate(a), b, out=c)
         self.square = lambda a, b: np.square(a, out=b)
         self.rfftn, self.irfftn = build_ffts(self.target, self.vars.gcc, self.vars_ft.gcc, fftw)
@@ -161,7 +168,7 @@ class CPUCorrelator(Correlator):
         self.lcc[ind] = self.lcc_scan[ind]
         self.rot[ind] = n
 
-    def scan(self, progress: partial[tqdm] | None = None):
+    def scan(self, progress: ProgressFactory | None = None):
         """Scan all provided rotations to find the best fit."""
         self.vars.lcc.fill(0)
         self.vars.rot.fill(0)
