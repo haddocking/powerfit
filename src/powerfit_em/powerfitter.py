@@ -108,7 +108,7 @@ class PowerFitter:
         self._corr.set_template(template.array, mask.array)
 
     def _opencl_scan(self, progress: ProgressFactory | None):
-        from powerfit_em.correlators.gpu import OpenCLCorrelator
+        from powerfit_em.correlators.opencl import OpenCLCorrelator
 
         assert self._queue is not None
         if self._corr is None:
