@@ -70,16 +70,49 @@ __device__ inline float sample_linear(const float *image, float x, float y, floa
 
 extern "C" __global__
 void rotate_image3d_linear(const float *image, const float *rotmat, float *out) {
-    int x = (int) (blockIdx.x * blockDim.x + threadIdx.x) - LLENGTH;
-    int y = (int) (blockIdx.y * blockDim.y + threadIdx.y) - LLENGTH;
-    int z = (int) (blockIdx.z * blockDim.z + threadIdx.z) - LLENGTH;
+    int ox = (int) (blockIdx.x * blockDim.x + threadIdx.x);
+    int oy = (int) (blockIdx.y * blockDim.y + threadIdx.y);
+    int oz = (int) (blockIdx.z * blockDim.z + threadIdx.z);
 
-    if (x > LLENGTH || y > LLENGTH || z > LLENGTH) {
+    if (ox >= SHAPE_X || oy >= SHAPE_Y || oz >= SHAPE_Z) {
+        return;
+    }
+
+    int out_idx = flat_index(ox, oy, oz);
+
+    int x;
+    if (ox <= LLENGTH) {
+        x = ox;
+    } else if (ox >= SHAPE_X - LLENGTH) {
+        x = ox - SHAPE_X;
+    } else {
+        out[out_idx] = 0.0f;
+        return;
+    }
+
+    int y;
+    if (oy <= LLENGTH) {
+        y = oy;
+    } else if (oy >= SHAPE_Y - LLENGTH) {
+        y = oy - SHAPE_Y;
+    } else {
+        out[out_idx] = 0.0f;
+        return;
+    }
+
+    int z;
+    if (oz <= LLENGTH) {
+        z = oz;
+    } else if (oz >= SHAPE_Z - LLENGTH) {
+        z = oz - SHAPE_Z;
+    } else {
+        out[out_idx] = 0.0f;
         return;
     }
 
     int dist2 = x * x + y * y + z * z;
     if (dist2 > LLENGTH2) {
+        out[out_idx] = 0.0f;
         return;
     }
 
@@ -87,25 +120,54 @@ void rotate_image3d_linear(const float *image, const float *rotmat, float *out) 
     float sy = rotmat[1] * (float) x + rotmat[4] * (float) y + rotmat[7] * (float) z + IMAGE_OFFSET;
     float sz = rotmat[2] * (float) x + rotmat[5] * (float) y + rotmat[8] * (float) z + IMAGE_OFFSET;
 
-    int ox = wrap_index(x, SHAPE_X);
-    int oy = wrap_index(y, SHAPE_Y);
-    int oz = wrap_index(z, SHAPE_Z);
-
-    out[flat_index(ox, oy, oz)] = sample_linear(image, sx, sy, sz);
+    out[out_idx] = sample_linear(image, sx, sy, sz);
 }
 
 extern "C" __global__
 void rotate_image3d_nearest(const float *image, const float *rotmat, float *out) {
-    int x = (int) (blockIdx.x * blockDim.x + threadIdx.x) - LLENGTH;
-    int y = (int) (blockIdx.y * blockDim.y + threadIdx.y) - LLENGTH;
-    int z = (int) (blockIdx.z * blockDim.z + threadIdx.z) - LLENGTH;
+    int ox = (int) (blockIdx.x * blockDim.x + threadIdx.x);
+    int oy = (int) (blockIdx.y * blockDim.y + threadIdx.y);
+    int oz = (int) (blockIdx.z * blockDim.z + threadIdx.z);
 
-    if (x > LLENGTH || y > LLENGTH || z > LLENGTH) {
+    if (ox >= SHAPE_X || oy >= SHAPE_Y || oz >= SHAPE_Z) {
+        return;
+    }
+
+    int out_idx = flat_index(ox, oy, oz);
+
+    int x;
+    if (ox <= LLENGTH) {
+        x = ox;
+    } else if (ox >= SHAPE_X - LLENGTH) {
+        x = ox - SHAPE_X;
+    } else {
+        out[out_idx] = 0.0f;
+        return;
+    }
+
+    int y;
+    if (oy <= LLENGTH) {
+        y = oy;
+    } else if (oy >= SHAPE_Y - LLENGTH) {
+        y = oy - SHAPE_Y;
+    } else {
+        out[out_idx] = 0.0f;
+        return;
+    }
+
+    int z;
+    if (oz <= LLENGTH) {
+        z = oz;
+    } else if (oz >= SHAPE_Z - LLENGTH) {
+        z = oz - SHAPE_Z;
+    } else {
+        out[out_idx] = 0.0f;
         return;
     }
 
     int dist2 = x * x + y * y + z * z;
     if (dist2 > LLENGTH2) {
+        out[out_idx] = 0.0f;
         return;
     }
 
@@ -113,9 +175,5 @@ void rotate_image3d_nearest(const float *image, const float *rotmat, float *out)
     float sy = rotmat[1] * (float) x + rotmat[4] * (float) y + rotmat[7] * (float) z + IMAGE_OFFSET;
     float sz = rotmat[2] * (float) x + rotmat[5] * (float) y + rotmat[8] * (float) z + IMAGE_OFFSET;
 
-    int ox = wrap_index(x, SHAPE_X);
-    int oy = wrap_index(y, SHAPE_Y);
-    int oz = wrap_index(z, SHAPE_Z);
-
-    out[flat_index(ox, oy, oz)] = sample_nearest(image, sx, sy, sz);
+    out[out_idx] = sample_nearest(image, sx, sy, sz);
 }

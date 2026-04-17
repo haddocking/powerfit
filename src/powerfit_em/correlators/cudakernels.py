@@ -22,13 +22,13 @@ class CUDAKernels:
         self._rotate_image3d_linear = self._module.get_function("rotate_image3d_linear")
         self._rotate_image3d_nearest = self._module.get_function("rotate_image3d_nearest")
 
-        # Matches the OpenCL global work size footprint in the xy plane.
+        # Cover the full output grid; kernels zero-out voxels outside the
+        # valid spherical region.
         self._block = (8, 8, 4)
-        size = 2 * values["llength"] + 1
         self._grid = (
-            (size + self._block[0] - 1) // self._block[0],
-            (size + self._block[1] - 1) // self._block[1],
-            (size + self._block[2] - 1) // self._block[2],
+            (shape[2] + self._block[0] - 1) // self._block[0],
+            (shape[1] + self._block[1] - 1) // self._block[1],
+            (shape[0] + self._block[2] - 1) // self._block[2],
         )
 
     def rotate_image3d(self, image: cp.ndarray, rotmat, out: cp.ndarray, nearest: bool = False):

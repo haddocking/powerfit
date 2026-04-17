@@ -19,12 +19,28 @@ from powerfit_em.correlators.shared import (
 )
 
 
+def _square(a: cp.ndarray, out: cp.ndarray):
+    cp.square(a, out=out)
+
+
+def build_cuda_conj_multiply_kernel():
+    return cp.ElementwiseKernel(
+        in_params="complex64 a, complex64 b",
+        out_params="complex64 out",
+        operation="out = conj(a) * b;",
+        name="powerfit_conj_multiply",
+    )
+
+
 def build_cuda_ffts(cuda_stream=None):
     if getattr(vkfft_fft, "has_cupy", False):
-        return (
-            lambda src, dst: vkfft_fft.rfftn(src, dst, cuda_stream=cuda_stream),
-            lambda src, dst: vkfft_fft.irfftn(src, dst, cuda_stream=cuda_stream),
-        )
+        def rfftn(src, dst):
+            vkfft_fft.rfftn(src, dst, cuda_stream=cuda_stream)
+
+        def irfftn(src, dst):
+            vkfft_fft.irfftn(src, dst, cuda_stream=cuda_stream)
+
+        return rfftn, irfftn
 
     warnings.warn(
         "pyvkfft CUDA backend is unavailable; falling back to cupy.fft for CUDA transforms.",
@@ -32,10 +48,18 @@ def build_cuda_ffts(cuda_stream=None):
     )
 
     def rfftn(src, dst):
-        dst[...] = cp.fft.rfftn(src)
+        if cuda_stream is None:
+            dst[...] = cp.fft.rfftn(src)
+        else:
+            with cuda_stream:
+                dst[...] = cp.fft.rfftn(src)
 
     def irfftn(src, dst):
-        dst[...] = cp.fft.irfftn(src, s=dst.shape)
+        if cuda_stream is None:
+            dst[...] = cp.fft.irfftn(src, s=dst.shape)
+        else:
+            with cuda_stream:
+                dst[...] = cp.fft.irfftn(src, s=dst.shape)
 
     return rfftn, irfftn
 
@@ -123,9 +147,9 @@ class CUDACorrelator(Correlator):
         self.rot = np.zeros(self.target.shape, dtype=i32)
         self.cuda_kernels = CUDAKernels(self.target.shape)
         self.lcc_kernel = build_cuda_lcc_kernel()
+        self.conj_multiply_kernel = build_cuda_conj_multiply_kernel()
 
-        self.conj_multiply = lambda a, b, c: cp.multiply(cp.conj(a), b, out=c)
-        self.square = lambda a, b: cp.square(a, out=b)
+        self.square = _square
         self.rfftn, self.irfftn = build_cuda_ffts(self.cuda_stream)
 
         with self._stream_context():
@@ -150,10 +174,11 @@ class CUDACorrelator(Correlator):
     def _set_mask_var(self, mask: np.ndarray):
         self.vars.mask = cp.asarray(mask, dtype=f32)
 
+    def conj_multiply(self, a: cp.ndarray, b: cp.ndarray, out: cp.ndarray):
+        self.conj_multiply_kernel(a, b, out)
+
     def rotate_grids(self, rotmat):
         with self._stream_context():
-            self.vars.rot_template.fill(0)
-            self.vars.rot_mask.fill(0)
             self.cuda_kernels.rotate_image3d(self.vars.template, rotmat, self.vars.rot_template)
             self.cuda_kernels.rotate_image3d(self.vars.mask, rotmat, self.vars.rot_mask, nearest=True)
 
