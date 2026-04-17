@@ -3,10 +3,16 @@
 If you already have fulfilled the [requirements](https://github.com/haddocking/powerfit?tab=readme-ov-file#requirements) 
 for offloading to the GPU, the installation should be as easy as opening up a shell and typing
 
+For AMD or Intel GPUs use OpenCL backend
 ```shell
-# To run on GPU
 pip install powerfit-em[opencl]
 ```
+
+For NVIDIA GPUs use CUDA backend
+```shell
+pip install powerfit-em[cuda]
+```
+
 If you are starting from a clean system, follow the instructions for your
 particular operating system as described below, they should get you up and
 running in no time.
@@ -18,10 +24,10 @@ However, by installing powerfit in a conda environment, you can still do computa
 on GPU. If you are on a Linux system and have Conda or Mamba available, follow
 these instructions;
 
-<details><summary>Steps for running on GPU with Conda</summary>
+<details><summary>Steps for running on AMD or Intel GPU with Conda</summary>
 
-For AMD or NVIDIA GPUs you can run the following command. Note that this relies
-on OpenCL drivers being available system wide (under `/etc/OpenCL/vendors/`).
+For AMD or Intel GPUs using OpenCL you can run the following command. Note that
+this relies on OpenCL drivers being available system wide (under `/etc/OpenCL/vendors/`).
 
 ```shell
 conda create -n powerfit -c conda-forge python=3.12 ocl-icd ocl-icd-system pyopencl pyvkfft
@@ -43,6 +49,21 @@ After installation, you can check that the OpenCL installation is working by run
 
 ```shell
 python -c 'import pyopencl as cl;from pyvkfft.fft import rfftn; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
+```
+
+</details>
+
+<details><summary>Steps for running on NVIDIA GPU with Conda</summary>
+
+For NVIDIA GPUs using CUDA you can run the following command.
+
+```shell
+conda create -n powerfit -c conda-forge python=3.12 cupy pyvkfft cuda-version=13
+conda activate powerfit
+```
+
+```shell
+pip install powerfit-em[cuda]
 ```
 
 </details>
@@ -125,10 +146,13 @@ sudo yum install python3-devel python3-pip git development-c development-tools
 ```
 
 <details>
-<summary>Steps for running on GPU</summary>
+<summary>Steps for running on AMD or Intel GPU</summary>
 
 If you want to use the GPU version of PowerFit, you need to install the
 drivers for your GPU. 
+
+For OpenCL, install the OpenCL development libraries and the OpenCL-enabled
+package.
 
 After installing the drivers, you need to install the OpenCL development libraries.
 For Debian/Ubuntu, this can be done by running
@@ -142,10 +166,11 @@ For Fedora, this can be done by running
 sudo dnf install opencl-headers ocl-icd-devel
 ```
 
-Install pyvkfft, a Python wrapper for the VkFFT library, using
+
+Install PowerFit with OpenCL support using
 
 ```shell
-pip install pyvkfft
+pip install powerfit-em[opencl]
 ```
 
 Check that the OpenCL installation is working by running
@@ -154,6 +179,29 @@ Check that the OpenCL installation is working by running
 python -c 'import pyopencl as cl;from pyvkfft.fft import rfftn; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
 # Should print the name of your GPU
 ```
+</details>
+
+<details>
+<summary>Steps for running on NVIDIA GPU</summary>
+
+
+For the CUDA backend, make sure the CUDA toolkit/runtime is available and that
+`nvcc` can be found via `CUDA_PATH`, `CUDA_HOME`, or `PATH`. Without `nvcc`,
+CUDA support is not built and CUDA mode will not work.
+
+Install the CUDA-enabled package with
+
+```shell
+pip install powerfit-em[cuda]
+```
+
+Check that the CUDA installation is working by running
+
+```shell
+python -c 'import cupy; print(cupy.cuda.runtime.getDeviceProperties(0)["name"]);import pyvkfft.cuda;print(pyvkfft.cuda.cuda_runtime_version());print(pyvkfft.cuda.cuda_compile_version())'
+# Should print the name of your GPU and versions of CUDA runtime and compiler
+```
+
 </details>
 
 Your system is now prepared, follow the general instructions [here](README.md#installation) to install
@@ -193,15 +241,15 @@ above.
 
 ## Tested platforms
 
-| Operating System| CPU single | CPU multi | GPU |
-| --------------- | ---------- | --------- | --- |
-|Linux            | Yes        | Yes       | Yes |
-|MacOSX           | Yes        | Yes       | No  |
-|Windows          | Yes        | Fail      | No  |
+| Operating System| CPU single | CPU multi | OpenCL | CUDA |
+| --------------- | ---------- | --------- | --- | -- |
+|Linux            | Yes        | Yes       | Yes | Yes |
+|MacOSX           | Yes        | Yes       | No  | No  |
+|Windows          | Yes        | Fail      | No  | No  |
 
 The GPU version has been successfully tested on Linux and with a Docker container for the following devices;
 
-* NVIDIA GeForce GTX 1050 Ti
+* NVIDIA GeForce GTX 3050
 * NVIDIA GeForce RTX 4070
 * AMD Radeon RX 7800 XT
 * AMD Radeon RX 7900 XTX
