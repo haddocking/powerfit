@@ -1,9 +1,8 @@
-import warnings
 from contextlib import nullcontext
 
 import cupy as cp
 import numpy as np
-from pyvkfft import fft as vkfft_fft
+from pyvkfft.cuda import VkFFTApp
 from scipy.ndimage import laplace as laplace_filter
 
 from powerfit_em.correlators.cudakernels import CUDAKernels
@@ -32,34 +31,22 @@ def build_cuda_conj_multiply_kernel():
     )
 
 
-def build_cuda_ffts(cuda_stream=None):
-    if getattr(vkfft_fft, "has_cupy", False):
-        def rfftn(src, dst):
-            vkfft_fft.rfftn(src, dst, cuda_stream=cuda_stream)
-
-        def irfftn(src, dst):
-            vkfft_fft.irfftn(src, dst, cuda_stream=cuda_stream)
-
-        return rfftn, irfftn
-
-    warnings.warn(
-        "pyvkfft CUDA backend is unavailable; falling back to cupy.fft for CUDA transforms.",
-        stacklevel=2,
+def build_cuda_ffts(shape: tuple, cuda_stream=None):
+    plan = VkFFTApp(
+        shape,
+        np.float32,
+        ndim=len(shape),
+        inplace=False,
+        r2c=True,
+        stream=cuda_stream,
+        norm=1,
     )
 
     def rfftn(src, dst):
-        if cuda_stream is None:
-            dst[...] = cp.fft.rfftn(src)
-        else:
-            with cuda_stream:
-                dst[...] = cp.fft.rfftn(src)
+        plan.fft(src, dst)
 
     def irfftn(src, dst):
-        if cuda_stream is None:
-            dst[...] = cp.fft.irfftn(src, s=dst.shape)
-        else:
-            with cuda_stream:
-                dst[...] = cp.fft.irfftn(src, s=dst.shape)
+        plan.ifft(src, dst)
 
     return rfftn, irfftn
 
@@ -150,7 +137,7 @@ class CUDACorrelator(Correlator):
         self.conj_multiply_kernel = build_cuda_conj_multiply_kernel()
 
         self.square = _square
-        self.rfftn, self.irfftn = build_cuda_ffts(self.cuda_stream)
+        self.rfftn, self.irfftn = build_cuda_ffts(self.target.shape, self.cuda_stream)
 
         with self._stream_context():
             self.set_template(template, mask)
@@ -207,11 +194,11 @@ class CUDACorrelator(Correlator):
             self.vars.rot.fill(0)
 
             scan_range = range(self.rotations.shape[0])
-            if progress is not None:
-                scan_range = progress(scan_range)
-
-            for n in scan_range:
-                self.compute_rotation(n, self.rotations[n])
-                if progress is not None:
+            if progress is None:
+                for n in scan_range:
+                    self.compute_rotation(n, self.rotations[n])
+            else:
+                for n in progress(scan_range):
+                    self.compute_rotation(n, self.rotations[n])
                     self._synchronize()
         self.retrieve_results()
