@@ -4,13 +4,14 @@ import pytest
 from powerfit_em.helpers import cuda_available
 from powerfit_em.powerfit import get_cuda_stream
 
-pytestmark = pytest.mark.skipif(not cuda_available(), reason="CUDA resources are not available.")
+CUDA_AVAILABLE = cuda_available()
 
-if cuda_available():
-    import cupy as cp
+pytestmark = pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA resources are not available.")
 
-    from powerfit_em.correlators.cpu import CPUCorrelator
-    from powerfit_em.correlators.cuda import CUDACorrelator, build_cuda_ffts
+cp = pytest.importorskip("cupy", reason="CUDA resources are not available.")
+
+from powerfit_em.correlators.cpu import CPUCorrelator  # noqa: E402
+from powerfit_em.correlators.cuda import CUDACorrelator, build_cuda_ffts  # noqa: E402
 
 
 @pytest.fixture(scope="module")

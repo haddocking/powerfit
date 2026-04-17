@@ -87,6 +87,13 @@ before-test = "yum install -y fftw-devel"
 select = "*-musllinux*"
 before-all = "apk add fftw-dev"
 
+[tool.pytest.ini_options]
+markers = [
+    "requires_cuda: test requires CUDA hardware and cupy package",
+    "requires_opencl: test requires OpenCL platform/device and pyopencl package",
+    "gpu_integration: test is a GPU integration test requiring hardware",
+]
+
 [tool.ruff]
 line-length = 120
 

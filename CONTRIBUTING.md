@@ -96,6 +96,8 @@ Tests can be run using
 pytest
 ```
 
+GPU integration tests (marked `requires_cuda` or `requires_opencl`) are automatically skipped when the required hardware or packages are absent. CI runs with `--extra opencl --extra dev` (POCL only) so CUDA tests and OpenCL tests that need a real GPU device are skipped. On a local machine with a GPU, all tests run.
+
 To run OpenCL on **C**PU install use `pip install -e .[pocl]` and make sure no other OpenCL platforms, like 'AMD Accelerated Parallel Processing' or 'NVIDIA CUDA', are installed .
 
 The Docker container, that works for cpu and NVIDIA gpus, can be build with

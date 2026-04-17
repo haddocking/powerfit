@@ -1,11 +1,14 @@
 import unittest
-from unittest.mock import patch
 
 import numpy as np
+import pytest
 
-from powerfit_em.helpers import opencl_available
+from powerfit_em.helpers import cuda_available, opencl_available
 from powerfit_em.powerfitter import PowerFitter
 from powerfit_em.volume import Volume
+
+CUDA_AVAILABLE = cuda_available()
+OPENCL_AVAILABLE = opencl_available()
 
 if opencl_available():
     import pyopencl as cl
@@ -14,15 +17,18 @@ if opencl_available():
     from powerfit_em.correlators.clkernels import CLKernels
 
 
-def make_powerfitter(queue=None, cuda_stream=None):
-    target = Volume(np.ones((4, 4, 4), dtype=np.float32))
-    template = Volume(np.ones((4, 4, 4), dtype=np.float32))
-    mask = Volume(np.ones((4, 4, 4), dtype=np.float32))
+def _make_tiny_inputs():
+    """Return target/template/mask Volumes and single identity rotation for smoke tests."""
+    arr = np.zeros((8, 8, 8), dtype=np.float32)
+    arr[2:6, 2:6, 2:6] = 1.0
+    target = Volume(arr)
+    template = Volume(arr.copy())
+    mask = Volume(np.ones((8, 8, 8), dtype=np.float32))
     rotations = np.asarray([np.eye(3, dtype=np.float32)])
-    return PowerFitter(target, rotations, template, mask, queue=queue, cuda_stream=cuda_stream)
+    return target, template, mask, rotations
 
 
-@unittest.skipIf(not opencl_available(), "GPU resources are not available.")
+@pytest.mark.skipif(not OPENCL_AVAILABLE, reason="OpenCL (pyopencl) not installed")
 class TestCLKernels(unittest.TestCase):
     """Tests for the OpenCL kernels"""
 
@@ -72,24 +78,51 @@ class TestCLKernels(unittest.TestCase):
         self.assertTrue(np.allclose(np_out, cl_out.get()))
 
 
-class TestPowerFitterBackendDispatch(unittest.TestCase):
-    def test_scan_uses_opencl_correlator_when_queue_is_set(self):
-        queue = object()
-        with patch("powerfit_em.correlators.gpu.OpenCLCorrelator", create=True) as correlator_cls:
-            pf = make_powerfitter(queue=queue)
-            pf.scan(progress=None)
+@pytest.mark.gpu_integration
+class TestPowerFitterIntegration:
+    """Integration smoke tests comparing GPU backends against the CPU correlator."""
 
-        correlator_cls.assert_called_once()
-        correlator_cls.return_value.scan.assert_called_once_with(None)
+    @pytest.mark.requires_opencl
+    @pytest.mark.skipif(not OPENCL_AVAILABLE, reason="OpenCL (pyopencl) not installed")
+    def test_opencl_scan_matches_cpu(self):
+        from powerfit_em.powerfit import get_opencl_queue
 
-    def test_scan_uses_cuda_correlator_when_stream_is_set(self):
-        stream = object()
-        with patch("powerfit_em.correlators.cuda.CUDACorrelator") as correlator_cls:
-            pf = make_powerfitter(cuda_stream=stream)
-            pf.scan(progress=None)
+        try:
+            queue = get_opencl_queue("0:0")
+        except (RuntimeError, ValueError) as exc:
+            pytest.skip(str(exc))
 
-        correlator_cls.assert_called_once()
-        correlator_cls.return_value.scan.assert_called_once_with(None)
+        target, template, mask, rotations = _make_tiny_inputs()
+
+        cpu_pf = PowerFitter(target, rotations, template, mask, queue=None)
+        cpu_pf.scan(progress=None)
+
+        ocl_pf = PowerFitter(target, rotations, template, mask, queue=queue)
+        ocl_pf.scan(progress=None)
+
+        assert np.allclose(cpu_pf.lcc, ocl_pf.lcc, atol=1e-4, rtol=1e-4)
+        assert np.array_equal(cpu_pf.rot, ocl_pf.rot)
+
+    @pytest.mark.requires_cuda
+    @pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA (cupy) not installed")
+    def test_cuda_scan_matches_cpu(self):
+        from powerfit_em.powerfit import get_cuda_stream
+
+        try:
+            stream = get_cuda_stream(0)
+        except (RuntimeError, ValueError) as exc:
+            pytest.skip(str(exc))
+
+        target, template, mask, rotations = _make_tiny_inputs()
+
+        cpu_pf = PowerFitter(target, rotations, template, mask, queue=None)
+        cpu_pf.scan(progress=None)
+
+        cuda_pf = PowerFitter(target, rotations, template, mask, queue=None, cuda_stream=stream)
+        cuda_pf.scan(progress=None)
+
+        assert np.allclose(cpu_pf.lcc, cuda_pf.lcc, atol=1e-4, rtol=1e-4)
+        assert np.array_equal(cpu_pf.rot, cuda_pf.rot)
 
 
 if __name__ == "__main__":
