@@ -32,7 +32,10 @@ class CUDAKernels:
         )
 
     def rotate_image3d(self, image: cp.ndarray, rotmat, out: cp.ndarray, nearest: bool = False):
-        rot = cp.asarray(rotmat, dtype=cp.float32).ravel()
+        if isinstance(rotmat, cp.ndarray) and rotmat.dtype == cp.float32:
+            rot = rotmat.ravel()
+        else:
+            rot = cp.asarray(rotmat, dtype=cp.float32).ravel()
         if nearest:
             self._rotate_image3d_nearest(self._grid, self._block, (image, rot, out))
         else:
