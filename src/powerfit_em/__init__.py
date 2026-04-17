@@ -1,4 +1,4 @@
-__version__ = "4.0.4"
+__version__ = "5.0.0"
 
 from .helpers import determine_core_indices
 from .rotations import proportional_orientations, quat_to_rotmat
