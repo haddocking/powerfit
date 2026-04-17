@@ -337,6 +337,6 @@ def mmcif_dict_to_array(atom_site):
     cifdata["q"] = atom_site["occupancy"]
     cifdata["b"] = atom_site["B_iso_or_equiv"]
     cifdata["e"] = atom_site["type_symbol"]
-    cifdata["charge"] = atom_site["pdbx_formal_charge"]
+    cifdata["charge"] = atom_site.get("pdbx_formal_charge", '?')
     cifdata["model"] = atom_site["pdbx_PDB_model_num"]
     return cifdata
