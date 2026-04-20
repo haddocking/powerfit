@@ -3,7 +3,7 @@ import pyopencl as cl
 import pyopencl.array as cl_array
 from pyopencl import Image
 from pyopencl.array import Array as ClArray
-from pyvkfft.fft import irfftn, rfftn
+from pyvkfft.opencl import VkFFTApp
 from scipy.ndimage import laplace as laplace_filter
 
 from powerfit_em.correlators.clkernels import CLKernels
@@ -69,9 +69,35 @@ def generate_kernels(queue: cl.CommandQueue, target: np.ndarray):
     return CLKernels(queue.context, kernel_values)
 
 
-def precompute_squared_targets(gpu_vars: Vars[ClArray, Image], gpu_vars_ft: VarsFT[ClArray], kernels: CLKernels):
+def build_opencl_ffts(shape: tuple[int, ...], queue: cl.CommandQueue):
+    """Build planned OpenCL FFT and inverse FFT wrappers for reuse."""
+    plan = VkFFTApp(
+        shape,
+        np.float32,
+        queue,
+        ndim=len(shape),
+        inplace=False,
+        r2c=True,
+        norm=1,
+    )
+
+    def rfftn(src, dst):
+        plan.fft(src, dst, queue=queue)
+
+    def irfftn(src, dst):
+        plan.ifft(src, dst, queue=queue)
+
+    return rfftn, irfftn
+
+
+def precompute_squared_targets(
+    gpu_vars: Vars[ClArray, Image],
+    gpu_vars_ft: VarsFT[ClArray],
+    kernels: CLKernels,
+    rfftn,
+):
     """Compute the squared target and fourier transformed target on GPU for reuse."""
-    gpu_vars_ft.target = rfftn(gpu_vars.target)
+    rfftn(gpu_vars.target, gpu_vars_ft.target)
     kernels.multiply(gpu_vars.target, gpu_vars.target, gpu_vars.target2)
     rfftn(gpu_vars.target2, gpu_vars_ft.target2)
 
@@ -131,9 +157,8 @@ class OpenCLCorrelator(Correlator):
         self.cl_kernels = generate_kernels(queue, self.target)
         self.conj_multiply = self.cl_kernels.conj_multiply
         self.square = lambda a, b: self.cl_kernels.multiply(a, a, b)
-        self.rfftn = rfftn
-        self.irfftn = irfftn
-        precompute_squared_targets(self.vars, self.vars_ft, self.cl_kernels)
+        self.rfftn, self.irfftn = build_opencl_ffts(self.target.shape, queue)
+        precompute_squared_targets(self.vars, self.vars_ft, self.cl_kernels, self.rfftn)
 
     def _set_template_var(self, template: np.ndarray):
         self.vars.template = cl.image_from_array(self.vars.template.context, template.astype(f32))

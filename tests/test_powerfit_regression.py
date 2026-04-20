@@ -54,6 +54,7 @@ def test_powerfit_solutions_match_baseline(
     )
 
     generated_file = tmp_path / "solutions.out"
+    print(generated_file)
     baseline_file = baseline_solutions
 
     assert generated_file.exists(), f"Generated solutions.out not found at {generated_file}"
