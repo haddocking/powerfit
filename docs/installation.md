@@ -102,7 +102,7 @@ To run tutorial example use
 docker run --rm -ti --user $(id -u):$(id -g) \
     -v $PWD:/data ghcr.io/haddocking/powerfit:v4.0.4 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
-    -a 20 -p 2 -l -d /data/run-KsgA-docker
+    -a 20 -p 2 -d /data/run-KsgA-docker
 ```
 
 To run on NVIDIA GPU using [NVIDIA container toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/index.html) use
@@ -111,7 +111,7 @@ docker run --rm -ti \
     --runtime=nvidia --gpus all -v /etc/OpenCL:/etc/OpenCL \
     -v $PWD:/data ghcr.io/haddocking/powerfit:v4.0.4 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
-    -a 20 -l -d /data/run-KsgA-docker-nv --gpu
+    -a 20 -d /data/run-KsgA-docker-nv --gpu
 ```
 
 To run on Intel integrated graphics use
@@ -121,7 +121,7 @@ docker run --rm -ti \
     --device=/dev/dri \
     -v $PWD:/data ghcr.io/haddocking/powerfit:v4.0.4 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
-    -a 20 -l -d /data/run-KsgA-docker-nv --gpu
+    -a 20  -d /data/run-KsgA-docker-nv --gpu
 ```
 
 To run on [AMD GPU](https://rocm.docs.amd.com/projects/install-on-linux/en/latest/how-to/docker.html) use
@@ -133,7 +133,7 @@ sudo docker run --rm -ti \
     --group-add video --ipc=host \
     -v $PWD:/data ghcr.io/haddocking/powerfit-rocm:v4.0.4 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
-    -a 20 -l -d /data/run-KsgA-docker-amd --gpu
+    -a 20 -d /data/run-KsgA-docker-amd --gpu
 ```
 
 ### Linux
