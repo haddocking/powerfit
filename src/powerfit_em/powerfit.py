@@ -65,6 +65,30 @@ def resolve_gpu_backend(gpu: str | None) -> tuple[str | None, int | tuple[int, i
     raise ValueError("Invalid --gpu value. Use --gpu, --gpu cuda:N, or --gpu P:D.")
 
 
+def add_computational_resources2parser(p: ArgumentParser):
+    p.add_argument(
+        "-g",
+        "--gpu",
+        dest="gpu",
+        nargs="?",
+        const="auto",
+        default=None,
+        metavar="[cuda:<device>|<platform>:<device>]",
+        help="Off-load the intensive calculations to the GPU. Use --gpu for automatic backend selection, --gpu cuda:N for CUDA device N, or --gpu P:D for OpenCL platform P and device D. If omitted, does not use GPU.",  # noqa: E501
+    )
+    p.add_argument(
+        "-p",
+        "--nproc",
+        dest="nproc",
+        type=int,
+        default=1,
+        metavar="<int>",
+        help="Number of processors used during search. "
+        "The number will be capped at the total number "
+        "of available processors on your machine.",
+    )
+
+
 def make_parser():
     """Create the command-line argument parser.
     Any changes here should be reflected in the documentation at docs/manual.md#parameters"""
@@ -182,27 +206,7 @@ def make_parser():
         help="Number of models written to file. This number will be capped if less solutions are found as requested.",
     )
     # Computational resources parameters
-    p.add_argument(
-        "-g",
-        "--gpu",
-        dest="gpu",
-        nargs="?",
-        const="auto",
-        default=None,
-        metavar="[cuda:<device>|<platform>:<device>]",
-        help="Off-load the intensive calculations to the GPU. Use --gpu for automatic backend selection, --gpu cuda:N for CUDA device N, or --gpu P:D for OpenCL platform P and device D. If omitted, does not use GPU.",  # noqa: E501
-    )
-    p.add_argument(
-        "-p",
-        "--nproc",
-        dest="nproc",
-        type=int,
-        default=1,
-        metavar="<int>",
-        help="Number of processors used during search. "
-        "The number will be capped at the total number "
-        "of available processors on your machine.",
-    )
+    add_computational_resources2parser(p)
     p.add_argument(
         "--log-level",
         dest="log_level",

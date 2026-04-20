@@ -38,6 +38,7 @@ dev = [
     "pytest-cov",
     "ruff",
     "cython-lint",
+    "pandas>=2.3.3",
 ]
 docs = [
     "mkdocs>=1.6.1",
