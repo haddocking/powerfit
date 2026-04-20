@@ -90,7 +90,7 @@ a hypothetical `/path/to/data` on your machine can be done as follows
 
 ```shell
 docker run --rm -ti --user $(id -u):$(id -g) \
-    -v /path/to/data:/data ghcr.io/haddocking/powerfit:v4.0.4 \
+    -v /path/to/data:/data ghcr.io/haddocking/powerfit:v5.0.0 \
     /data/<map> <resolution> /data/<pdb> \
     -d /data/<results-dir>
 ```
@@ -100,16 +100,16 @@ To run tutorial example use
 ```shell
 # cd into powerfit-tutorial repo
 docker run --rm -ti --user $(id -u):$(id -g) \
-    -v $PWD:/data ghcr.io/haddocking/powerfit:v4.0.4 \
+    -v $PWD:/data ghcr.io/haddocking/powerfit:v5.0.0 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
     -a 20 -p 2 -d /data/run-KsgA-docker
 ```
 
-To run on NVIDIA GPU using [NVIDIA container toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/index.html) use
+To run on NVIDIA GPU using [NVIDIA container toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/index.html) use the CUDA image
 ```shell
 docker run --rm -ti \
-    --runtime=nvidia --gpus all -v /etc/OpenCL:/etc/OpenCL \
-    -v $PWD:/data ghcr.io/haddocking/powerfit:v4.0.4 \
+    --runtime=nvidia --gpus all \
+    -v $PWD:/data ghcr.io/haddocking/powerfit-cuda:v5.0.0 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
     -a 20 -d /data/run-KsgA-docker-nv --gpu
 ```
@@ -119,7 +119,7 @@ To run on Intel integrated graphics use
 ```shell
 docker run --rm -ti \
     --device=/dev/dri \
-    -v $PWD:/data ghcr.io/haddocking/powerfit:v4.0.4 \
+    -v $PWD:/data ghcr.io/haddocking/powerfit:v5.0.0 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
     -a 20  -d /data/run-KsgA-docker-nv --gpu
 ```
@@ -131,7 +131,7 @@ sudo docker run --rm -ti \
     --device=/dev/kfd --device=/dev/dri \
     --security-opt seccomp=unconfined \
     --group-add video --ipc=host \
-    -v $PWD:/data ghcr.io/haddocking/powerfit-rocm:v4.0.4 \
+    -v $PWD:/data ghcr.io/haddocking/powerfit-rocm:v5.0.0 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
     -a 20 -d /data/run-KsgA-docker-amd --gpu
 ```

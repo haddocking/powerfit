@@ -100,15 +100,22 @@ GPU integration tests (marked `requires_cuda` or `requires_opencl`) are automati
 
 To run OpenCL on **C**PU install use `pip install -e .[pocl]` and make sure no other OpenCL platforms, like 'AMD Accelerated Parallel Processing' or 'NVIDIA CUDA', are installed .
 
-The Docker container, that works for cpu and NVIDIA gpus, can be build with
+The Docker container, that works for CPU and OpenCL backends, can be build with
 
 ```shell
-docker build -t ghcr.io/haddocking/powerfit:v3.1.0 .
+docker build -t ghcr.io/haddocking/powerfit:v5.0.0 .
 ```
+
+The Docker container, that works for NVIDIA GPUs via CUDA, can be build with
+
+```shell
+docker build -t ghcr.io/haddocking/powerfit-cuda:v5.0.0 -f Dockerfile.cuda .
+```
+
 The Docker container, that works for AMD gpus, can be build with
 
 ```shell
-docker build -t ghcr.io/haddocking/powerfit-rocm:v3.1.0 -f Dockerfile.rocm .
+docker build -t ghcr.io/haddocking/powerfit-rocm:v5.0.0 -f Dockerfile.rocm .
 ```
 
 The binary wheels can be build for all supported platforms by running the
