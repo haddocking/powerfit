@@ -15,12 +15,15 @@ RUN pip wheel -w dist --no-deps pyvkfft
 
 FROM rocm/dev-ubuntu-24.04:latest
 
-RUN apt update && apt install -y ocl-icd-libopencl1
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ocl-icd-libopencl1 \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY --from=build /src/dist/*.whl /opt/
 
 RUN PFWHL_FILE=$(find /opt -name "powerfit*.whl" | head -n 1) && \
     FTTWHL_FILE=$(find /opt -name "pyvkfft*.whl" | head -n 1) && \
-    pip install --break-system-packages "${PFWHL_FILE}[opencl]" "${FTTWHL_FILE}"
+    pip install --break-system-packages --no-cache-dir "${PFWHL_FILE}[opencl]" "${FTTWHL_FILE}" \
+    && rm -rf /root/.cache/pip
 
 ENTRYPOINT [ "powerfit" ]
