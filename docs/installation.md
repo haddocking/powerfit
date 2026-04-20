@@ -58,12 +58,20 @@ python -c 'import pyopencl as cl;from pyvkfft.fft import rfftn; ps=cl.get_platfo
 For NVIDIA GPUs using CUDA you can run the following command.
 
 ```shell
-conda create -n powerfit -c conda-forge python=3.12 cupy pyvkfft cuda-version=13
-conda activate powerfit
+mamba create -n powerfit-cuda -c conda-forge python=3.14 cupy pyvkfft cuda-version=12
+mamba activate powerfit-cuda
 ```
 
 ```shell
-pip install powerfit-em[cuda]
+# We do not use extra, as we want to use binary conda packages
+pip install powerfit-em
+```
+
+Check that the CUDA installation is working by running
+
+```shell
+python -c 'import cupy; print(cupy.cuda.runtime.getDeviceProperties(0)["name"]);import pyvkfft.cuda;print(pyvkfft.cuda.cuda_runtime_version());print(pyvkfft.cuda.cuda_compile_version())'
+# Should print the name of your GPU and versions of CUDA runtime and compiler
 ```
 
 </details>
