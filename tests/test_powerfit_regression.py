@@ -3,9 +3,29 @@
 from pathlib import Path
 
 import pandas as pd
+import pytest
 from pandas.testing import assert_frame_equal
 
 from powerfit_em import powerfit
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures"
+
+# The fixtures below where copied from https://github.com/haddocking/powerfit-tutorial
+
+
+@pytest.fixture(scope="session")
+def ribosome_map() -> Path:
+    return FIXTURES_DIR / "ribosome-KsgA.map"
+
+
+@pytest.fixture(scope="session")
+def ksga_pdb() -> Path:
+    return FIXTURES_DIR / "KsgA.pdb"
+
+
+@pytest.fixture(scope="session")
+def baseline_solutions() -> Path:
+    return FIXTURES_DIR / "solutions.out"
 
 
 def test_powerfit_solutions_match_baseline(

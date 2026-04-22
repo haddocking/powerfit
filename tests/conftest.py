@@ -1,6 +1,5 @@
 import shlex
 from argparse import ArgumentParser
-from pathlib import Path
 
 import pytest
 
@@ -9,24 +8,6 @@ from powerfit_em.powerfit import add_computational_resources2parser
 
 CUDA_AVAILABLE = cuda_available()
 OPENCL_AVAILABLE = opencl_available()
-
-FIXTURES_DIR = Path(__file__).parent / "fixtures"
-
-# The fixtures below where copied from https://github.com/haddocking/powerfit-tutorial
-
-@pytest.fixture(scope="session")
-def ribosome_map() -> Path:
-    return FIXTURES_DIR / "ribosome-KsgA.map"
-
-
-@pytest.fixture(scope="session")
-def ksga_pdb() -> Path:
-    return FIXTURES_DIR / "KsgA.pdb"
-
-
-@pytest.fixture(scope="session")
-def baseline_solutions() -> Path:
-    return FIXTURES_DIR / "solutions.out"
 
 
 def pytest_configure(config):
