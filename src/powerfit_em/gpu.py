@@ -14,7 +14,6 @@ if TYPE_CHECKING:
 
 
 def opencl_available() -> bool:
-    # TODO add check if there is at least one OpenCL platform/device available
     return find_spec("pyopencl") is not None
 
 
@@ -25,7 +24,6 @@ def cuda_available() -> bool:
     By checking for the presence of the `cupy` and `pyvkfft.cuda` packages.
     If `cupy` is found but `pyvkfft.cuda` is not, log a warning and return False.
     """
-    # TODO check if there is at least one CUDA device available
     try:
         return find_spec("cupy") is not None and find_spec("pyvkfft.cuda") is not None
     except ValueError:
