@@ -10,7 +10,7 @@ pip install powerfit-em[opencl]
 
 For NVIDIA GPUs use CUDA backend
 ```shell
-pip install powerfit-em[cuda]
+pip install powerfit-em[cuda13x]
 ```
 
 If you are starting from a clean system, follow the instructions for your
@@ -200,7 +200,9 @@ CUDA support is not built and CUDA mode will not work.
 Install the CUDA-enabled package with
 
 ```shell
-pip install powerfit-em[cuda]
+pip install powerfit-em[cuda13x] # For CUDA version 13.x
+# or
+pip install powerfit-em[cuda12x] # For CUDA version 12.x
 ```
 
 Check that the CUDA installation is working by running
