@@ -361,11 +361,6 @@ def get_cuda_stream(device_idx: int):
     device.use()
     return cp.cuda.Stream()
 
-
-def get_gpu_queue(gpu: str) -> "cl.CommandQueue":
-    return get_opencl_queue(gpu)
-
-
 def setup_target(
     target_volume: BinaryIO,
     resolution: float,
