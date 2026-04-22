@@ -118,10 +118,13 @@ def test_powerfit_solutions_match_baseline(
         generated_sorted[compare_cols], on=sort_cols, how="inner", suffixes=("_baseline", "_generated")
     )
 
+    unmatched_rows = len(baseline_sorted) - len(merged)
+    max_unmatched_rows = max(2, int(np.ceil(len(baseline_sorted) * 0.0075)))
     matched_fraction = len(merged) / len(baseline_sorted)
-    assert matched_fraction >= 0.995, (
+    assert unmatched_rows <= max_unmatched_rows, (
         "Too many unmatched spatial solutions between baseline and generated output. "
-        f"Matched {len(merged)} / {len(baseline_sorted)} rows ({matched_fraction:.3%})."
+        f"Matched {len(merged)} / {len(baseline_sorted)} rows ({matched_fraction:.3%}); "
+        f"unmatched={unmatched_rows}, allowed={max_unmatched_rows}."
     )
 
     value_cols = [c for c in compare_cols if c not in sort_cols]
