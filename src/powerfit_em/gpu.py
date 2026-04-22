@@ -1,7 +1,6 @@
 """Module for GPU availability checks and setup."""
 
 from functools import cache
-from importlib.util import find_spec
 from typing import TYPE_CHECKING
 
 from powerfit_em.helpers import logger
@@ -118,7 +117,7 @@ def get_opencl_queue(gpu: str) -> "CommandQueue":
 def get_cuda_stream(device_idx: int) -> "Stream":
     """Request a CUDA stream for a specific device."""
     if not cuda_available():
-        msg = "Running on CUDA requires the cupy-cuda13x package, however importing cupy failed."
+        msg = "Running on CUDA requires the cupy and pyvkfft.cuda packages, however importing them failed."
         raise ValueError(msg)
 
     import cupy as cp  # pyright: ignore[reportMissingImports]
