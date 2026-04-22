@@ -1,5 +1,3 @@
-from contextlib import nullcontext
-
 import cupy as cp
 import numpy as np
 from pyvkfft.cuda import VkFFTApp
@@ -120,7 +118,7 @@ class CUDACorrelator(Correlator):
         template: np.ndarray,
         rotations: np.ndarray,
         mask: np.ndarray,
-        cuda_stream=None,
+        cuda_stream: cp.cuda.Stream,
         laplace: bool = False,
     ):
         self.target: np.ndarray = target / target.max()
@@ -139,21 +137,15 @@ class CUDACorrelator(Correlator):
         self.square = _square
         self.rfftn, self.irfftn = build_cuda_ffts(self.target.shape, self.cuda_stream)
 
-        with self._stream_context():
+        with self.cuda_stream:
             self.set_template(template, mask)
             self.rfftn(self.vars.target, self.vars_ft.target)
             self.square(self.vars.target, self.vars.target2)
             self.rfftn(self.vars.target2, self.vars_ft.target2)
         self._synchronize()
 
-    def _stream_context(self):
-        if self.cuda_stream is None:
-            return nullcontext()
-        return self.cuda_stream
-
     def _synchronize(self):
-        if self.cuda_stream is not None:
-            self.cuda_stream.synchronize()
+        self.cuda_stream.synchronize()
 
     def _set_template_var(self, template: np.ndarray):
         self.vars.template = cp.asarray(template, dtype=f32)
@@ -165,7 +157,7 @@ class CUDACorrelator(Correlator):
         self.conj_multiply_kernel(a, b, out)
 
     def rotate_grids(self, rotmat):
-        with self._stream_context():
+        with self.cuda_stream:
             self.cuda_kernels.rotate_image3d(self.vars.template, rotmat, self.vars.rot_template)
             self.cuda_kernels.rotate_image3d(self.vars.mask, rotmat, self.vars.rot_mask, nearest=True)
 
@@ -189,7 +181,7 @@ class CUDACorrelator(Correlator):
         self.rot = cp.asnumpy(self.vars.rot)
 
     def scan(self, progress: ProgressFactory | None):
-        with self._stream_context():
+        with self.cuda_stream:
             self.vars.lcc.fill(0)
             self.vars.rot.fill(0)
 
