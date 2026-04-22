@@ -8,7 +8,7 @@ from powerfit_em.helpers import logger
 
 if TYPE_CHECKING:
     # To have imports available run:
-    # `uv sync --extra dev --extra opencl --extra pocl --extra cuda`
+    # `uv sync --extra dev --extra opencl --extra pocl --extra cuda13x`
     from cupy.cuda.stream import Stream
     from pyopencl import CommandQueue
 
