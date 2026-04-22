@@ -10,12 +10,6 @@ CUDA_AVAILABLE = cuda_available()
 OPENCL_AVAILABLE = opencl_available()
 
 
-def pytest_configure(config):
-    config.addinivalue_line("markers", "requires_cuda: test requires CUDA hardware and cupy package")
-    config.addinivalue_line("markers", "requires_opencl: test requires OpenCL platform/device and pyopencl package")
-    config.addinivalue_line("markers", "gpu_integration: test is a GPU integration test requiring hardware")
-
-
 def pytest_addoption(parser):
     parser.addoption(
         "--powerfit",
