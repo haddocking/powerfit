@@ -361,6 +361,7 @@ def get_cuda_stream(device_idx: int):
     device.use()
     return cp.cuda.Stream()
 
+
 def setup_target(
     target_volume: BinaryIO,
     resolution: float,

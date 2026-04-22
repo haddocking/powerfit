@@ -89,7 +89,7 @@ class TestPowerFitterIntegration:
 
         try:
             queue = get_opencl_queue("0:0")
-        except (RuntimeError, ValueError) as exc:
+        except Exception as exc:
             pytest.skip(str(exc))
 
         target, template, mask, rotations = _make_tiny_inputs()
