@@ -8,7 +8,7 @@ from functools import partial
 from os.path import abspath, join, splitext
 from pathlib import Path
 from time import time
-from typing import TYPE_CHECKING, BinaryIO, cast
+from typing import BinaryIO
 
 import numpy as np
 from rich.logging import RichHandler
@@ -27,42 +27,15 @@ from powerfit_em import (
 )
 from powerfit_em.analyzer import Analyzer
 from powerfit_em.correlators.shared import ProgressFactory
-from powerfit_em.helpers import cuda_available, fisher_sigma, opencl_available, write_fits_to_pdb
+from powerfit_em.gpu import setup_gpu_backend
+from powerfit_em.helpers import fisher_sigma, write_fits_to_pdb
 from powerfit_em.powerfitter import PowerFitter
 from powerfit_em.report import generate_report
 from powerfit_em.volume import extend, nearest_multiple2357, resample, trim
 
-if TYPE_CHECKING:
-    import pyopencl as cl  # noqa: I001
-
-
 logger = logging.getLogger(__name__)
 
 warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
-
-
-def resolve_gpu_backend(gpu: str | None) -> tuple[str | None, int | tuple[int, int] | None]:
-    if gpu is None:
-        return None, None
-
-    if gpu == "auto":
-        if cuda_available():
-            return "cuda", 0
-        if opencl_available():
-            return "opencl", (0, 0)
-        raise ValueError("Running on GPU requires either the cuda or opencl extra to be installed.")
-
-    if gpu.startswith("cuda:"):
-        device_idx = int(gpu.split(":", maxsplit=1)[1])
-        if device_idx < 0:
-            raise ValueError("Invalid CUDA device index. Use a non-negative integer.")
-        return "cuda", device_idx
-
-    if gpu.count(":") == 1:
-        platform_idx, device_idx = map(int, gpu.split(":"))
-        return "opencl", (platform_idx, device_idx)
-
-    raise ValueError("Invalid --gpu value. Use --gpu, --gpu cuda:N, or --gpu P:D.")
 
 
 def add_computational_resources2parser(p: ArgumentParser):
@@ -321,47 +294,6 @@ def main():
         generate_report(args.directory, args.target.name, args.num, args.delimiter, options=options)
 
 
-def get_opencl_queue(gpu: str) -> "cl.CommandQueue":
-    """Request an OpenCL Queue."""
-    if not opencl_available():
-        msg = "Running on GPU requires the pyopencl package, however importing pyopencl failed."
-        raise ValueError(msg)
-    else:
-        import pyopencl as cl
-    # TODO allow to omit platform, so gpu='4' runs 5th device on first platform
-    if ":" in gpu:
-        platform_idx, device_idx = map(int, gpu.split(":"))
-    else:
-        platform_idx, device_idx = 0, 0
-    platforms = cl.get_platforms()
-    if platform_idx >= len(platforms):
-        raise RuntimeError(f"Requested OpenCL platform {platform_idx} not found.")
-    platform = platforms[platform_idx]
-    devices = platform.get_devices()
-    if device_idx >= len(devices):
-        raise RuntimeError(f"Requested OpenCL device {device_idx} not found on platform {platform_idx}.")
-    context = cl.Context(devices=[devices[device_idx]])
-    return cl.CommandQueue(context, device=devices[device_idx])
-
-
-def get_cuda_stream(device_idx: int):
-    """Request a CUDA stream for a specific device."""
-    if not cuda_available():
-        msg = "Running on CUDA requires the cupy-cuda13x package, however importing cupy failed."
-        raise ValueError(msg)
-
-    import cupy as cp  # pyright: ignore[reportMissingImports]
-
-    device_count = cp.cuda.runtime.getDeviceCount()
-    if device_idx >= device_count:
-        msg = f"Requested CUDA device {device_idx} not found. Available device indices: 0-{device_count - 1}."
-        raise RuntimeError(msg)
-
-    device = cp.cuda.Device(device_idx)
-    device.use()
-    return cp.cuda.Stream()
-
-
 def setup_target(
     target_volume: BinaryIO,
     resolution: float,
@@ -472,14 +404,7 @@ def powerfit(
     time0 = time()
     Path(directory).mkdir(exist_ok=True)
 
-    queue = None
-    cuda_stream = None
-    backend, device = resolve_gpu_backend(gpu)
-    if backend == "opencl":
-        platform_idx, device_idx = cast(tuple[int, int], device)
-        queue = get_opencl_queue(f"{platform_idx}:{device_idx}")
-    elif backend == "cuda":
-        cuda_stream = get_cuda_stream(cast(int, device))
+    opencl_queue, cuda_stream = setup_gpu_backend(gpu)
 
     target = setup_target(target_volume, resolution, no_resampling, resampling_rate, no_trimming, trimming_cutoff)
     structure, template, mask, z_sigma = setup_template_structure(
@@ -487,10 +412,12 @@ def powerfit(
     )
     rotmat = setup_rotational_matrix(angle)
 
-    pf = PowerFitter(target, rotmat, template, mask, queue, nproc, laplace=laplace, cuda_stream=cuda_stream)
-    if backend == "opencl":
+    pf = PowerFitter(
+        target, rotmat, template, mask, nproc=nproc, laplace=laplace, queue=opencl_queue, cuda_stream=cuda_stream
+    )
+    if opencl_queue is not None:
         logger.info("Using OpenCL-accelerated search.")
-    elif backend == "cuda":
+    elif cuda_stream is not None:
         logger.info("Using CUDA-accelerated search.")
     else:
         logger.info(f"Requested number of processors: {nproc:d}")
@@ -549,14 +476,7 @@ def powerfit_many(
     """  # noqa: E501
     time0 = time()
 
-    queue = None
-    cuda_stream = None
-    backend, device = resolve_gpu_backend(gpu)
-    if backend == "opencl":
-        platform_idx, device_idx = cast(tuple[int, int], device)
-        queue = get_opencl_queue(f"{platform_idx}:{device_idx}")
-    elif backend == "cuda":
-        cuda_stream = get_cuda_stream(cast(int, device))
+    opencl_queue, cuda_stream = setup_gpu_backend(gpu)
 
     with target_volume.open("rb") as f:
         target = setup_target(
@@ -574,9 +494,9 @@ def powerfit_many(
             template_vars.append(setup_template_structure(f, None, target, resolution, core_weighted))
     rotmat = setup_rotational_matrix(angle)
 
-    if backend == "opencl":
+    if opencl_queue is not None:
         logger.info("Using OpenCL-accelerated search.")
-    elif backend == "cuda":
+    elif cuda_stream is not None:
         logger.info("Using CUDA-accelerated search.")
     else:
         logger.info(f"Requested number of processors: {nproc}.")
@@ -588,8 +508,17 @@ def powerfit_many(
     pf: PowerFitter | None = None
     for i in range(len(template_vars)):
         _, template, mask, z_sigma = template_vars[i]
-        if pf is None or not reuse or not gpu and nproc > 1:
-            pf = PowerFitter(target, rotmat, template, mask, queue, nproc, laplace=laplace, cuda_stream=cuda_stream)
+        if pf is None or not reuse or (not gpu and nproc > 1):
+            pf = PowerFitter(
+                target,
+                rotmat,
+                template,
+                mask,
+                nproc=nproc,
+                laplace=laplace,
+                queue=opencl_queue,
+                cuda_stream=cuda_stream,
+            )
         else:
             pf.set_template(template, mask)
 

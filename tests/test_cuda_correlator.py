@@ -1,7 +1,7 @@
 import numpy as np
 import pytest
 
-from powerfit_em.helpers import cuda_available
+from powerfit_em.gpu import cuda_available
 from powerfit_em.powerfit import get_cuda_stream
 
 CUDA_AVAILABLE = cuda_available()

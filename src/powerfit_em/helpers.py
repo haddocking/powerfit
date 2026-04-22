@@ -1,6 +1,4 @@
 import logging
-import sys
-from functools import cache
 from importlib.util import find_spec
 from math import sqrt
 
@@ -12,26 +10,6 @@ logger = logging.getLogger(__name__)
 
 def pyfftw_available() -> bool:
     return find_spec("pyfftw") is not None
-
-
-def opencl_available() -> bool:
-    return find_spec("pyopencl") is not None
-
-
-@cache
-def cuda_available() -> bool:
-    """Check if CUDA support is available.
-
-    By checking for the presence of the `cupy` and `pyvkfft.cuda` packages.
-    If `cupy` is found but `pyvkfft.cuda` is not, log a warning and return False.
-    """
-    try:
-        return find_spec("cupy") is not None and find_spec("pyvkfft.cuda") is not None
-    except ValueError:
-        return "cupy" in sys.modules
-    except OSError:
-        logger.warning("pyvkfft CUDA backend is not available. CUDA support will be disabled.")
-        return False
 
 
 def determine_core_indices(mask):

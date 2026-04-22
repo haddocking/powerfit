@@ -3,7 +3,7 @@ import unittest
 import numpy as np
 import pytest
 
-from powerfit_em.helpers import cuda_available, opencl_available
+from powerfit_em.gpu import cuda_available, opencl_available
 from powerfit_em.powerfitter import PowerFitter
 from powerfit_em.volume import Volume
 
