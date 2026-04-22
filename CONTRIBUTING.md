@@ -53,7 +53,7 @@ To create a release you need write permission on the repository.
    pytest -k powerfit_regression -vv --powerfit="--help"
    pytest -k powerfit_regression -vv # Default on 1 CPU
    pytest -k powerfit_regression -vv --powerfit="--nproc 6" # With 6 CPUs
-   pytest -k powerfit_regression -vv --powerfit="--gpu" # With auto detected GPU
+   pytest -k powerfit_regression -vv --powerfit="--gpu --no-progressbar" # With auto detected GPU
    ```
    All tests must pass with numerically matching results (within rounding tolerance). If the baseline fixture requires updates, see [Baseline fixture maintenance](#baseline-fixture-maintenance) section under Development.
 1. Go to the [GitHub release page](https://github.com/haddocking/powerfit/releases)

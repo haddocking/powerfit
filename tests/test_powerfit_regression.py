@@ -47,7 +47,6 @@ def test_powerfit_solutions_match_baseline(
         str(tmp_path),
         "--delimiter",
         ",",
-        "--no-progressbar",
     ]
     args_list.extend(powerfit_args)
 
