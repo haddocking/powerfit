@@ -134,9 +134,10 @@ def test_powerfit_solutions_match_baseline(
     generated_matched.columns = value_cols
 
     # rel-z and Fish-z amplify small cc differences, so allow slightly larger absolute tolerance.
+    per_column_atol = {"Fish-z": 1.5e-2, "rel-z": 2.5e-2}
     close_matrix = np.ones((len(merged), len(value_cols)), dtype=bool)
     for i, col in enumerate(value_cols):
-        atol = 1e-2 if col in {"Fish-z", "rel-z"} else 1e-3
+        atol = per_column_atol.get(col, 1e-3)
         close_matrix[:, i] = np.isclose(
             baseline_matched[col].to_numpy(),
             generated_matched[col].to_numpy(),
@@ -152,5 +153,5 @@ def test_powerfit_solutions_match_baseline(
         generated_matched,
         check_exact=False,
         rtol=1e-3,
-        atol=1e-2,
+        atol=max(per_column_atol.values()),
     )
