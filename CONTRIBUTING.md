@@ -50,9 +50,10 @@ To create a release you need write permission on the repository.
 1. Merge the changes into the main branch.
 1. Run regression tests to verify baseline stability across execution profiles:
    ```shell
-   pytest -k powerfit_regression -vv
-   pytest -k powerfit_regression -vv --powerfit="--nproc 6"
-   pytest -k powerfit_regression -vv --powerfit="--gpu"
+   pytest -k powerfit_regression -vv --powerfit="--help"
+   pytest -k powerfit_regression -vv # Default on 1 CPU
+   pytest -k powerfit_regression -vv --powerfit="--nproc 6" # With 6 CPUs
+   pytest -k powerfit_regression -vv --powerfit="--gpu" # With auto detected GPU
    ```
    All tests must pass with numerically matching results (within rounding tolerance). If the baseline fixture requires updates, see [Baseline fixture maintenance](#baseline-fixture-maintenance) section under Development.
 1. Go to the [GitHub release page](https://github.com/haddocking/powerfit/releases)
@@ -166,26 +167,16 @@ clang-tidy src/powerfit_em/_extensions.c -- \
 
 ### Baseline fixture maintenance
 
-The regression test in `test_powerfit_regression.py` compares `solutions.out` against a cached baseline at `tests/fixtures/solutions.out`. The baseline should remain stable across different execution profiles (CPU nproc 1/N and GPU backends) as results are numerically identical within rounding tolerance.
+The regression test in `test_powerfit_regression.py` compares `solutions.out` against a cached baseline at `tests/fixtures/solutions.out`. The baseline should remain stable across different execution profiles (CPU nproc 1/N and GPU backends).
 
 **If the baseline fixture needs updating:**
 
-1. Run the regression test with your desired execution profile to generate new output:
+1. Run the regression test to generate new output:
    ```shell
-   pytest -k powerfit_regression -vv [--powerfit="<options>"]
+   pytest -k powerfit_regression -vv
    ```
 
 2. Inspect the test failure output to understand what changed and verify it is expected.
-
 3. Manually copy the generated `solutions.out` from the test's temporary directory into `tests/fixtures/solutions.out`.
-
-4. Run the test again across all profiles to confirm they all pass:
-   ```shell
-   pytest -k powerfit_regression -vv
-   pytest -k powerfit_regression -vv --powerfit="--nproc 6"
-   pytest -k powerfit_regression -vv --powerfit="--gpu"
-   ```
-
+4. Run the test again, see [step 5 of "You want to make a new release of the code base" section](#you-want-to-make-a-new-release-of-the-code-base) for example commands.
 5. Commit the updated baseline fixture file as part of your change.
-
-**Note:** Tests never auto-overwrite the baseline. All baseline updates must be reviewed and intentional to maintain test integrity.

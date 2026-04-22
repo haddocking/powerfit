@@ -60,6 +60,13 @@ def add_computational_resources2parser(p: ArgumentParser):
         "The number will be capped at the total number "
         "of available processors on your machine.",
     )
+    p.add_argument(
+        "--progressbar",
+        dest="progressbar",
+        action=BooleanOptionalAction,
+        default=True,
+        help="Show a progress bar during the search. Disabling the progressbar will improve performance.",
+    )
 
 
 def make_parser():
@@ -195,13 +202,6 @@ def make_parser():
         default=None,
         metavar="<str>",
         help="Delimiter used in the 'solutions.out' file. For example use ',' or '\\t'. Defaults to fixed width.",
-    )
-    p.add_argument(
-        "--progressbar",
-        dest="progressbar",
-        action=BooleanOptionalAction,
-        default=True,
-        help="Show a progress bar during the search. Disabling the progressbar will improve performance.",
     )
     p.add_argument(
         "--report",
