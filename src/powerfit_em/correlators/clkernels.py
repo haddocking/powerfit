@@ -19,12 +19,16 @@ class CLKernels:
             ctx,
             """float *gcc, float *ave, float *ave2, int *mask,
                     float norm_factor, int nrot, float *lcc, int *grot""",
-            """float _lcc;
+            """float var;
+                    float score;
                     if (mask[i] > 0) {
-                        _lcc = gcc[i] / sqrt(ave2[i] * norm_factor - ave[i] * ave[i]);
-                        if (_lcc > lcc[i]) {
-                            lcc[i] = _lcc;
-                            grot[i] = nrot;
+                        var = ave2[i] * norm_factor - ave[i] * ave[i];
+                        if (var > 0.0f) {
+                            score = gcc[i] / sqrt(var);
+                            if (score > lcc[i]) {
+                                lcc[i] = score;
+                                grot[i] = nrot;
+                            };
                         };
                     };
                 """,
