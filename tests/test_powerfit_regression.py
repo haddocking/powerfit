@@ -1,10 +1,12 @@
 """Regression tests for PowerFit fitting results."""
 
+from functools import partial
 from pathlib import Path
 
 import pandas as pd
 import pytest
 from pandas.testing import assert_frame_equal
+from tqdm.rich import tqdm as rich_tqdm
 
 from powerfit_em import powerfit
 
@@ -50,26 +52,27 @@ def test_powerfit_solutions_match_baseline(
     ]
     args_list.extend(powerfit_args)
 
-    parsed_args = powerfit.make_parser().parse_args(args_list)
+    args = powerfit.make_parser().parse_args(args_list)
+    progress = partial(rich_tqdm, desc="Processing rotations", unit="rot") if args.progressbar else None
 
     powerfit.powerfit(
-        target_volume=parsed_args.target,
-        resolution=parsed_args.resolution,
-        template_structure=parsed_args.template,
-        angle=parsed_args.angle,
-        laplace=not parsed_args.no_laplace,
-        core_weighted=not parsed_args.no_core_weighted,
-        no_resampling=parsed_args.no_resampling,
-        resampling_rate=parsed_args.resampling_rate,
-        no_trimming=parsed_args.no_trimming,
-        trimming_cutoff=parsed_args.trimming_cutoff,
-        chain=parsed_args.chain,
+        target_volume=args.target,
+        resolution=args.resolution,
+        template_structure=args.template,
+        angle=args.angle,
+        laplace=not args.no_laplace,
+        core_weighted=not args.no_core_weighted,
+        no_resampling=args.no_resampling,
+        resampling_rate=args.resampling_rate,
+        no_trimming=args.no_trimming,
+        trimming_cutoff=args.trimming_cutoff,
+        chain=args.chain,
         directory=str(tmp_path),
-        num=parsed_args.num,
-        gpu=parsed_args.gpu,
-        nproc=parsed_args.nproc,
-        delimiter=parsed_args.delimiter,
-        progress=None,  # Disable progress output for tests
+        num=args.num,
+        gpu=args.gpu,
+        nproc=args.nproc,
+        delimiter=args.delimiter,
+        progress=progress,
     )
 
     generated_file = tmp_path / "solutions.out"
