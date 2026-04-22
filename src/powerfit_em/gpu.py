@@ -13,23 +13,43 @@ if TYPE_CHECKING:
     from pyopencl import CommandQueue
 
 
+@cache
 def opencl_available() -> bool:
-    return find_spec("pyopencl") is not None
+    """Check if OpenCL is available by trying to import pyopencl and checking for devices."""
+    try:
+        from importlib import import_module
+
+        cl = import_module("pyopencl")
+        try:
+            if platforms := cl.get_platforms():
+                for platform in platforms:
+                    if platform.get_devices():
+                        return True
+            return False
+        except cl.LogicError:
+            return False
+    except ModuleNotFoundError:
+        return False
 
 
 @cache
 def cuda_available() -> bool:
-    """Check if CUDA support is available.
+    """Check if CUDA is available by trying to import cupy and pyvkfft.cuda and checking for devices.
 
-    By checking for the presence of the `cupy` and `pyvkfft.cuda` packages.
-    If `cupy` is found but `pyvkfft.cuda` is not, log a warning and return False.
+    pyvkfft can be installed without CUDA support, will warn if that is the case.
     """
     try:
-        return find_spec("cupy") is not None and find_spec("pyvkfft.cuda") is not None
-    except ValueError:
+        from importlib import import_module
+
+        cp = import_module("cupy")
+        import_module("pyvkfft.cuda")
+        return cp.cuda.runtime.getDeviceCount() > 0
+    except ModuleNotFoundError:
         return False
     except OSError:
-        logger.warning("pyvkfft CUDA backend is not available. CUDA support will be disabled.")
+        logger.warning(
+            "pyvkfft CUDA backend is not available. Please make sure pyvkfft is installed with CUDA support."
+        )
         return False
 
 
