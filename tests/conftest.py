@@ -12,6 +12,7 @@ OPENCL_AVAILABLE = opencl_available()
 
 FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
+# The fixtures below where copied from https://github.com/haddocking/powerfit-tutorial
 
 @pytest.fixture(scope="session")
 def ribosome_map() -> Path:
