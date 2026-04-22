@@ -85,7 +85,7 @@ class TestPowerFitterIntegration:
     @pytest.mark.requires_opencl
     @pytest.mark.skipif(not OPENCL_AVAILABLE, reason="OpenCL (pyopencl) not installed")
     def test_opencl_scan_matches_cpu(self):
-        from powerfit_em.powerfit import get_opencl_queue
+        from powerfit_em.gpu import get_opencl_queue
 
         try:
             queue = get_opencl_queue("0:0")
@@ -106,7 +106,7 @@ class TestPowerFitterIntegration:
     @pytest.mark.requires_cuda
     @pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA (cupy) not installed")
     def test_cuda_scan_matches_cpu(self):
-        from powerfit_em.powerfit import get_cuda_stream
+        from powerfit_em.gpu import get_cuda_stream
 
         try:
             stream = get_cuda_stream(0)
