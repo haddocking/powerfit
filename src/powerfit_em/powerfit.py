@@ -238,6 +238,8 @@ def configure_logging(log_file, log_level="INFO"):
     for handler in logging.root.handlers:
         logging.root.removeHandler(handler)
 
+    logging.root.setLevel(log_level)
+
     # Write log messages to a file
     if log_file:
         file_handler = logging.FileHandler(log_file)
@@ -422,7 +424,7 @@ def powerfit(
     else:
         logger.info(f"Requested number of processors: {nproc:d}")
 
-    logger.info("Starting search")
+    logger.info("Starting search, ")
 
     time1 = time()
     pf.scan(progress=progress)
