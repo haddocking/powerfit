@@ -188,7 +188,22 @@ class CUDACorrelator(Correlator):
         mask: np.ndarray,
         cuda_stream: cp.cuda.Stream,
         laplace: bool = False,
+        batch_size: int | None = None,
     ):
+        """GPU-accelerated correlator using CuPy and custom CUDA kernels.
+
+        Args:
+            target: 3-D array representing the target volume.
+            template: 3-D array representing the template volume.
+            rotations: Array of shape (N, 3, 3) containing N rotation matrices
+                to apply to the template and mask.
+            mask: 3-D array representing the mask volume.
+            cuda_stream: CuPy CUDA stream for asynchronous execution.
+            laplace: Whether to apply a Laplacian filter to the target volume.
+            batch_size: If >0, use this fixed batch size for processing rotations.
+                If 0, disable batching and process rotations one-by-one.
+                If None, auto-tune batch size based on available GPU memory.
+        """
         self.target: np.ndarray = target / target.max()
         self.laplace = laplace
         self.rotations = cp.asarray(rotations.reshape(rotations.shape[0], -1), dtype=f32)
@@ -207,16 +222,24 @@ class CUDACorrelator(Correlator):
         self.square = _square
         self.rfftn, self.irfftn = build_cuda_ffts(self.target.shape, self.cuda_stream)
 
-        # --- Batched scan setup ---
-        self.batch_size = _probe_batch_size(self.target.shape)
-        while self.batch_size >= _BATCH_MIN:
-            if self._allocate_batch_buffers(self.batch_size):
-                break
-            self.batch_size //= 2
+        if batch_size == 0:
+            self._use_batch = False
+            self.batch_size = 1  # placeholder; batched buffers/plan not used
+        else:
+            self._use_batch = True
+            if batch_size is None:
+                self.batch_size = _probe_batch_size(self.target.shape)
+            else:
+                self.batch_size = batch_size
+            while self.batch_size >= _BATCH_MIN:
+                if self._allocate_batch_buffers(self.batch_size):
+                    break
+                self.batch_size //= 2
 
-        self._rfftn_batch, self._irfftn_batch = build_cuda_ffts_batched(
-            self.target.shape, self.batch_size, self.cuda_stream
-        )
+        if self._use_batch:
+            self._rfftn_batch, self._irfftn_batch = build_cuda_ffts_batched(
+                self.target.shape, self.batch_size, self.cuda_stream
+            )
 
         with self.cuda_stream:
             self.set_template(template, mask)
@@ -337,8 +360,8 @@ class CUDACorrelator(Correlator):
 
     def scan(self, progress: ProgressFactory | None):
         n_rot = self.rotations.shape[0]
+        use_batch = self._use_batch
         B = self.batch_size
-        logger.info(f"Batching {n_rot} rotations into {n_rot // B} batches. Batch size: {B}.")
         n_full = n_rot // B
         tail_start = n_full * B
 
@@ -346,12 +369,18 @@ class CUDACorrelator(Correlator):
             self.vars.lcc.fill(0)
             self.vars.rot.fill(0)
 
-            for chunk in range(n_full):
-                base = chunk * B
-                self._compute_batch(base, B, self.rotations[base : base + B])
+            if use_batch:
+                logger.info(f"Batching {n_rot} rotations into {n_rot // B} batches. Batch size: {B}.")
+                for chunk in range(n_full):
+                    base = chunk * B
+                    self._compute_batch(base, B, self.rotations[base : base + B])
 
-            # Tail: fewer than B rotations remain — use the single-rotation path.
-            for n in range(tail_start, n_rot):
-                self.compute_rotation(n, self.rotations[n])
+                # Tail: fewer than B rotations remain — use the single-rotation path.
+                for n in range(tail_start, n_rot):
+                    self.compute_rotation(n, self.rotations[n])
+            else:
+                logger.info(f"Processing {n_rot} rotations without batching.")
+                for n in range(0, n_rot):
+                    self.compute_rotation(n, self.rotations[n])
 
         self.retrieve_results()

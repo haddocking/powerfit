@@ -69,6 +69,7 @@ class PowerFitter:
         nproc: int = 1,
         laplace: bool = False,
         cuda_stream: object | None = None,
+        batch_size: int | None = None,
     ):
         self._target = target
         self._rotations = rotations
@@ -78,6 +79,7 @@ class PowerFitter:
         self._nproc = nproc
         self._laplace = laplace
         self._cuda_stream = cuda_stream
+        self._batch_size = batch_size
         self._corr = None
         self._lcc = np.zeros(0, dtype=np.float32)
         self._rot = np.zeros(0, dtype=np.float32)
@@ -136,6 +138,7 @@ class PowerFitter:
                 self._mask.array,
                 self._cuda_stream,
                 self._laplace,
+                batch_size=self._batch_size,
             )
         self._corr.scan(progress)
         self._lcc = self._corr.lcc

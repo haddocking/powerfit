@@ -67,6 +67,19 @@ def add_computational_resources2parser(p: ArgumentParser):
         default=True,
         help="Show a progress bar during the search. Disabling the progressbar will improve performance.",
     )
+    p.add_argument(
+        "--batch-size",
+        dest="batch_size",
+        type=int,
+        default=None,
+        metavar="<int>",
+        help=(
+            "Override the auto-tuned CUDA batch size. "
+            "Use 0 to disable batching entirely, or a positive integer to force a specific batch size. "
+            "Only applies with the CUDA backend. "
+            "Default: auto-tuned based on available VRAM."
+        ),
+    )
 
 
 def make_parser():
@@ -278,6 +291,7 @@ def main():
         num=args.num,
         gpu=args.gpu,
         nproc=args.nproc,
+        batch_size=args.batch_size,
         delimiter=args.delimiter,
         progress=progress,
     )
@@ -400,6 +414,7 @@ def powerfit(
     num: int = 10,
     gpu: str | None = None,
     nproc: int = 1,
+    batch_size: int | None = None,
     delimiter: str | None = None,
     progress: ProgressFactory | None = tqdm,
 ):
@@ -408,6 +423,9 @@ def powerfit(
 
     opencl_queue, cuda_stream = setup_gpu_backend(gpu)
 
+    if batch_size is not None and cuda_stream is None:
+        raise ValueError("--batch-size only applies to the CUDA backend. Use --gpu cuda:N to enable CUDA.")
+
     target = setup_target(target_volume, resolution, no_resampling, resampling_rate, no_trimming, trimming_cutoff)
     structure, template, mask, z_sigma = setup_template_structure(
         template_structure, chain, target, resolution, core_weighted
@@ -415,7 +433,15 @@ def powerfit(
     rotmat = setup_rotational_matrix(angle)
 
     pf = PowerFitter(
-        target, rotmat, template, mask, nproc=nproc, laplace=laplace, queue=opencl_queue, cuda_stream=cuda_stream
+        target,
+        rotmat,
+        template,
+        mask,
+        nproc=nproc,
+        laplace=laplace,
+        queue=opencl_queue,
+        cuda_stream=cuda_stream,
+        batch_size=batch_size,
     )
     if opencl_queue is not None:
         logger.info("Using OpenCL-accelerated search.")
@@ -469,6 +495,7 @@ def powerfit_many(
     gpu: str | None = None,
     reuse: bool = True,
     nproc: int = 1,
+    batch_size: int | None = None,
 ) -> list[list[list[float]]]:
     """Run powerfit on multiple templates, returning the solution table for each.
 
@@ -479,6 +506,9 @@ def powerfit_many(
     time0 = time()
 
     opencl_queue, cuda_stream = setup_gpu_backend(gpu)
+
+    if batch_size is not None and cuda_stream is None:
+        raise ValueError("--batch-size only applies to the CUDA backend.")
 
     with target_volume.open("rb") as f:
         target = setup_target(
@@ -520,6 +550,7 @@ def powerfit_many(
                 laplace=laplace,
                 queue=opencl_queue,
                 cuda_stream=cuda_stream,
+                batch_size=batch_size,
             )
         else:
             pf.set_template(template, mask)
