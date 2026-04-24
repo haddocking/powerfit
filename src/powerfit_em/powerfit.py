@@ -424,7 +424,7 @@ def powerfit(
     else:
         logger.info(f"Requested number of processors: {nproc:d}")
 
-    logger.info("Starting search, ")
+    logger.info("Starting search")
 
     time1 = time()
     pf.scan(progress=progress)
