@@ -107,7 +107,12 @@ def _probe_batch_size(vol_shape: tuple) -> int:
     # Never exceed 90% of what's currently free to avoid OOM from driver overhead.
     budget = min(budget, int(free_mem * 0.90))
     batch = max(_BATCH_MIN, min(_BATCH_MAX, budget // bytes_per_rot))
-    return int(batch)
+    # CUDA hard limit: gridDim.z <= 65535. The batch kernel packs (batch * Z)
+    # into the Z grid dimension using block size 4 (CUDAKernels._block[2]).
+    _BLOCK_Z = 4
+    _MAX_GRID_Z = 65535
+    batch = min(batch, (_MAX_GRID_Z * _BLOCK_Z) // z)
+    return max(_BATCH_MIN, int(batch))
 
 
 def build_cuda_lcc_kernel():
