@@ -208,6 +208,3 @@ class OpenCLCorrelator(Correlator):
                 self.compute_rotation(n, self._rotations[n])
                 self.queue.finish()
         self.retrieve_results()
-
-
-GPUCorrelator = OpenCLCorrelator
