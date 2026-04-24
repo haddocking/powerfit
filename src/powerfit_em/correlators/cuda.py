@@ -276,15 +276,7 @@ class CUDACorrelator(Correlator):
         )
 
     def _compute_batch(self, batch_start: int, batch_size: int, rotmats: cp.ndarray):
-        """Compute correlation for *batch_size* rotations and reduce to global best.
-
-        This batched path combines the per-rotation steps from the base
-        ``Correlator`` pipeline:
-        - ``compute_gcc``
-        - ``compute_sq_avg_density``
-        - ``compute_avg_sq_density``
-        - ``compute_lcc_score_and_take_best``
-        """
+        """Compute correlation for *batch_size* rotations and reduce to global best."""
         # Rotate template (linear interp) and mask (nearest) for the whole batch.
         self.cuda_kernels.rotate_image3d_batch(self.vars.template, rotmats, self._batch_rot_template, batch_size)
         self.cuda_kernels.rotate_image3d_batch(self.vars.mask, rotmats, self._batch_rot_mask, batch_size, nearest=True)
