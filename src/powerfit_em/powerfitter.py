@@ -112,7 +112,9 @@ class PowerFitter:
     def _opencl_scan(self, progress: ProgressFactory | None):
         from powerfit_em.correlators.opencl import OpenCLCorrelator
 
-        assert self._queue is not None
+        if self._queue is None:
+            msg = "OpenCL queue is required for OpenCL scan."
+            raise ValueError(msg)
         if self._corr is None:
             self._corr = OpenCLCorrelator(
                 self._target.array,
@@ -129,7 +131,9 @@ class PowerFitter:
     def _cuda_scan(self, progress: ProgressFactory | None):
         from powerfit_em.correlators.cuda import CUDACorrelator
 
-        assert self._cuda_stream is not None
+        if self._cuda_stream is None:
+            msg = "CUDA stream is required for CUDA scan."
+            raise ValueError(msg)
         if self._corr is None:
             self._corr = CUDACorrelator(
                 self._target.array,

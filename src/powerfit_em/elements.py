@@ -280,10 +280,14 @@ class Element:
 
     def validate(self):
         """Check consistency of data. Raise Error on failure."""
-        assert self.period in PERIODS
-        assert self.group in GROUPS
-        assert self.block in BLOCKS
-        assert self.series in SERIES
+        if self.period not in PERIODS:
+            raise ValueError("%s - invalid period" % self.symbol)  # noqa: UP031
+        if self.group not in GROUPS:
+            raise ValueError("%s - invalid group" % self.symbol)  # noqa: UP031
+        if self.block not in BLOCKS:
+            raise ValueError("%s - invalid block" % self.symbol)  # noqa: UP031
+        if self.series not in SERIES:
+            raise ValueError("%s - invalid series" % self.symbol)  # noqa: UP031
 
         if self.number != self.protons:
             raise ValueError("%s - atomic number must equal proton number" % self.symbol)  # noqa: UP031

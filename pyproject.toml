@@ -113,8 +113,13 @@ select = [
     "SIM",
     # isort
     "I",
+    # flake8-bandit assert
+    "S101",
 ]
 pydocstyle.convention = "google"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["powerfit_em"]
