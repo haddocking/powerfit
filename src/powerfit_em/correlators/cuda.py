@@ -109,6 +109,8 @@ def _probe_batch_size(vol_shape: tuple) -> int:
     batch = max(_BATCH_MIN, min(_BATCH_MAX, budget // bytes_per_rot))
     # CUDA hard limit: gridDim.z <= 65535. The batch kernel packs (batch * Z)
     # into the Z grid dimension using block size 4 (CUDAKernels._block[2]).
+    # See https://docs.nvidia.com/cuda/cuda-c-programming-guide/#features-and-technical-specifications
+    # ("Maximum y- or z-dimension of a grid of thread blocks: 65535")
     _BLOCK_Z = 4
     _MAX_GRID_Z = 65535
     batch = min(batch, (_MAX_GRID_Z * _BLOCK_Z) // z)
