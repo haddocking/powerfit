@@ -500,9 +500,34 @@ def powerfit_many(
     """Run powerfit on multiple templates, returning the solution table for each.
 
     For a slight efficiency boost, and to avoid continuously creating many new OpenCL
-    queues, the queues are reused. This can be disabled by setting reuse=False
-    Outer list is same order as template_structures. Middle list is ordered on cc score. Inner list is the data for a solution.  Each solution has the following columns: cc Fish-z rel-z x y z a11 a12 a13 a21 a22 a23 a31 a32 a33.
-    """  # noqa: E501
+    queues, the queues are reused, same for CUDA streams.
+
+    Args:
+        target_volume: Path to the target density map.
+        resolution: Resolution of the target map in angstrom.
+        template_structures: List of paths to the template structures to be fitted.
+        angle: Rotational sampling density in degree.
+        laplace: Whether to use the Laplace pre-filter density data for scoring.
+        core_weighted: Whether to use core-weighted local cross-correlation score.
+        no_resampling: Whether to skip resampling of the target density map.
+        resampling_rate: Resampling rate compared to Nyquist. Only applies if no_resampling is False.
+        no_trimming: Whether to skip trimming of the target density map.
+        trimming_cutoff: Intensity cutoff to which the map will be trimmed. Only applies if
+            no_trimming is False. Default is 10 percent of maximum intensity.
+        gpu: GPU backend to use. Use "auto" for automatic backend selection,
+            "cuda:N" for CUDA device N, or "P:D" for OpenCL platform P and device D. If None, does not use GPU.
+        reuse: Whether to reuse GPU resources (OpenCL queues, CUDA streams) across multiple template structures.
+        nproc: Number of processors used during search.
+        batch_size: Override the auto-tuned CUDA batch size.
+            Use 0 to disable batching entirely, or a positive integer to force a specific batch size.
+
+    Returns:
+        Solutions for each template structure.
+        Outer list is same order as template_structures.
+        Middle list is ordered on cc score.
+        Inner list is the data for a solution.
+        Each solution has the following columns: cc Fish-z rel-z x y z a11 a12 a13 a21 a22 a23 a31 a32 a33.
+    """
     time0 = time()
 
     opencl_queue, cuda_stream = setup_gpu_backend(gpu)
