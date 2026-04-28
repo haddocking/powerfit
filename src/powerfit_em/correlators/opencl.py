@@ -303,6 +303,7 @@ class OpenCLBatchedCorrelator(Correlator):
         self.norm_factor = 0.0  # to be set by set_template
 
         self._rotations = transform_rotations(rotations)
+        self._rotations_gpu = cl_array.to_device(self.queue, self._rotations)
         self._volume_size = int(np.prod(self.target.shape))
         self._ft_vol_size = int(np.prod(get_ft_shape(self.target)))
 
@@ -381,23 +382,22 @@ class OpenCLBatchedCorrelator(Correlator):
         if batch_size > self.batch_size:
             raise ValueError("batch_size exceeds allocated OpenCL batch buffers.")
 
-        rotmats = cl_array.to_device(self.queue, self._rotations[batch_start : batch_start + batch_size])
         self.vars.rot_template.fill(0)
         self.vars.rot_mask.fill(0)
 
         self.cl_kernels.rotate_image3d_batch(
             self.queue,
             self.vars.template,
-            rotmats,
-            0,
+            self._rotations_gpu,
+            batch_start,
             batch_size,
             self.vars.rot_template,
         )
         self.cl_kernels.rotate_image3d_batch(
             self.queue,
             self.vars.mask,
-            rotmats,
-            0,
+            self._rotations_gpu,
+            batch_start,
             batch_size,
             self.vars.rot_mask,
             nearest=True,
