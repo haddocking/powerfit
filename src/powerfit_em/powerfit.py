@@ -427,6 +427,8 @@ def powerfit(
 
     if batch_size is not None and opencl_queue is None and cuda_stream is None:
         raise ValueError("--batch-size only applies to GPU backends. Set --gpu to use CUDA or OpenCL.")
+    if batch_size is not None and batch_size < 0:
+        raise ValueError("--batch-size must be a non-negative integer. Use 0 to disable batching.")
 
     target = setup_target(target_volume, resolution, no_resampling, resampling_rate, no_trimming, trimming_cutoff)
     structure, template, mask, z_sigma = setup_template_structure(
