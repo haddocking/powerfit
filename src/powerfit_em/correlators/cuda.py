@@ -8,7 +8,6 @@ from scipy.ndimage import laplace as laplace_filter
 from powerfit_em.correlators.cudakernels import CUDAKernels
 from powerfit_em.correlators.shared import (
     Correlator,
-    ProgressFactory,
     Vars,
     VarsFT,
     f32,
@@ -358,7 +357,7 @@ class CUDACorrelator(Correlator):
         self.lcc = cp.asnumpy(self.vars.lcc)
         self.rot = cp.asnumpy(self.vars.rot)
 
-    def scan(self, progress: ProgressFactory | None):
+    def scan(self):  # pyright: ignore[reportIncompatibleMethodOverride]
         n_rot = self.rotations.shape[0]
         use_batch = self._use_batch
         B = self.batch_size

@@ -54,8 +54,8 @@ def test_scan_matches_cpu_correlator(cuda_stream):
     cpu_corr = CPUCorrelator(target, template, rotations, mask, laplace=False)
     cuda_corr = CUDACorrelator(target, template, rotations, mask, cuda_stream, laplace=False)
 
-    cpu_corr.scan(progress=None)
-    cuda_corr.scan(progress=None)
+    cpu_corr.scan()
+    cuda_corr.scan()
 
     assert np.allclose(cpu_corr.lcc, cuda_corr.lcc, atol=1e-4, rtol=1e-4)
     assert np.array_equal(cpu_corr.rot, cuda_corr.rot)
@@ -81,8 +81,8 @@ def test_scan_batch_size_zero_matches_cpu(cuda_stream):
     cpu_corr = CPUCorrelator(target, template, rotations, mask, laplace=False)
     cuda_corr = CUDACorrelator(target, template, rotations, mask, cuda_stream, laplace=False, batch_size=0)
 
-    cpu_corr.scan(progress=None)
-    cuda_corr.scan(progress=None)
+    cpu_corr.scan()
+    cuda_corr.scan()
 
     assert np.allclose(cpu_corr.lcc, cuda_corr.lcc, atol=1e-4, rtol=1e-4)
     assert np.array_equal(cpu_corr.rot, cuda_corr.rot)
@@ -94,8 +94,8 @@ def test_scan_forced_batch_size_matches_cpu(cuda_stream):
     cpu_corr = CPUCorrelator(target, template, rotations, mask, laplace=False)
     cuda_corr = CUDACorrelator(target, template, rotations, mask, cuda_stream, laplace=False, batch_size=1)
 
-    cpu_corr.scan(progress=None)
-    cuda_corr.scan(progress=None)
+    cpu_corr.scan()
+    cuda_corr.scan()
 
     assert np.allclose(cpu_corr.lcc, cuda_corr.lcc, atol=1e-4, rtol=1e-4)
     assert np.array_equal(cpu_corr.rot, cuda_corr.rot)

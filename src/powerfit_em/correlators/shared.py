@@ -194,5 +194,5 @@ class Correlator(ABC):
         self.compute_lcc_score_and_take_best(n)
 
     @abstractmethod
-    def scan(self, progress: ProgressFactory | None):
+    def scan(self, progress: ProgressFactory | None = None):
         pass

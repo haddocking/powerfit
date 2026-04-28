@@ -3,7 +3,7 @@
 
 import logging
 import warnings
-from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, BooleanOptionalAction, FileType
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, FileType
 from functools import partial
 from os.path import abspath, join, splitext
 from pathlib import Path
@@ -13,7 +13,6 @@ from typing import BinaryIO
 import numpy as np
 from rich.logging import RichHandler
 from tqdm import TqdmExperimentalWarning
-from tqdm.auto import tqdm
 from tqdm.rich import tqdm as rich_tqdm
 
 from powerfit_em import (
@@ -63,9 +62,9 @@ def add_computational_resources2parser(p: ArgumentParser):
     p.add_argument(
         "--progressbar",
         dest="progressbar",
-        action=BooleanOptionalAction,
-        default=True,
-        help="Show a progress bar during the search. Disabling the progressbar will improve performance.",
+        action="store_true",
+        default=False,
+        help="Show a progress bar during the search (CPU only). Enabling the progressbar may reduce performance.",
     )
     p.add_argument(
         "--batch-size",
@@ -273,6 +272,9 @@ def main():
     Path(args.directory).mkdir(exist_ok=True)
     configure_logging(join(args.directory, "powerfit.log"), args.log_level)
 
+    if args.progressbar and args.gpu is not None:
+        raise ValueError("--progressbar cannot be used with --gpu. Progress bars are only supported for CPU backends.")
+
     progress = partial(rich_tqdm, desc="Processing rotations", unit="rot") if args.progressbar else None
 
     powerfit(
@@ -416,7 +418,7 @@ def powerfit(
     nproc: int = 1,
     batch_size: int | None = None,
     delimiter: str | None = None,
-    progress: ProgressFactory | None = tqdm,
+    progress: ProgressFactory | None = None,
 ):
     time0 = time()
     Path(directory).mkdir(exist_ok=True)

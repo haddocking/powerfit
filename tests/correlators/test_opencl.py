@@ -39,8 +39,8 @@ def test_scan_batch_size_zero_matches_cpu(opencl_queue):
     cpu_corr = CPUCorrelator(target, template, rotations, mask, laplace=False)
     ocl_corr = OpenCLCorrelator(target, template, rotations, mask, opencl_queue, laplace=False, batch_size=0)
 
-    cpu_corr.scan(progress=None)
-    ocl_corr.scan(progress=None)
+    cpu_corr.scan()
+    ocl_corr.scan()
 
     assert np.allclose(cpu_corr.lcc, ocl_corr.lcc, atol=1e-4, rtol=1e-4)
     assert np.array_equal(cpu_corr.rot, ocl_corr.rot)
@@ -53,7 +53,7 @@ def test_scan_forced_batch_size_matches_cpu(opencl_queue):
     ocl_corr = OpenCLCorrelator(target, template, rotations, mask, opencl_queue, laplace=False, batch_size=1)
 
     cpu_corr.scan(progress=None)
-    ocl_corr.scan(progress=None)
+    ocl_corr.scan()
 
     assert np.allclose(cpu_corr.lcc, ocl_corr.lcc, atol=1e-4, rtol=1e-4)
     assert np.array_equal(cpu_corr.rot, ocl_corr.rot)
@@ -65,9 +65,8 @@ def test_scan_batch_size_two_matches_cpu(opencl_queue):
     cpu_corr = CPUCorrelator(target, template, rotations, mask, laplace=False)
     ocl_corr = OpenCLCorrelator(target, template, rotations, mask, opencl_queue, laplace=False, batch_size=2)
 
-    cpu_corr.scan(progress=None)
-    ocl_corr.scan(progress=None)
+    cpu_corr.scan()
+    ocl_corr.scan()
 
     assert np.allclose(cpu_corr.lcc, ocl_corr.lcc, atol=1e-4, rtol=1e-4)
-    assert np.array_equal(cpu_corr.rot, ocl_corr.rot)
     assert np.array_equal(cpu_corr.rot, ocl_corr.rot)

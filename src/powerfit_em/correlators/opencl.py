@@ -11,7 +11,6 @@ from scipy.ndimage import laplace as laplace_filter
 from powerfit_em.correlators.clkernels import CLKernels
 from powerfit_em.correlators.shared import (
     Correlator,
-    ProgressFactory,
     Vars,
     VarsFT,
     f32,
@@ -345,14 +344,13 @@ class OpenCLCorrelator(Correlator):
         self.vars.rot.get(ary=self.rot)
         self.queue.finish()
 
-    def scan(self, progress: ProgressFactory | None):
+    def scan(self):  # pyright: ignore[reportIncompatibleMethodOverride]
         """Scan all provided rotations to find the best fit."""
         self.vars.lcc.fill(0)
         self.vars.rot.fill(0)
 
         n_rot = self._rotations.shape[0]
-        _range = range(0, n_rot)
-        if progress is None and self._use_batch:
+        if self._use_batch:
             batch = self.batch_size
             n_full = n_rot // batch
             logger.info(f"Batching {n_rot} rotations into {n_full} batches. Batch size: {batch}.")
@@ -361,13 +359,8 @@ class OpenCLCorrelator(Correlator):
                 self._compute_batch(base, batch)
             for n in range(n_full * batch, n_rot):
                 self.compute_rotation(n, self._rotations[n])
-        elif progress is None:
-            logger.info(f"Processing {n_rot} rotations without batching.")
-            for n in _range:
-                self.compute_rotation(n, self._rotations[n])
         else:
             logger.info(f"Processing {n_rot} rotations without batching.")
-            for n in progress(_range):
+            for n in range(0, n_rot):
                 self.compute_rotation(n, self._rotations[n])
-                self.queue.finish()
         self.retrieve_results()

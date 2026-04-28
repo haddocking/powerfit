@@ -92,11 +92,11 @@ class PowerFitter:
     def rot(self):
         return self._rot.copy()
 
-    def scan(self, progress: ProgressFactory | None):
+    def scan(self, progress: ProgressFactory | None = None):
         if self._queue is not None:
-            self._opencl_scan(progress)
+            self._opencl_scan()
         elif self._cuda_stream is not None:
-            self._cuda_scan(progress)
+            self._cuda_scan()
         else:
             if self._nproc == 1:
                 self._single_cpu_scan(progress)
@@ -109,7 +109,7 @@ class PowerFitter:
             raise ValueError(msg)
         self._corr.set_template(template.array, mask.array)
 
-    def _opencl_scan(self, progress: ProgressFactory | None):
+    def _opencl_scan(self):
         from powerfit_em.correlators.opencl import OpenCLCorrelator
 
         if self._queue is None:
@@ -125,11 +125,11 @@ class PowerFitter:
                 self._laplace,
                 batch_size=self._batch_size,
             )
-        self._corr.scan(progress)
+        self._corr.scan()
         self._lcc = self._corr.lcc
         self._rot = self._corr.rot
 
-    def _cuda_scan(self, progress: ProgressFactory | None):
+    def _cuda_scan(self):
         from powerfit_em.correlators.cuda import CUDACorrelator
 
         if self._cuda_stream is None:
@@ -145,7 +145,7 @@ class PowerFitter:
                 self._laplace,
                 batch_size=self._batch_size,
             )
-        self._corr.scan(progress)
+        self._corr.scan()
         self._lcc = self._corr.lcc
         self._rot = self._corr.rot
 
