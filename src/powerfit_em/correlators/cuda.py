@@ -184,7 +184,13 @@ def init_cuda_vars(
     return vars, vars_ft
 
 
-class CUDACorrelator(Correlator):
+class CUDASerialCorrelator(Correlator):
+    """GPU-accelerated correlator that processes rotations one-by-one.
+
+    No batch buffers are allocated; each rotation is processed individually.
+    Use this class when memory is constrained or batch overhead is undesirable.
+    """
+
     def __init__(
         self,
         target: np.ndarray,
@@ -193,22 +199,7 @@ class CUDACorrelator(Correlator):
         mask: np.ndarray,
         cuda_stream: cp.cuda.Stream,
         laplace: bool = False,
-        batch_size: int | None = None,
     ):
-        """GPU-accelerated correlator using CuPy and custom CUDA kernels.
-
-        Args:
-            target: 3-D array representing the target volume.
-            template: 3-D array representing the template volume.
-            rotations: Array of shape (N, 3, 3) containing N rotation matrices
-                to apply to the template and mask.
-            mask: 3-D array representing the mask volume.
-            cuda_stream: CuPy CUDA stream for asynchronous execution.
-            laplace: Whether to apply a Laplacian filter to the target volume.
-            batch_size: If >0, use this fixed batch size for processing rotations.
-                If 0, disable batching and process rotations one-by-one.
-                If None, auto-tune batch size based on available GPU memory.
-        """
         self.target: np.ndarray = target / target.max()
         self.laplace = laplace
         self.rotations = cp.asarray(rotations.reshape(rotations.shape[0], -1), dtype=f32)
@@ -221,29 +212,10 @@ class CUDACorrelator(Correlator):
         self._volume_size = int(np.prod(self.target.shape))
         self.cuda_kernels = CUDAKernels(self.target.shape)
         self.lcc_kernel = build_cuda_lcc_kernel()
-        self._batch_lcc_kernel = self.cuda_kernels.batch_lcc_kernel
         self.conj_multiply_kernel = build_cuda_conj_multiply_kernel()
 
         self.square = _square
         self.rfftn, self.irfftn = build_cuda_ffts(self.target.shape, self.cuda_stream)
-
-        if batch_size == 0:
-            self._use_batch = False
-            self.batch_size = 1  # placeholder; batched buffers/plan not used
-        else:
-            self._use_batch = True
-            if batch_size is None:
-                self.batch_size = _probe_batch_size(self.target.shape)
-            else:
-                if batch_size < 0:
-                    raise ValueError("batch_size must be >= 0.")
-                self.batch_size = batch_size
-            self._allocate_batch_buffers()
-
-        if self._use_batch:
-            self._rfftn_batch, self._irfftn_batch = build_cuda_ffts_batched(
-                self.target.shape, self.batch_size, self.cuda_stream
-            )
 
         with self.cuda_stream:
             self.set_template(template, mask)
@@ -251,31 +223,6 @@ class CUDACorrelator(Correlator):
             self.square(self.vars.target, self.vars.target2)
             self.rfftn(self.vars.target2, self.vars_ft.target2)
         self._synchronize()
-
-    def _allocate_batch_buffers(self):
-        """Allocate GPU buffers for *batch_size* parallel rotations; raises on OOM."""
-        try:
-            vol = self.target.shape
-            ft = get_ft_shape(self.target)
-            bvol = (self.batch_size,) + vol
-            bft = (self.batch_size,) + ft
-            self._batch_rot_template = cp.zeros(bvol, dtype=f32)
-            self._batch_rot_mask = cp.zeros(bvol, dtype=f32)
-            self._batch_rot_mask2 = cp.zeros(bvol, dtype=f32)
-            self._batch_gcc = cp.zeros(bvol, dtype=f32)
-            self._batch_ave = cp.zeros(bvol, dtype=f32)
-            self._batch_ave2 = cp.zeros(bvol, dtype=f32)
-            self._batch_template_ft = cp.zeros(bft, dtype=cp.complex64)
-            self._batch_mask_ft = cp.zeros(bft, dtype=cp.complex64)
-            self._batch_mask2_ft = cp.zeros(bft, dtype=cp.complex64)
-            self._batch_gcc_ft = cp.zeros(bft, dtype=cp.complex64)
-            self._batch_ave_ft = cp.zeros(bft, dtype=cp.complex64)
-            self._batch_ave2_ft = cp.zeros(bft, dtype=cp.complex64)
-        except cp.cuda.memory.OutOfMemoryError as exc:
-            raise RuntimeError(
-                f"Failed to allocate CUDA batch buffers for batch_size={self.batch_size}. "
-                "Reduce --batch-size or disable batching with --batch-size 0."
-            ) from exc
 
     def _synchronize(self):
         self.cuda_stream.synchronize()
@@ -308,32 +255,175 @@ class CUDACorrelator(Correlator):
             self.vars.rot,
         )
 
+    def retrieve_results(self):
+        self._synchronize()
+        self.lcc = cp.asnumpy(self.vars.lcc)
+        self.rot = cp.asnumpy(self.vars.rot)
+
+    def scan(self):  # pyright: ignore[reportIncompatibleMethodOverride]
+        n_rot = self.rotations.shape[0]
+        with self.cuda_stream:
+            self.vars.lcc.fill(0)
+            self.vars.rot.fill(0)
+            logger.info(f"Processing {n_rot} rotations without batching.")
+            for n in range(n_rot):
+                self.compute_rotation(n, self.rotations[n])
+        self.retrieve_results()
+
+
+class CUDABatchedCorrelator(Correlator):
+    """GPU-accelerated correlator that processes rotations in batches.
+
+    Batch buffers are allocated upfront and rotations are processed in groups
+    for higher GPU throughput.
+    """
+
+    def __init__(
+        self,
+        target: np.ndarray,
+        template: np.ndarray,
+        rotations: np.ndarray,
+        mask: np.ndarray,
+        cuda_stream: cp.cuda.Stream,
+        laplace: bool = False,
+        batch_size: int | None = None,
+    ):
+        """GPU-accelerated batched correlator using CuPy and custom CUDA kernels.
+
+        Args:
+            target: 3-D array representing the target volume.
+            template: 3-D array representing the template volume.
+            rotations: Array of shape (N, 3, 3) containing N rotation matrices
+                to apply to the template and mask.
+            mask: 3-D array representing the mask volume.
+            cuda_stream: CuPy CUDA stream for asynchronous execution.
+            laplace: Whether to apply a Laplacian filter to the target volume.
+            batch_size: Number of rotations per batch. If None, auto-tune from
+                available GPU memory. Must be > 0; use CUDASerialCorrelator for
+                serial processing.
+        """
+        if batch_size is not None and batch_size <= 0:
+            raise ValueError(
+                "batch_size must be > 0 for CUDABatchedCorrelator. Use CUDASerialCorrelator for serial processing."
+            )
+
+        self.target: np.ndarray = target / target.max()
+        self.laplace = laplace
+        self.rotations = cp.asarray(rotations.reshape(rotations.shape[0], -1), dtype=f32)
+        self.cuda_stream = cuda_stream
+
+        self.lcc = np.zeros(self.target.shape, dtype=f32)
+        self.rot = np.zeros(self.target.shape, dtype=i32)
+        self._volume_size = int(np.prod(self.target.shape))
+        self.cuda_kernels = CUDAKernels(self.target.shape)
+        self._batch_lcc_kernel = self.cuda_kernels.batch_lcc_kernel
+        self.conj_multiply_kernel = build_cuda_conj_multiply_kernel()
+
+        self.square = _square
+        self.rfftn, self.irfftn = build_cuda_ffts(self.target.shape, self.cuda_stream)
+
+        if batch_size is None:
+            self.batch_size = _probe_batch_size(self.target.shape)
+        else:
+            self.batch_size = batch_size
+
+        self._allocate_batch_buffers()
+        self._rfftn_batch, self._irfftn_batch = build_cuda_ffts_batched(
+            self.target.shape, self.batch_size, self.cuda_stream
+        )
+
+        with self.cuda_stream:
+            self.set_template(template, mask)
+            self.rfftn(self.vars.target, self.vars_ft.target)
+            self.square(self.vars.target, self.vars.target2)
+            self.rfftn(self.vars.target2, self.vars_ft.target2)
+        self._synchronize()
+
+    def _allocate_batch_buffers(self):
+        """Allocate GPU arrays needed by the batched path; raises on OOM."""
+        try:
+            vol = self.target.shape
+            ft = get_ft_shape(self.target)
+            bvol = (self.batch_size,) + vol
+            bft = (self.batch_size,) + ft
+
+            lcc_mask = get_lcc_mask(self.target)
+            filtered_target = laplace_filter(self.target, mode="wrap") if self.laplace else self.target
+            zeros = cp.zeros(vol, dtype=f32)
+            zeros_ft = cp.zeros(ft, dtype=cp.complex64)
+            self.vars = Vars(
+                target=cp.asarray(filtered_target.astype(f32)),
+                template=zeros.copy(),
+                mask=zeros.copy(),
+                lcc_mask=cp.asarray(lcc_mask.astype(i32)),
+                target2=zeros.copy(),
+                rot_template=cp.zeros(bvol, dtype=f32),
+                rot_mask=cp.zeros(bvol, dtype=f32),
+                rot_mask2=cp.zeros(bvol, dtype=f32),
+                gcc=cp.zeros(bvol, dtype=f32),
+                ave=cp.zeros(bvol, dtype=f32),
+                ave2=cp.zeros(bvol, dtype=f32),
+                lcc=cp.zeros(vol, dtype=f32),
+                rot=cp.zeros(vol, dtype=i32),
+            )
+            self.vars_ft = VarsFT(
+                target=zeros_ft.copy(),
+                target2=zeros_ft.copy(),
+                template=cp.zeros(bft, dtype=cp.complex64),
+                mask=cp.zeros(bft, dtype=cp.complex64),
+                mask2=cp.zeros(bft, dtype=cp.complex64),
+                ave=cp.zeros(bft, dtype=cp.complex64),
+                ave2=cp.zeros(bft, dtype=cp.complex64),
+                lcc=cp.zeros(0, dtype=cp.complex64),
+                gcc=cp.zeros(bft, dtype=cp.complex64),
+            )
+        except cp.cuda.memory.OutOfMemoryError as exc:
+            raise RuntimeError(
+                f"Failed to allocate CUDA batch buffers for batch_size={self.batch_size}. "
+                "Reduce --batch-size or disable batching with --batch-size 0."
+            ) from exc
+
+    def _synchronize(self):
+        self.cuda_stream.synchronize()
+
+    def _set_template_var(self, template: np.ndarray):
+        self.vars.template = cp.asarray(template, dtype=f32)
+
+    def _set_mask_var(self, mask: np.ndarray):
+        self.vars.mask = cp.asarray(mask, dtype=f32)
+
+    def rotate_grids(self, rotmat: np.ndarray):
+        raise NotImplementedError("rotate_grids is not used in the batched correlator.")
+
+    def compute_lcc_score_and_take_best(self, n: int):
+        raise NotImplementedError("compute_lcc_score_and_take_best is not used in the batched correlator.")
+
     def _compute_batch(self, batch_start: int, batch_size: int, rotmats: cp.ndarray):
         """Compute correlation for *batch_size* rotations and reduce to global best."""
         # Rotate template (linear interp) and mask (nearest) for the whole batch.
-        self.cuda_kernels.rotate_image3d_batch(self.vars.template, rotmats, self._batch_rot_template, batch_size)
-        self.cuda_kernels.rotate_image3d_batch(self.vars.mask, rotmats, self._batch_rot_mask, batch_size, nearest=True)
+        self.cuda_kernels.rotate_image3d_batch(self.vars.template, rotmats, self.vars.rot_template, batch_size)
+        self.cuda_kernels.rotate_image3d_batch(self.vars.mask, rotmats, self.vars.rot_mask, batch_size, nearest=True)
 
         # Batched equivalent of Correlator.compute_gcc().
         # GCC: rfftn(rot_template) then conj-multiply with target_ft, then irfftn.
         # self.vars_ft.target has shape (Z, Y, X//2+1); the ElementwiseKernel
         # broadcasts it over the leading batch axis automatically.
-        self._rfftn_batch(self._batch_rot_template, self._batch_template_ft)
-        self.conj_multiply_kernel(self._batch_template_ft, self.vars_ft.target, self._batch_gcc_ft)
-        self._irfftn_batch(self._batch_gcc_ft, self._batch_gcc)
+        self._rfftn_batch(self.vars.rot_template, self.vars_ft.template)
+        self.conj_multiply_kernel(self.vars_ft.template, self.vars_ft.target, self.vars_ft.gcc)
+        self._irfftn_batch(self.vars_ft.gcc, self.vars.gcc)
 
         # Batched equivalent of Correlator.compute_sq_avg_density().
         # ave: rfftn(rot_mask), conj-multiply with target_ft, irfftn.
-        self._rfftn_batch(self._batch_rot_mask, self._batch_mask_ft)
-        self.conj_multiply_kernel(self._batch_mask_ft, self.vars_ft.target, self._batch_ave_ft)
-        self._irfftn_batch(self._batch_ave_ft, self._batch_ave)
+        self._rfftn_batch(self.vars.rot_mask, self.vars_ft.mask)
+        self.conj_multiply_kernel(self.vars_ft.mask, self.vars_ft.target, self.vars_ft.ave)
+        self._irfftn_batch(self.vars_ft.ave, self.vars.ave)
 
         # Batched equivalent of Correlator.compute_avg_sq_density().
         # ave2: square(rot_mask), rfftn, conj-multiply with target2_ft, irfftn.
-        cp.square(self._batch_rot_mask, out=self._batch_rot_mask2)
-        self._rfftn_batch(self._batch_rot_mask2, self._batch_mask2_ft)
-        self.conj_multiply_kernel(self._batch_mask2_ft, self.vars_ft.target2, self._batch_ave2_ft)
-        self._irfftn_batch(self._batch_ave2_ft, self._batch_ave2)
+        cp.square(self.vars.rot_mask, out=self.vars.rot_mask2)
+        self._rfftn_batch(self.vars.rot_mask2, self.vars_ft.mask2)
+        self.conj_multiply_kernel(self.vars_ft.mask2, self.vars_ft.target2, self.vars_ft.ave2)
+        self._irfftn_batch(self.vars_ft.ave2, self.vars.ave2)
 
         # Batched equivalent of Correlator.compute_lcc_score_and_take_best().
         # Per-voxel batch reduction: updates vars.lcc and vars.rot in-place.
@@ -343,9 +433,9 @@ class CUDACorrelator(Correlator):
             (grid,),
             (block,),
             (
-                self._batch_gcc,
-                self._batch_ave,
-                self._batch_ave2,
+                self.vars.gcc,
+                self.vars.ave,
+                self.vars.ave2,
                 self.vars.lcc_mask,
                 self.vars.lcc,
                 self.vars.rot,
@@ -363,21 +453,15 @@ class CUDACorrelator(Correlator):
 
     def scan(self):  # pyright: ignore[reportIncompatibleMethodOverride]
         n_rot = self.rotations.shape[0]
-        use_batch = self._use_batch
         B = self.batch_size
 
         with self.cuda_stream:
             self.vars.lcc.fill(0)
             self.vars.rot.fill(0)
 
-            if use_batch:
-                logger.info(f"Batching {n_rot} rotations with batch size {B}.")
-                for chunk in batched(range(n_rot), B):
-                    start = chunk[0]
-                    self._compute_batch(start, len(chunk), self.rotations[start : start + len(chunk)])
-            else:
-                logger.info(f"Processing {n_rot} rotations without batching.")
-                for n in range(0, n_rot):
-                    self.compute_rotation(n, self.rotations[n])
+            logger.info(f"Batching {n_rot} rotations with batch size {B}.")
+            for chunk in batched(range(n_rot), B):
+                start = chunk[0]
+                self._compute_batch(start, len(chunk), self.rotations[start : start + len(chunk)])
 
         self.retrieve_results()

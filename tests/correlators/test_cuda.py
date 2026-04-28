@@ -10,7 +10,7 @@ pytestmark = pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA resources are n
 cp = pytest.importorskip("cupy", reason="CUDA resources are not available.")
 
 from powerfit_em.correlators.cpu import CPUCorrelator  # noqa: E402
-from powerfit_em.correlators.cuda import CUDACorrelator, build_cuda_ffts  # noqa: E402
+from powerfit_em.correlators.cuda import CUDABatchedCorrelator, CUDASerialCorrelator, build_cuda_ffts  # noqa: E402
 
 
 @pytest.fixture(scope="module")
@@ -39,7 +39,7 @@ def test_build_cuda_ffts_matches_cupy_fft(cuda_stream):
     assert bool(cp.isfinite(inv_out).all())
 
 
-def test_scan_matches_cpu_correlator(cuda_stream):
+def test_scan_batched_matches_cpu_correlator(cuda_stream):
     target = np.zeros((8, 8, 8), dtype=np.float32)
     target[2:6, 2:6, 2:6] = 1.0
     template = target.copy()
@@ -52,7 +52,7 @@ def test_scan_matches_cpu_correlator(cuda_stream):
     )
 
     cpu_corr = CPUCorrelator(target, template, rotations, mask, laplace=False)
-    cuda_corr = CUDACorrelator(target, template, rotations, mask, cuda_stream, laplace=False)
+    cuda_corr = CUDABatchedCorrelator(target, template, rotations, mask, cuda_stream, laplace=False)
 
     cpu_corr.scan()
     cuda_corr.scan()
@@ -75,11 +75,11 @@ def _make_inputs():
     return target, template, mask, rotations
 
 
-def test_scan_batch_size_zero_matches_cpu(cuda_stream):
+def test_scan_serial_matches_cpu(cuda_stream):
     target, template, mask, rotations = _make_inputs()
 
     cpu_corr = CPUCorrelator(target, template, rotations, mask, laplace=False)
-    cuda_corr = CUDACorrelator(target, template, rotations, mask, cuda_stream, laplace=False, batch_size=0)
+    cuda_corr = CUDASerialCorrelator(target, template, rotations, mask, cuda_stream, laplace=False)
 
     cpu_corr.scan()
     cuda_corr.scan()
@@ -92,7 +92,7 @@ def test_scan_forced_batch_size_matches_cpu(cuda_stream):
     target, template, mask, rotations = _make_inputs()
 
     cpu_corr = CPUCorrelator(target, template, rotations, mask, laplace=False)
-    cuda_corr = CUDACorrelator(target, template, rotations, mask, cuda_stream, laplace=False, batch_size=1)
+    cuda_corr = CUDABatchedCorrelator(target, template, rotations, mask, cuda_stream, laplace=False, batch_size=1)
 
     cpu_corr.scan()
     cuda_corr.scan()
@@ -116,10 +116,28 @@ def test_scan_partial_batch_remainder_matches_cpu(cuda_stream):
     )
 
     cpu_corr = CPUCorrelator(target, template, rotations, mask, laplace=False)
-    cuda_corr = CUDACorrelator(target, template, rotations, mask, cuda_stream, laplace=False, batch_size=2)
+    cuda_corr = CUDABatchedCorrelator(target, template, rotations, mask, cuda_stream, laplace=False, batch_size=2)
 
     cpu_corr.scan()
     cuda_corr.scan()
 
     assert np.allclose(cpu_corr.lcc, cuda_corr.lcc, atol=1e-4, rtol=1e-4)
     assert np.array_equal(cpu_corr.rot, cuda_corr.rot)
+
+
+def test_serial_and_batched_own_independent_gpu_state(cuda_stream):
+    """Serial and batched correlators must own distinct vars, vars_ft, and cuda_kernels."""
+    target, template, mask, rotations = _make_inputs()
+
+    serial = CUDASerialCorrelator(target, template, rotations, mask, cuda_stream, laplace=False)
+    batched = CUDABatchedCorrelator(target, template, rotations, mask, cuda_stream, laplace=False, batch_size=1)
+
+    assert serial.vars is not batched.vars
+    assert serial.vars_ft is not batched.vars_ft
+    assert serial.cuda_kernels is not batched.cuda_kernels
+
+
+def test_batched_invalid_batch_size_raises(cuda_stream):
+    target, template, mask, rotations = _make_inputs()
+    with pytest.raises(ValueError, match="batch_size must be > 0"):
+        CUDABatchedCorrelator(target, template, rotations, mask, cuda_stream, batch_size=0)

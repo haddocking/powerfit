@@ -110,41 +110,61 @@ class PowerFitter:
         self._corr.set_template(template.array, mask.array)
 
     def _opencl_scan(self):
-        from powerfit_em.correlators.opencl import OpenCLCorrelator
+        from powerfit_em.correlators.opencl import OpenCLBatchedCorrelator, OpenCLSerialCorrelator
 
         if self._queue is None:
             msg = "OpenCL queue is required for OpenCL scan."
             raise ValueError(msg)
         if self._corr is None:
-            self._corr = OpenCLCorrelator(
-                self._target.array,
-                self._template.array,
-                self._rotations,
-                self._mask.array,
-                self._queue,
-                self._laplace,
-                batch_size=self._batch_size,
-            )
+            if self._batch_size == 0:
+                self._corr = OpenCLSerialCorrelator(
+                    self._target.array,
+                    self._template.array,
+                    self._rotations,
+                    self._mask.array,
+                    self._queue,
+                    self._laplace,
+                )
+            else:
+                self._corr = OpenCLBatchedCorrelator(
+                    self._target.array,
+                    self._template.array,
+                    self._rotations,
+                    self._mask.array,
+                    self._queue,
+                    self._laplace,
+                    batch_size=self._batch_size,
+                )
         self._corr.scan()
         self._lcc = self._corr.lcc
         self._rot = self._corr.rot
 
     def _cuda_scan(self):
-        from powerfit_em.correlators.cuda import CUDACorrelator
+        from powerfit_em.correlators.cuda import CUDABatchedCorrelator, CUDASerialCorrelator
 
         if self._cuda_stream is None:
             msg = "CUDA stream is required for CUDA scan."
             raise ValueError(msg)
         if self._corr is None:
-            self._corr = CUDACorrelator(
-                self._target.array,
-                self._template.array,
-                self._rotations,
-                self._mask.array,
-                self._cuda_stream,
-                self._laplace,
-                batch_size=self._batch_size,
-            )
+            if self._batch_size == 0:
+                self._corr = CUDASerialCorrelator(
+                    self._target.array,
+                    self._template.array,
+                    self._rotations,
+                    self._mask.array,
+                    self._cuda_stream,
+                    self._laplace,
+                )
+            else:
+                self._corr = CUDABatchedCorrelator(
+                    self._target.array,
+                    self._template.array,
+                    self._rotations,
+                    self._mask.array,
+                    self._cuda_stream,
+                    self._laplace,
+                    batch_size=self._batch_size,
+                )
         self._corr.scan()
         self._lcc = self._corr.lcc
         self._rot = self._corr.rot
