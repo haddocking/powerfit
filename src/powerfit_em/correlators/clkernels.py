@@ -38,6 +38,7 @@ class CLKernels:
         self._rotate_image3d = self._program.rotate_image3d
         self._rotate_image3d_batch = self._program.rotate_image3d_batch
         self._batch_lcc_and_take_best = self._program.powerfit_batch_lcc_and_take_best
+        self._batch_conj_multiply = self._program.powerfit_batch_conj_multiply
         self._gws_rotate_grid3d = (96, 64, 1)
         self._gws_rotate_grid3d_batch = None
 
@@ -97,4 +98,28 @@ class CLKernels:
             np.int32(batch_start),
             np.int32(batch_size),
             np.int32(volume_size),
+        )
+
+    def batch_conj_multiply(
+        self,
+        queue: cl.CommandQueue,
+        batch_a,
+        broadcast_b,
+        out,
+        batch_size: int,
+        ft_vol_size: int,
+    ):
+        """Compute out[b][i] = conj(batch_a[b][i]) * broadcast_b[i] for all b, i."""
+        total_size = batch_size * ft_vol_size
+        block = 256
+        gws = ((total_size + block - 1) // block * block,)
+        self._batch_conj_multiply(
+            queue,
+            gws,
+            None,
+            batch_a.data,
+            broadcast_b.data,
+            out.data,
+            np.int32(ft_vol_size),
+            np.int32(total_size),
         )

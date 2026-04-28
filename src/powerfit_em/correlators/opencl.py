@@ -200,6 +200,7 @@ class OpenCLCorrelator(Correlator):
 
         self._rotations = transform_rotations(rotations)
         self._volume_size = int(np.prod(self.target.shape))
+        self._ft_vol_size = int(np.prod(get_ft_shape(self.target)))
 
         self.vars, self.vars_ft = init_gpu_vars(queue, self.target, self.laplace)
 
@@ -306,19 +307,22 @@ class OpenCLCorrelator(Correlator):
         )
 
         self._rfftn_batch(self._batch_rot_template, self._batch_template_ft)
-        for b in range(batch_size):
-            self.conj_multiply(self._batch_template_ft[b], self.vars_ft.target, self._batch_gcc_ft[b])
+        self.cl_kernels.batch_conj_multiply(
+            self.queue, self._batch_template_ft, self.vars_ft.target, self._batch_gcc_ft, batch_size, self._ft_vol_size
+        )
         self._irfftn_batch(self._batch_gcc_ft, self._batch_gcc)
 
         self._rfftn_batch(self._batch_rot_mask, self._batch_mask_ft)
-        for b in range(batch_size):
-            self.conj_multiply(self._batch_mask_ft[b], self.vars_ft.target, self._batch_ave_ft[b])
+        self.cl_kernels.batch_conj_multiply(
+            self.queue, self._batch_mask_ft, self.vars_ft.target, self._batch_ave_ft, batch_size, self._ft_vol_size
+        )
         self._irfftn_batch(self._batch_ave_ft, self._batch_ave)
 
         self.square(self._batch_rot_mask, self._batch_rot_mask2)
         self._rfftn_batch(self._batch_rot_mask2, self._batch_mask2_ft)
-        for b in range(batch_size):
-            self.conj_multiply(self._batch_mask2_ft[b], self.vars_ft.target2, self._batch_ave2_ft[b])
+        self.cl_kernels.batch_conj_multiply(
+            self.queue, self._batch_mask2_ft, self.vars_ft.target2, self._batch_ave2_ft, batch_size, self._ft_vol_size
+        )
         self._irfftn_batch(self._batch_ave2_ft, self._batch_ave2)
 
         self.cl_kernels.batch_lcc_and_take_best(

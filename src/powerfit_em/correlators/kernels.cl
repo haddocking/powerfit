@@ -191,3 +191,33 @@ void powerfit_batch_lcc_and_take_best(
     lcc[i] = best_lcc;
     grot[i] = best_rot;
 }
+
+
+/*
+ * Batch conjugate multiply: out[b][i] = conj(a[b][i]) * broadcast_b[i]
+ *
+ * a           : batch_size * ft_vol_size complex64 (float2) elements, batch-major
+ * broadcast_b : ft_vol_size complex64 (float2) elements (same for every batch slot)
+ * out         : batch_size * ft_vol_size complex64 (float2) output
+ * ft_vol_size : number of complex elements per batch slot
+ * total_size  : batch_size * ft_vol_size (guard against padded global work size)
+ */
+kernel
+void powerfit_batch_conj_multiply(
+        global const float2 *a,
+        global const float2 *broadcast_b,
+        global float2 *out,
+        int ft_vol_size,
+        int total_size
+        )
+{
+    int i = get_global_id(0);
+    if (i >= total_size)
+        return;
+
+    float2 av = a[i];
+    float2 bv = broadcast_b[i % ft_vol_size];
+    /* conj(av) * bv */
+    out[i] = (float2)(av.x * bv.x + av.y * bv.y,
+                      av.x * bv.y - av.y * bv.x);
+}
