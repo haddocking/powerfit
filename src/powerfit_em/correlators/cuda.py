@@ -1,4 +1,10 @@
 import logging
+import sys
+
+if sys.version_info >= (3, 12):
+    from itertools import batched
+else:
+    from more_itertools import batched
 
 import cupy as cp
 import numpy as np
@@ -359,22 +365,16 @@ class CUDACorrelator(Correlator):
         n_rot = self.rotations.shape[0]
         use_batch = self._use_batch
         B = self.batch_size
-        n_full = n_rot // B
-        tail_start = n_full * B
 
         with self.cuda_stream:
             self.vars.lcc.fill(0)
             self.vars.rot.fill(0)
 
             if use_batch:
-                logger.info(f"Batching {n_rot} rotations into {n_rot // B} batches. Batch size: {B}.")
-                for chunk in range(n_full):
-                    base = chunk * B
-                    self._compute_batch(base, B, self.rotations[base : base + B])
-
-                # Tail: fewer than B rotations remain — use the single-rotation path.
-                for n in range(tail_start, n_rot):
-                    self.compute_rotation(n, self.rotations[n])
+                logger.info(f"Batching {n_rot} rotations with batch size {B}.")
+                for chunk in batched(range(n_rot), B):
+                    start = chunk[0]
+                    self._compute_batch(start, len(chunk), self.rotations[start : start + len(chunk)])
             else:
                 logger.info(f"Processing {n_rot} rotations without batching.")
                 for n in range(0, n_rot):

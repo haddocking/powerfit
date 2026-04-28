@@ -99,3 +99,27 @@ def test_scan_forced_batch_size_matches_cpu(cuda_stream):
 
     assert np.allclose(cpu_corr.lcc, cuda_corr.lcc, atol=1e-4, rtol=1e-4)
     assert np.array_equal(cpu_corr.rot, cuda_corr.rot)
+
+
+def test_scan_partial_batch_remainder_matches_cpu(cuda_stream):
+    """Batch size does not divide n_rotations evenly; tail must use _compute_batch."""
+    target = np.zeros((8, 8, 8), dtype=np.float32)
+    target[2:6, 2:6, 2:6] = 1.0
+    template = target.copy()
+    mask = np.ones_like(target)
+    rotations = np.asarray(
+        [
+            np.eye(3, dtype=np.float32),
+            np.asarray([[0, -1, 0], [1, 0, 0], [0, 0, 1]], dtype=np.float32),
+            np.asarray([[0, 0, -1], [0, 1, 0], [1, 0, 0]], dtype=np.float32),
+        ]
+    )
+
+    cpu_corr = CPUCorrelator(target, template, rotations, mask, laplace=False)
+    cuda_corr = CUDACorrelator(target, template, rotations, mask, cuda_stream, laplace=False, batch_size=2)
+
+    cpu_corr.scan()
+    cuda_corr.scan()
+
+    assert np.allclose(cpu_corr.lcc, cuda_corr.lcc, atol=1e-4, rtol=1e-4)
+    assert np.array_equal(cpu_corr.rot, cuda_corr.rot)

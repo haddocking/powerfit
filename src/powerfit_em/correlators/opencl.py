@@ -1,4 +1,10 @@
 import logging
+import sys
+
+if sys.version_info >= (3, 12):
+    from itertools import batched
+else:
+    from more_itertools import batched
 
 import numpy as np
 import pyopencl as cl
@@ -352,13 +358,9 @@ class OpenCLCorrelator(Correlator):
         n_rot = self._rotations.shape[0]
         if self._use_batch:
             batch = self.batch_size
-            n_full = n_rot // batch
-            logger.info(f"Batching {n_rot} rotations into {n_full} batches. Batch size: {batch}.")
-            for chunk in range(n_full):
-                base = chunk * batch
-                self._compute_batch(base, batch)
-            for n in range(n_full * batch, n_rot):
-                self.compute_rotation(n, self._rotations[n])
+            logger.info(f"Batching {n_rot} rotations with batch size {batch}.")
+            for chunk in batched(range(n_rot), batch):
+                self._compute_batch(chunk[0], len(chunk))
         else:
             logger.info(f"Processing {n_rot} rotations without batching.")
             for n in range(0, n_rot):
