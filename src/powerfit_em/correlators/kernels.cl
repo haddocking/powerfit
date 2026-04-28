@@ -89,10 +89,26 @@ void rotate_image3d_batch(
         global float *out
         )
 {
-    int b = get_global_id(0);
+    // Unpack 3D work-item IDs: batch index packed into dimension 0 (Z iteration).
+    // This allows full 3D parallelization over volume while processing
+    // multiple rotations in parallel, matching the CUDA batch kernel strategy.
+    int tid_z = get_global_id(0);  // [0, gws_z_single * batch_size)
+    int yid = get_global_id(1);
+    int xid = get_global_id(2);
+    
+    // Unpack batch and local Z iteration index
+    int gws_z_single = get_global_size(0) / batch_size;  // Original 96 per batch
+    int zid = tid_z % gws_z_single;
+    int b = tid_z / gws_z_single;
+    
     if (b >= batch_size)
         return;
-
+    
+    int zstride = get_global_size(0) / batch_size;
+    int ystride = get_global_size(1);
+    int xstride = get_global_size(2);
+    
+    // Fetch rotation matrix for this batch slot
     int rbase = (rot_offset + b) * 16;
     float16 rotmat = (float16)(
         rotmats[rbase + 0], rotmats[rbase + 1], rotmats[rbase + 2], rotmats[rbase + 3],
@@ -100,51 +116,52 @@ void rotate_image3d_batch(
         rotmats[rbase + 8], rotmats[rbase + 9], rotmats[rbase + 10], rotmats[rbase + 11],
         rotmats[rbase + 12], rotmats[rbase + 13], rotmats[rbase + 14], rotmats[rbase + 15]
     );
-
+    
     float4 dist2, coor_z, coor_zy, coor_zyx, fshape;
     int4 out_ind;
-    int out_base = b * SIZE;
+    int out_base = b * SIZE;  // Batch slot offset in output buffer
     fshape.s2 = (float) SHAPE_X;
     fshape.s1 = (float) SHAPE_Y;
     fshape.s0 = (float) SHAPE_Z;
-
-    for (int z = -LLENGTH; z <= LLENGTH; ++z) {
+    
+    int x, y, z;
+    for (z = zid - LLENGTH; z <= LLENGTH; z += zstride) {
         dist2.s2 = SQUARE(z);
-
+        
         coor_z.s0 = rotmat.s6 * z + IMAGE_OFFSET;
         coor_z.s1 = rotmat.s7 * z + IMAGE_OFFSET;
         coor_z.s2 = rotmat.s8 * z + IMAGE_OFFSET;
-
+        
         out_ind.s0 = out_base + z * SLICE;
         if (z < 0)
             out_ind.s0 += SIZE;
-
-        for (int y = -LLENGTH; y <= LLENGTH; ++y) {
+        
+        for (y = yid - LLENGTH; y <= LLENGTH; y += ystride) {
             dist2.s1 = SQUARE(y) + dist2.s2;
             if (dist2.s1 > LLENGTH2)
                 continue;
-
+            
             coor_zy.s0 = rotmat.s3 * y + coor_z.s0;
             coor_zy.s1 = rotmat.s4 * y + coor_z.s1;
             coor_zy.s2 = rotmat.s5 * y + coor_z.s2;
-
+            
             out_ind.s1 = out_ind.s0 + y * SHAPE_X;
             if (y < 0)
                 out_ind.s1 += SLICE;
-
-            for (int x = -LLENGTH; x <= LLENGTH; ++x) {
+            
+            for (x = xid - LLENGTH; x <= LLENGTH; x += xstride) {
                 dist2.s0 = SQUARE(x) + dist2.s1;
                 if (dist2.s0 > LLENGTH2)
                     continue;
-
+                // Normalize coordinates
                 coor_zyx.s0 = (rotmat.s0 * x + coor_zy.s0) / fshape.s2;
                 coor_zyx.s1 = (rotmat.s1 * x + coor_zy.s1) / fshape.s1;
                 coor_zyx.s2 = (rotmat.s2 * x + coor_zy.s2) / fshape.s0;
-
+                
                 out_ind.s2 = out_ind.s1 + x;
                 if (x < 0)
                     out_ind.s2 += SHAPE_X;
-
+                
                 out[out_ind.s2] = read_imagef(image, sampler, coor_zyx).s0;
             }
         }

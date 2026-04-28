@@ -59,13 +59,27 @@ class CLKernels:
         out,
         nearest: bool = False,
     ):
+        """Rotate image for a batch of rotation matrices using 3D parallelism.
+        
+        Packs batch index into dimension 0 (Z iteration) to enable full spatial 
+        parallelization. Work-item layout: (z*batch, y, x) where 
+        z_id = tid_z % gws_z_single, b = tid_z / gws_z_single.
+        This matches the CUDA batch kernel strategy.
+        """
         rot_offset_i32 = np.int32(rot_offset)
         batch_size_i32 = np.int32(batch_size)
         if nearest:
             args = (image, self.sampler_nearest, rotmats.data, rot_offset_i32, batch_size_i32, out.data)
         else:
             args = (image, self.sampler_linear, rotmats.data, rot_offset_i32, batch_size_i32, out.data)
-        gws = (batch_size, 1, 1)
+        
+        # Compute 3D grid: (Z*batch_size, Y, X) to pack batch into dimension 0 (Z)
+        # while maintaining spatial parallelism. The kernel unpacks:
+        # z_id = tid_z % gws_z_single, b = tid_z / gws_z_single
+        gws_z_single = self._gws_rotate_grid3d[0]  # 96 - Z iteration count
+        gws_z_batch = gws_z_single * batch_size
+        gws = (gws_z_batch, self._gws_rotate_grid3d[1], self._gws_rotate_grid3d[2])
+        
         self._rotate_image3d_batch(queue, gws, None, *args)
 
     def batch_lcc_and_take_best(
