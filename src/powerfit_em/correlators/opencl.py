@@ -366,12 +366,7 @@ class OpenCLCorrelator(Correlator):
             for n in _range:
                 self.compute_rotation(n, self._rotations[n])
         else:
-            if self._use_batch:
-                logger.info(
-                    "Progress mode enabled: OpenCL scan is currently processing rotations one-by-one without batching."
-                )
-            else:
-                logger.info(f"Processing {n_rot} rotations without batching.")
+            logger.info(f"Processing {n_rot} rotations without batching.")
             for n in progress(_range):
                 self.compute_rotation(n, self._rotations[n])
                 self.queue.finish()
