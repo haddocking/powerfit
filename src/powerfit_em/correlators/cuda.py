@@ -260,7 +260,7 @@ class CUDASerialCorrelator(Correlator):
         self.lcc = cp.asnumpy(self.vars.lcc)
         self.rot = cp.asnumpy(self.vars.rot)
 
-    def scan(self):  # pyright: ignore[reportIncompatibleMethodOverride]
+    def scan(self, progress=None):
         n_rot = self.rotations.shape[0]
         with self.cuda_stream:
             self.vars.lcc.fill(0)
@@ -451,7 +451,7 @@ class CUDABatchedCorrelator(Correlator):
         self.lcc = cp.asnumpy(self.vars.lcc)
         self.rot = cp.asnumpy(self.vars.rot)
 
-    def scan(self):  # pyright: ignore[reportIncompatibleMethodOverride]
+    def scan(self, progress=None):
         n_rot = self.rotations.shape[0]
         B = self.batch_size
 

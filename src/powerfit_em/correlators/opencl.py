@@ -249,7 +249,7 @@ class OpenCLSerialCorrelator(Correlator):
         self.vars.rot.get(ary=self.rot)
         self.queue.finish()
 
-    def scan(self):  # pyright: ignore[reportIncompatibleMethodOverride]
+    def scan(self, progress=None):
         """Scan all provided rotations to find the best fit."""
         self.vars.lcc.fill(0)
         self.vars.rot.fill(0)
@@ -442,7 +442,7 @@ class OpenCLBatchedCorrelator(Correlator):
         self.vars.rot.get(ary=self.rot)
         self.queue.finish()
 
-    def scan(self):  # pyright: ignore[reportIncompatibleMethodOverride]
+    def scan(self, progress=None):
         """Scan all provided rotations to find the best fit."""
         self.vars.lcc.fill(0)
         self.vars.rot.fill(0)

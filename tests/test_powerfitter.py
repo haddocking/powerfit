@@ -1,5 +1,3 @@
-import unittest
-
 import numpy as np
 import pytest
 
@@ -29,14 +27,15 @@ def _make_tiny_inputs():
 
 
 @pytest.mark.skipif(not OPENCL_AVAILABLE, reason="OpenCL (pyopencl) not installed")
-class TestCLKernels(unittest.TestCase):
+class TestCLKernels:
     """Tests for the OpenCL kernels"""
 
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def setup(self):
         try:
             p = cl.get_platforms()[0]
         except cl.LogicError as exc:
-            raise unittest.SkipTest(f"OpenCL platform not available: {exc}") from exc
+            pytest.skip(f"OpenCL platform not available: {exc}")
         devs = p.get_devices()
         self.ctx = cl.Context(devices=devs)
         self.queue = cl.CommandQueue(self.ctx, device=devs[0])
@@ -60,7 +59,7 @@ class TestCLKernels(unittest.TestCase):
         cl_in2 = cl_array.to_device(self.queue, np_in2)
 
         self.k.multiply(cl_in1, cl_in2, cl_out)
-        self.assertTrue(np.allclose(np_out, cl_out.get()))
+        assert np.allclose(np_out, cl_out.get())
 
     def test_conj_multiply(self):
         np_in1 = np.zeros(10, dtype=np.complex64)
@@ -75,7 +74,7 @@ class TestCLKernels(unittest.TestCase):
         cl_in2 = cl_array.to_device(self.queue, np_in2)
         cl_out = cl_array.to_device(self.queue, np.zeros(10, dtype=np.complex64))
         self.k.conj_multiply(cl_in1, cl_in2, cl_out)
-        self.assertTrue(np.allclose(np_out, cl_out.get()))
+        assert np.allclose(np_out, cl_out.get())
 
 
 @pytest.mark.gpu_integration
@@ -123,7 +122,3 @@ class TestPowerFitterIntegration:
 
         assert np.allclose(cpu_pf.lcc, cuda_pf.lcc, atol=1e-4, rtol=1e-4)
         assert np.array_equal(cpu_pf.rot, cuda_pf.rot)
-
-
-if __name__ == "__main__":
-    unittest.main()
