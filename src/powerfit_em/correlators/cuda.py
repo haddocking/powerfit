@@ -229,11 +229,10 @@ class CUDACorrelator(Correlator):
             if batch_size is None:
                 self.batch_size = _probe_batch_size(self.target.shape)
             else:
+                if batch_size < 0:
+                    raise ValueError("batch_size must be >= 0.")
                 self.batch_size = batch_size
-            while self.batch_size >= _BATCH_MIN:
-                if self._allocate_batch_buffers(self.batch_size):
-                    break
-                self.batch_size //= 2
+            self._allocate_batch_buffers()
 
         if self._use_batch:
             self._rfftn_batch, self._irfftn_batch = build_cuda_ffts_batched(
@@ -247,16 +246,13 @@ class CUDACorrelator(Correlator):
             self.rfftn(self.vars.target2, self.vars_ft.target2)
         self._synchronize()
 
-    def _allocate_batch_buffers(self, batch_size: int) -> bool:
-        """Try to allocate GPU buffers for *batch_size* parallel rotations.
-
-        Returns True on success, False if allocation raises OOM.
-        """
+    def _allocate_batch_buffers(self):
+        """Allocate GPU buffers for *batch_size* parallel rotations; raises on OOM."""
         try:
             vol = self.target.shape
             ft = get_ft_shape(self.target)
-            bvol = (batch_size,) + vol
-            bft = (batch_size,) + ft
+            bvol = (self.batch_size,) + vol
+            bft = (self.batch_size,) + ft
             self._batch_rot_template = cp.zeros(bvol, dtype=f32)
             self._batch_rot_mask = cp.zeros(bvol, dtype=f32)
             self._batch_rot_mask2 = cp.zeros(bvol, dtype=f32)
@@ -269,9 +265,11 @@ class CUDACorrelator(Correlator):
             self._batch_gcc_ft = cp.zeros(bft, dtype=cp.complex64)
             self._batch_ave_ft = cp.zeros(bft, dtype=cp.complex64)
             self._batch_ave2_ft = cp.zeros(bft, dtype=cp.complex64)
-            return True
-        except cp.cuda.memory.OutOfMemoryError:
-            return False
+        except cp.cuda.memory.OutOfMemoryError as exc:
+            raise RuntimeError(
+                f"Failed to allocate CUDA batch buffers for batch_size={self.batch_size}. "
+                "Reduce --batch-size or disable batching with --batch-size 0."
+            ) from exc
 
     def _synchronize(self):
         self.cuda_stream.synchronize()
