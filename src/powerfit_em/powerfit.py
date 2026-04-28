@@ -497,14 +497,12 @@ def powerfit_many(
     no_trimming: bool = False,
     trimming_cutoff: float | None = None,
     gpu: str | None = None,
-    reuse: bool = True,
     nproc: int = 1,
     batch_size: int | None = None,
 ) -> list[list[list[float]]]:
     """Run powerfit on multiple templates, returning the solution table for each.
 
-    For a slight efficiency boost, and to avoid continuously creating many new OpenCL
-    queues, the queues are reused, same for CUDA streams.
+    The target volume and GPU resources are reused across multiple template structures for efficiency.
 
     Args:
         target_volume: Path to the target density map.
@@ -520,7 +518,6 @@ def powerfit_many(
             no_trimming is False. Default is 10 percent of maximum intensity.
         gpu: GPU backend to use. Use "auto" for automatic backend selection,
             "cuda:N" for CUDA device N, or "P:D" for OpenCL platform P and device D. If None, does not use GPU.
-        reuse: Whether to reuse GPU resources (OpenCL queues, CUDA streams) across multiple template structures.
         nproc: Number of processors used during search.
         batch_size: Override the auto-tuned GPU batch size.
             Use 0 to disable batching entirely, or a positive integer to force a specific batch size.
@@ -569,7 +566,7 @@ def powerfit_many(
     pf: PowerFitter | None = None
     for i in range(len(template_vars)):
         _, template, mask, z_sigma = template_vars[i]
-        if pf is None or not reuse or (not gpu and nproc > 1):
+        if pf is None:
             pf = PowerFitter(
                 target,
                 rotmat,
