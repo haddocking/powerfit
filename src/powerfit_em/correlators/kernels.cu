@@ -317,7 +317,7 @@ void powerfit_batch_lcc_and_take_best(
             const float var     = ave2_batch[idx] * norm_factor - ave_val * ave_val;
             if (var > 0.0f) {
                 const float score = gcc_batch[idx] / sqrtf(var);
-                if (score >= best_lcc) {
+                if (score > best_lcc) {
                     best_lcc = score;
                     best_rot = batch_start + b;
                 }
