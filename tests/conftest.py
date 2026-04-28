@@ -3,11 +3,7 @@ from argparse import ArgumentParser
 
 import pytest
 
-from powerfit_em.gpu import cuda_available, opencl_available
 from powerfit_em.powerfit import add_computational_resources2parser
-
-CUDA_AVAILABLE = cuda_available()
-OPENCL_AVAILABLE = opencl_available()
 
 
 def pytest_addoption(parser):
