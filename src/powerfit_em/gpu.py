@@ -78,13 +78,21 @@ def setup_gpu_backend(gpu: str | None) -> "tuple[CommandQueue | None, Stream | N
         raise ValueError("Running on GPU requires either the cuda or opencl extra to be installed.")
 
     if gpu.startswith("cuda:"):
-        device_idx = int(gpu.split(":", maxsplit=1)[1])
+        try:
+            device_idx = int(gpu.split(":", maxsplit=1)[1])
+        except (IndexError, ValueError) as err:
+            msg = "Invalid --gpu value for CUDA. Use --gpu cuda:N where N is a non-negative integer."
+            raise ValueError(msg) from err
         if device_idx < 0:
             raise ValueError("Invalid CUDA device index. Use a non-negative integer.")
         return None, get_cuda_stream(device_idx)
 
     if gpu.count(":") == 1:
-        platform_idx, device_idx = map(int, gpu.split(":"))
+        try:
+            platform_idx, device_idx = map(int, gpu.split(":"))
+        except ValueError as err:
+            msg = "Invalid --gpu value for OpenCL. Use --gpu P:D where P and D are non-negative integers."
+            raise ValueError(msg) from err
         return get_opencl_queue(f"{platform_idx}:{device_idx}"), None
 
     raise ValueError("Invalid --gpu value. Use --gpu, --gpu cuda:N, or --gpu P:D.")
@@ -93,7 +101,7 @@ def setup_gpu_backend(gpu: str | None) -> "tuple[CommandQueue | None, Stream | N
 def get_opencl_queue(gpu: str) -> "CommandQueue":
     """Request an OpenCL Queue."""
     if not opencl_available():
-        msg = "Running on GPU requires the pyopencl package, however importing pyopencl failed."
+        msg = "Running on GPU requires pyopencl to be installed and an OpenCL platform/device to be available."
         raise ValueError(msg)
     else:
         import pyopencl as cl  # pyright: ignore[reportMissingImports]
@@ -117,7 +125,10 @@ def get_opencl_queue(gpu: str) -> "CommandQueue":
 def get_cuda_stream(device_idx: int) -> "Stream":
     """Request a CUDA stream for a specific device."""
     if not cuda_available():
-        msg = "Running on CUDA requires the cupy and pyvkfft.cuda packages, however importing them failed."
+        msg = (
+            "Running on CUDA requires the cupy and pyvkfft.cuda packages and a CUDA device, "
+            "however importing them failed or no CUDA device is available."
+        )
         raise ValueError(msg)
 
     import cupy as cp  # pyright: ignore[reportMissingImports]

@@ -273,7 +273,7 @@ def main():
     configure_logging(join(args.directory, "powerfit.log"), args.log_level)
 
     if args.progressbar and args.gpu is not None:
-        raise ValueError("--progressbar cannot be used with --gpu. Progress bars are only supported for CPU backends.")
+        raise SystemExit("--progressbar cannot be used with --gpu. Progress bars are only supported for CPU backends.")
 
     progress = partial(rich_tqdm, desc="Processing rotations", unit="rot") if args.progressbar else None
 

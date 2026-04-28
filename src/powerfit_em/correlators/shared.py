@@ -3,7 +3,8 @@
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Generic, TypeVar
+from types import TracebackType
+from typing import TYPE_CHECKING, Generic, Protocol, TypeVar, overload
 
 import numpy as np
 from scipy.ndimage import laplace as laplace_filter
@@ -17,7 +18,33 @@ i32 = np.int32
 
 T = TypeVar("T", np.ndarray, "ClArray")
 I = TypeVar("I", np.ndarray, "Image")  # noqa: E741
-ProgressFactory = Callable[[range], Iterable[int]]
+
+
+class ProgressBar(Protocol):
+    """Progress bar object returned by progress factories."""
+
+    n: int
+
+    def update(self, n: int = 1) -> object: ...
+
+    def __enter__(self) -> "ProgressBar": ...
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> bool | None: ...
+
+
+class ProgressFactory(Protocol):
+    """Factory for progress wrappers used by scan routines."""
+
+    @overload
+    def __call__(self, iterable: range) -> Iterable[int]: ...
+
+    @overload
+    def __call__(self, *, total: int) -> ProgressBar: ...
 
 
 @dataclass

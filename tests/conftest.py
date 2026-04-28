@@ -19,8 +19,8 @@ def pytest_addoption(parser):
 def powerfit_args(request) -> list[str]:
     """Parse and validate --powerfit option using PowerFit's argument parser.
 
-    Only allows computational resource arguments such as --gpu, --nproc,
-    and --progressbar/--no-progressbar to control execution profile.
+    Only allows computational resource arguments,
+    use `pytest ... --powerfit="--help"` to see available options.
     Rejects all other arguments to preserve test determinism.
     """
     powerfit_str = request.config.getoption("--powerfit", default="").strip()
