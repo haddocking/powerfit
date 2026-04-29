@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import numpy as np
 import pytest
 
@@ -8,7 +10,12 @@ OPENCL_AVAILABLE = opencl_available()
 pytestmark = pytest.mark.skipif(not OPENCL_AVAILABLE, reason="OpenCL resources are not available.")
 
 from powerfit_em.correlators.cpu import CPUCorrelator  # noqa: E402
-from powerfit_em.correlators.opencl import OpenCLBatchedCorrelator, OpenCLSerialCorrelator  # noqa: E402
+from powerfit_em.correlators.opencl import (  # noqa: E402
+    OpenCLBatchedCorrelator,
+    OpenCLSerialCorrelator,
+    _max_batch_size,
+    _tuned_batch_size,
+)
 
 
 @pytest.fixture(scope="module")
@@ -112,3 +119,35 @@ def test_batched_invalid_batch_size_raises(opencl_queue):
     target, template, mask, rotations = _make_inputs()
     with pytest.raises(ValueError, match="batch_size must be > 0"):
         OpenCLBatchedCorrelator(target, template, rotations, mask, opencl_queue, batch_size=0)
+
+
+def test_max_batch_size_returns_positive(opencl_queue):
+    result = _max_batch_size(opencl_queue, (32, 32, 32))
+    assert result >= 1
+
+
+def test_tuned_batch_size_returns_positive(opencl_queue):
+    result = _tuned_batch_size(opencl_queue, (32, 32, 32))
+    assert result >= 1
+
+
+def test_tuned_batch_size_at_most_max(opencl_queue):
+    shape = (32, 32, 32)
+    assert _tuned_batch_size(opencl_queue, shape) <= _max_batch_size(opencl_queue, shape)
+
+
+def test_batched_explicit_batch_size_exceeds_max_raises(opencl_queue):
+    target, template, mask, rotations = _make_inputs()
+    with patch("powerfit_em.correlators.opencl._max_batch_size", return_value=1):
+        with pytest.raises(ValueError, match="exceeds the device memory upper bound"):
+            OpenCLBatchedCorrelator(target, template, rotations, mask, opencl_queue, batch_size=2)
+
+
+def test_batched_auto_tuned_exceeds_max_raises(opencl_queue):
+    target, template, mask, rotations = _make_inputs()
+    with (
+        patch("powerfit_em.correlators.opencl._max_batch_size", return_value=1),
+        patch("powerfit_em.correlators.opencl._tuned_batch_size", return_value=999),
+    ):
+        with pytest.raises(ValueError, match="Auto-tuned batch size"):
+            OpenCLBatchedCorrelator(target, template, rotations, mask, opencl_queue)

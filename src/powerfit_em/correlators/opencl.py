@@ -27,6 +27,10 @@ from powerfit_em.correlators.shared import (
 
 # Conservative batch-memory target for auto sizing on OpenCL devices.
 _BATCH_MEM_TARGET = 0.70
+# Empirical performance-scaling constant for auto-tuning OpenCL batch size.
+# Calibrated on Apple M2 (10 CUs, 1398 MHz) and NVIDIA via OpenCL (82 CUs).
+# May need re-tuning for very different devices.
+_K_OPENCL_PERF = 12_000
 
 
 logger = logging.getLogger(__name__)
@@ -124,8 +128,8 @@ def build_opencl_ffts_batched(vol_shape: tuple[int, ...], batch_size: int, queue
     return rfftn_batch, irfftn_batch
 
 
-def _probe_batch_size(queue: cl.CommandQueue, vol_shape: tuple[int, int, int]) -> int:
-    """Estimate an OpenCL batch size from device memory limits."""
+def _max_batch_size(queue: cl.CommandQueue, vol_shape: tuple[int, int, int]) -> int:
+    """Return the hard upper bound on batch size imposed by OpenCL device memory."""
     z, y, x = vol_shape
     ft_x = x // 2 + 1
     real_bytes = z * y * x * np.dtype(np.float32).itemsize
@@ -140,8 +144,26 @@ def _probe_batch_size(queue: cl.CommandQueue, vol_shape: tuple[int, int, int]) -
     by_alloc_complex = max_alloc // complex_bytes
     batch_size = min(by_total, by_alloc_real, by_alloc_complex)
     if batch_size < 1:
-        raise RuntimeError("Unable to auto-tune a valid OpenCL batch size for this device.")
+        raise RuntimeError("Unable to compute a valid OpenCL memory upper bound for this device.")
     return int(batch_size)
+
+
+def _tuned_batch_size(queue: cl.CommandQueue, vol_shape: tuple[int, int, int]) -> int:
+    """Estimate a performance-optimal batch size for the current OpenCL device.
+
+    Uses a compute-capability heuristic (compute units × clock frequency) scaled
+    by empirical constant *_K_OPENCL_PERF*. The estimate targets the largest batch
+    within ~10% of peak throughput. Returns the raw estimate without clamping
+    to the memory upper bound; the caller must validate against _max_batch_size().
+    """
+    z, y, x = vol_shape
+    ft_x = x // 2 + 1
+    real_bytes = z * y * x * np.dtype(np.float32).itemsize
+    complex_bytes = z * y * ft_x * np.dtype(np.complex64).itemsize
+    bytes_per_rot = 6 * real_bytes + 6 * complex_bytes
+    n_cus = int(queue.device.max_compute_units)
+    freq_mhz = int(queue.device.max_clock_frequency)
+    return max(1, int(_K_OPENCL_PERF * n_cus * freq_mhz / bytes_per_rot))
 
 
 def precompute_squared_targets(
@@ -314,9 +336,21 @@ class OpenCLBatchedCorrelator(Correlator):
         self.square = lambda a, b: self.cl_kernels.multiply(a, a, b)
         self.rfftn, self.irfftn = build_opencl_ffts(self.target.shape, queue)
 
+        self._max_batch = _max_batch_size(queue, self.target.shape)
         if batch_size is None:
-            self.batch_size = _probe_batch_size(queue, self.target.shape)
+            auto_batch = _tuned_batch_size(queue, self.target.shape)
+            if auto_batch > self._max_batch:
+                raise ValueError(
+                    f"Auto-tuned batch size {auto_batch} exceeds the device memory upper bound "
+                    f"{self._max_batch}. This indicates _K_OPENCL_PERF is too large for this device."
+                )
+            self.batch_size = auto_batch
         else:
+            if batch_size > self._max_batch:
+                raise ValueError(
+                    f"batch_size={batch_size} exceeds the device memory upper bound "
+                    f"{self._max_batch}. Reduce batch_size or use None for auto-tuning."
+                )
             self.batch_size = batch_size
 
         self._allocate_batch_buffers(self.batch_size)
@@ -449,7 +483,7 @@ class OpenCLBatchedCorrelator(Correlator):
 
         n_rot = self._rotations.shape[0]
         batch = self.batch_size
-        logger.info(f"Batching {n_rot} rotations with batch size {batch}.")
+        logger.info(f"Batching {n_rot} rotations with batch size {batch} (max {self._max_batch}).")
         for chunk in batched(range(n_rot), batch):
             self._compute_batch(chunk[0], len(chunk))
         self.retrieve_results()

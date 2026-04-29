@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import numpy as np
 import pytest
 
@@ -10,7 +12,13 @@ pytestmark = pytest.mark.skipif(not CUDA_AVAILABLE, reason="CUDA resources are n
 cp = pytest.importorskip("cupy", reason="CUDA resources are not available.")
 
 from powerfit_em.correlators.cpu import CPUCorrelator  # noqa: E402
-from powerfit_em.correlators.cuda import CUDABatchedCorrelator, CUDASerialCorrelator, build_cuda_ffts  # noqa: E402
+from powerfit_em.correlators.cuda import (  # noqa: E402
+    CUDABatchedCorrelator,
+    CUDASerialCorrelator,
+    _max_batch_size,
+    _tuned_batch_size,
+    build_cuda_ffts,
+)
 
 
 @pytest.fixture(scope="module")
@@ -141,3 +149,35 @@ def test_batched_invalid_batch_size_raises(cuda_stream):
     target, template, mask, rotations = _make_inputs()
     with pytest.raises(ValueError, match="batch_size must be > 0"):
         CUDABatchedCorrelator(target, template, rotations, mask, cuda_stream, batch_size=0)
+
+
+def test_max_batch_size_returns_positive():
+    result = _max_batch_size((32, 32, 32))
+    assert result >= 1
+
+
+def test_tuned_batch_size_returns_positive():
+    result = _tuned_batch_size((32, 32, 32))
+    assert result >= 1
+
+
+def test_tuned_batch_size_at_most_max():
+    shape = (32, 32, 32)
+    assert _tuned_batch_size(shape) <= _max_batch_size(shape)
+
+
+def test_batched_explicit_batch_size_exceeds_max_raises(cuda_stream):
+    target, template, mask, rotations = _make_inputs()
+    with patch("powerfit_em.correlators.cuda._max_batch_size", return_value=1):
+        with pytest.raises(ValueError, match="exceeds the device memory upper bound"):
+            CUDABatchedCorrelator(target, template, rotations, mask, cuda_stream, batch_size=2)
+
+
+def test_batched_auto_tuned_exceeds_max_raises(cuda_stream):
+    target, template, mask, rotations = _make_inputs()
+    with (
+        patch("powerfit_em.correlators.cuda._max_batch_size", return_value=1),
+        patch("powerfit_em.correlators.cuda._tuned_batch_size", return_value=999),
+    ):
+        with pytest.raises(ValueError, match="Auto-tuned batch size"):
+            CUDABatchedCorrelator(target, template, rotations, mask, cuda_stream)

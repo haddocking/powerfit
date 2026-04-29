@@ -27,6 +27,10 @@ _BATCH_MIN = 1
 _BATCH_MAX = 8192
 # Fraction of total VRAM to target for batch buffers.
 _VRAM_TARGET = 0.80
+# Empirical performance-scaling constant for auto-tuning CUDA batch size.
+# Calibrated on an RTX 3050 (82 SMs, 1695 MHz) to target the largest batch
+# within 10% of peak throughput. May need re-tuning for very different GPUs.
+_K_CUDA_PERF = 81
 
 
 logger = logging.getLogger(__name__)
@@ -92,8 +96,8 @@ def build_cuda_ffts_batched(vol_shape: tuple, batch_size: int, cuda_stream=None)
     return rfftn_batch, irfftn_batch
 
 
-def _probe_batch_size(vol_shape: tuple) -> int:
-    """Estimate a safe batch size using the CUDA memory info.
+def _max_batch_size(vol_shape: tuple) -> int:
+    """Return the hard upper bound on batch size imposed by CUDA device memory.
 
     Targets *_VRAM_TARGET* fraction of total device VRAM, capped by what is
     currently free (leaving a 10% headroom on free memory for driver overhead
@@ -120,6 +124,23 @@ def _probe_batch_size(vol_shape: tuple) -> int:
     _MAX_GRID_Z = 65535
     batch = min(batch, (_MAX_GRID_Z * _BLOCK_Z) // z)
     return max(_BATCH_MIN, int(batch))
+
+
+def _tuned_batch_size(vol_shape: tuple) -> int:
+    """Estimate a performance-optimal batch size for the current CUDA device.
+
+    Uses a compute-capability heuristic (SM count × clock frequency) scaled by
+    empirical constant *_K_CUDA_PERF*. The estimate targets the largest batch
+    within ~10% of peak throughput. Returns the raw estimate without clamping
+    to the memory upper bound; the caller must validate against _max_batch_size().
+    """
+    z, y, x = vol_shape
+    ft_x = x // 2 + 1
+    bytes_per_rot = 6 * z * y * x * 4 + 6 * z * y * ft_x * 8
+    dev = cp.cuda.Device()
+    n_sms = int(dev.attributes["MultiProcessorCount"])
+    clock_mhz = int(dev.attributes["ClockRate"]) // 1000  # kHz → MHz
+    return max(_BATCH_MIN, int(_K_CUDA_PERF * n_sms * clock_mhz / bytes_per_rot))
 
 
 def build_cuda_lcc_kernel():
@@ -322,9 +343,20 @@ class CUDABatchedCorrelator(Correlator):
         self.square = _square
         self.rfftn, self.irfftn = build_cuda_ffts(self.target.shape, self.cuda_stream)
 
+        self._max_batch = _max_batch_size(self.target.shape)
         if batch_size is None:
-            self.batch_size = _probe_batch_size(self.target.shape)
+            auto_batch = _tuned_batch_size(self.target.shape)
+            if auto_batch > self._max_batch:
+                raise ValueError(
+                    f"Auto-tuned batch size {auto_batch} exceeds the device memory upper bound {self._max_batch}."
+                )
+            self.batch_size = auto_batch
         else:
+            if batch_size > self._max_batch:
+                raise ValueError(
+                    f"batch_size={batch_size} exceeds the device memory upper bound "
+                    f"{self._max_batch}. Reduce batch_size."
+                )
             self.batch_size = batch_size
 
         self._allocate_batch_buffers()
@@ -459,7 +491,7 @@ class CUDABatchedCorrelator(Correlator):
             self.vars.lcc.fill(0)
             self.vars.rot.fill(0)
 
-            logger.info(f"Batching {n_rot} rotations with batch size {B}.")
+            logger.info(f"Batching {n_rot} rotations with batch size {B} (max {self._max_batch}).")
             for chunk in batched(range(n_rot), B):
                 start = chunk[0]
                 self._compute_batch(start, len(chunk), self.rotations[start : start + len(chunk)])
