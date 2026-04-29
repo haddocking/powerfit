@@ -65,5 +65,6 @@ nav:
   - Home: README.md
   - Installation: installation.md
   - Manual: manual.md
+  - Performance: performance.md
   - Contributing guidelines: CONTRIBUTING.md
   - CLI Reference: cli.md
