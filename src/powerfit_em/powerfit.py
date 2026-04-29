@@ -76,7 +76,8 @@ def add_computational_resources2parser(p: ArgumentParser):
             "Override the auto-tuned GPU batch size. "
             "Use 0 to disable batching entirely, or a positive integer to force a specific batch size. "
             "Applies to GPU backends (CUDA/OpenCL). "
-            "Default: auto-tuned based on available VRAM/device memory."
+            "Default: auto-tuned based on available VRAM/device memory. "
+            "If set too high will cause out-of-memory errors."
         ),
     )
 
