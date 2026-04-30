@@ -36,10 +36,10 @@ def init_gpu_vars(
 ) -> tuple[Vars[ClArray, Image], VarsFT[ClArray]]:
     """Initialize all GPU variables on the specified queue."""
     lcc_mask = get_lcc_mask(target)
-    _t = laplace_filter(target, mode="wrap") if laplace else target
+    filtered_target = laplace_filter(target, mode="wrap") if laplace else target
     zeros = np.zeros(target.shape, f32)
     gpu_vars = Vars(
-        target=cl_array.to_device(queue, _t.astype(f32)),
+        target=cl_array.to_device(queue, filtered_target.astype(f32)),
         template=cl.image_from_array(queue.context, zeros),  # template is set through separate method
         mask=cl.image_from_array(queue.context, zeros),  # mask is set through separate method
         lcc_mask=cl_array.to_device(queue, lcc_mask.astype(i32)),
@@ -337,11 +337,11 @@ class OpenCLBatchedCorrelator(Correlator):
         bft = (self.batch_size,) + ft
         try:
             lcc_mask = get_lcc_mask(self.target)
-            _t = laplace_filter(self.target, mode="wrap") if self.laplace else self.target
+            filtered_target = laplace_filter(self.target, mode="wrap") if self.laplace else self.target
             zeros = np.zeros(vol, f32)
             zeros_ft = np.zeros(ft, dtype=np.complex64)
             self.vars = Vars(
-                target=cl_array.to_device(self.queue, _t.astype(f32)),
+                target=cl_array.to_device(self.queue, filtered_target.astype(f32)),
                 template=cl.image_from_array(self.queue.context, zeros),
                 mask=cl.image_from_array(self.queue.context, zeros),
                 lcc_mask=cl_array.to_device(self.queue, lcc_mask.astype(i32)),
@@ -381,11 +381,12 @@ class OpenCLBatchedCorrelator(Correlator):
     def compute_lcc_score_and_take_best(self, n: int):
         raise NotImplementedError("compute_lcc_score_and_take_best is not used in the batched correlator.")
 
-    def _compute_batch(self, batch_start: int, chunk_size: int):
+    def compute_batch(self, batch_start: int, chunk_size: int):
         """Compute correlation for a batch of rotations and reduce to global best."""
         if chunk_size > self.batch_size:
             raise ValueError("batch_size exceeds allocated OpenCL batch buffers.")
 
+        # Batch equavalent of Correlator.rotate_grids().
         self.cl_kernels.rotate_image3d_batch(
             self.queue,
             self.vars.template,
@@ -404,18 +405,21 @@ class OpenCLBatchedCorrelator(Correlator):
             nearest=True,
         )
 
+        # Batched equivalent of Correlator.compute_gcc().
         self.rfftn(self.vars.rot_template, self.vars_ft.template)
         self.cl_kernels.batch_conj_multiply(
             self.queue, self.vars_ft.template, self.vars_ft.target, self.vars_ft.gcc, chunk_size, self.ft_vol_size
         )
         self.irfftn(self.vars_ft.gcc, self.vars.gcc)
 
+        # Batched equivalent of Correlator.compute_sq_avg_density().
         self.rfftn(self.vars.rot_mask, self.vars_ft.mask)
         self.cl_kernels.batch_conj_multiply(
             self.queue, self.vars_ft.mask, self.vars_ft.target, self.vars_ft.ave, chunk_size, self.ft_vol_size
         )
         self.irfftn(self.vars_ft.ave, self.vars.ave)
 
+        # Batched equivalent of Correlator.compute_avg_sq_density().
         self.square(self.vars.rot_mask, self.vars.rot_mask2)
         self.rfftn(self.vars.rot_mask2, self.vars_ft.mask2)
         self.cl_kernels.batch_conj_multiply(
@@ -423,6 +427,7 @@ class OpenCLBatchedCorrelator(Correlator):
         )
         self.irfftn(self.vars_ft.ave2, self.vars.ave2)
 
+         # Batched equivalent of Correlator.compute_lcc_score_and_take_best().
         self.cl_kernels.batch_lcc_and_take_best(
             self.queue,
             self.vars.gcc,
@@ -451,5 +456,5 @@ class OpenCLBatchedCorrelator(Correlator):
         n_rot = self.rotations.shape[0]
         logger.info(f"Batching {n_rot} rotations with batch size {self.batch_size} (max {self._max_batch}).")
         for chunk in batched(range(n_rot), self.batch_size):
-            self._compute_batch(chunk[0], len(chunk))
+            self.compute_batch(chunk[0], len(chunk))
         self.retrieve_results()

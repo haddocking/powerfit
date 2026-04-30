@@ -403,7 +403,7 @@ class CUDABatchedCorrelator(Correlator):
     def compute_lcc_score_and_take_best(self, n: int):
         raise NotImplementedError("compute_lcc_score_and_take_best is not used in the batched correlator.")
 
-    def _compute_batch(self, batch_start: int, chunk_size: int, rotmats: cp.ndarray):
+    def compute_batch(self, batch_start: int, chunk_size: int, rotmats: cp.ndarray):
         """Compute correlation for *batch_size* rotations and reduce to global best."""
         # Rotate template (linear interp) and mask (nearest) for the whole batch.
         self.cuda_kernels.rotate_image3d_batch(self.vars.template, rotmats, self.vars.rot_template, chunk_size)
@@ -466,6 +466,6 @@ class CUDABatchedCorrelator(Correlator):
             logger.info(f"Batching {n_rot} rotations with batch size {self.batch_size} (max {self._max_batch}).")
             for chunk in batched(range(n_rot), self.batch_size):
                 start = chunk[0]
-                self._compute_batch(start, len(chunk), self.rotations[start : start + len(chunk)])
+                self.compute_batch(start, len(chunk), self.rotations[start : start + len(chunk)])
 
         self.retrieve_results()

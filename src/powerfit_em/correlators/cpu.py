@@ -61,10 +61,10 @@ def init_cpu_vars(
     """Initialize all CPU variables on the specified queue."""
 
     lcc_mask = get_lcc_mask(target)
-    _t = laplace_filter(target, mode="wrap") if laplace else target
+    filtered_target = laplace_filter(target, mode="wrap") if laplace else target
 
     vars = Vars(
-        target=_t.astype(f32),
+        target=filtered_target.astype(f32),
         template=zeros_array(target.shape, f32, fftw),
         mask=zeros_array(target.shape, f32, fftw),
         lcc_mask=lcc_mask.astype(np.uint8),
