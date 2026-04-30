@@ -215,7 +215,7 @@ class CUDASerialCorrelator(Correlator):
 
         self.lcc = np.zeros(self.target.shape, dtype=f32)
         self.rot = np.zeros(self.target.shape, dtype=i32)
-        self._volume_size = int(np.prod(self.target.shape))
+        self.volume_size = int(np.prod(self.target.shape))
         self.cuda_kernels = CUDAKernels(self.target.shape)
         self.lcc_kernel = build_cuda_lcc_kernel()
         self.conj_multiply_kernel = build_cuda_conj_multiply_kernel()
@@ -319,9 +319,9 @@ class CUDABatchedCorrelator(Correlator):
 
         self.lcc = np.zeros(self.target.shape, dtype=f32)
         self.rot = np.zeros(self.target.shape, dtype=i32)
-        self._volume_size = int(np.prod(self.target.shape))
+        self.volume_size = int(np.prod(self.target.shape))
         self.cuda_kernels = CUDAKernels(self.target.shape)
-        self._batch_lcc_kernel = self.cuda_kernels.batch_lcc_kernel
+        self.batch_lcc_kernel = self.cuda_kernels.batch_lcc_kernel
         self.conj_multiply_kernel = build_cuda_conj_multiply_kernel()
 
         self.square = _square
@@ -435,8 +435,8 @@ class CUDABatchedCorrelator(Correlator):
         # Batched equivalent of Correlator.compute_lcc_score_and_take_best().
         # Per-voxel batch reduction: updates vars.lcc and vars.rot in-place.
         block = 256
-        grid = (self._volume_size + block - 1) // block
-        self._batch_lcc_kernel(
+        grid = (self.volume_size + block - 1) // block
+        self.batch_lcc_kernel(
             (grid,),
             (block,),
             (
@@ -449,7 +449,7 @@ class CUDABatchedCorrelator(Correlator):
                 np.float32(self.norm_factor),
                 np.int32(batch_start),
                 np.int32(chunk_size),
-                np.int32(self._volume_size),
+                np.int32(self.volume_size),
             ),
         )
 

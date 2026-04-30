@@ -201,7 +201,7 @@ class OpenCLSerialCorrelator(Correlator):
         self.queue = queue
         self.norm_factor = 0.0  # to be set by set_template
 
-        self._rotations = transform_rotations(rotations)
+        self.rotations = transform_rotations(rotations)
 
         self.vars, self.vars_ft = init_gpu_vars(queue, self.target, self.laplace)
 
@@ -255,10 +255,10 @@ class OpenCLSerialCorrelator(Correlator):
         self.vars.lcc.fill(0)
         self.vars.rot.fill(0)
 
-        n_rot = self._rotations.shape[0]
+        n_rot = self.rotations.shape[0]
         logger.info(f"Processing {n_rot} rotations without batching.")
         for n in range(n_rot):
-            self.compute_rotation(n, self._rotations[n])
+            self.compute_rotation(n, self.rotations[n])
         self.retrieve_results()
 
 
@@ -303,10 +303,10 @@ class OpenCLBatchedCorrelator(Correlator):
         self.queue = queue
         self.norm_factor = 0.0  # to be set by set_template
 
-        self._rotations = transform_rotations(rotations)
-        self._rotations_gpu = cl_array.to_device(self.queue, self._rotations)
-        self._volume_size = int(np.prod(self.target.shape))
-        self._ft_vol_size = int(np.prod(get_ft_shape(self.target)))
+        self.rotations = transform_rotations(rotations)
+        self.rotations_gpu = cl_array.to_device(self.queue, self.rotations)
+        self.volume_size = int(np.prod(self.target.shape))
+        self.ft_vol_size = int(np.prod(get_ft_shape(self.target)))
 
         self.lcc = np.zeros(self.target.shape, dtype=np.float32)
         self.rot = np.zeros(self.target.shape, dtype=np.int32)
@@ -391,7 +391,7 @@ class OpenCLBatchedCorrelator(Correlator):
         self.cl_kernels.rotate_image3d_batch(
             self.queue,
             self.vars.template,
-            self._rotations_gpu,
+            self.rotations_gpu,
             batch_start,
             chunk_size,
             self.vars.rot_template,
@@ -399,7 +399,7 @@ class OpenCLBatchedCorrelator(Correlator):
         self.cl_kernels.rotate_image3d_batch(
             self.queue,
             self.vars.mask,
-            self._rotations_gpu,
+            self.rotations_gpu,
             batch_start,
             chunk_size,
             self.vars.rot_mask,
@@ -408,20 +408,20 @@ class OpenCLBatchedCorrelator(Correlator):
 
         self._rfftn_batch(self.vars.rot_template, self.vars_ft.template)
         self.cl_kernels.batch_conj_multiply(
-            self.queue, self.vars_ft.template, self.vars_ft.target, self.vars_ft.gcc, chunk_size, self._ft_vol_size
+            self.queue, self.vars_ft.template, self.vars_ft.target, self.vars_ft.gcc, chunk_size, self.ft_vol_size
         )
         self._irfftn_batch(self.vars_ft.gcc, self.vars.gcc)
 
         self._rfftn_batch(self.vars.rot_mask, self.vars_ft.mask)
         self.cl_kernels.batch_conj_multiply(
-            self.queue, self.vars_ft.mask, self.vars_ft.target, self.vars_ft.ave, chunk_size, self._ft_vol_size
+            self.queue, self.vars_ft.mask, self.vars_ft.target, self.vars_ft.ave, chunk_size, self.ft_vol_size
         )
         self._irfftn_batch(self.vars_ft.ave, self.vars.ave)
 
         self.square(self.vars.rot_mask, self.vars.rot_mask2)
         self._rfftn_batch(self.vars.rot_mask2, self.vars_ft.mask2)
         self.cl_kernels.batch_conj_multiply(
-            self.queue, self.vars_ft.mask2, self.vars_ft.target2, self.vars_ft.ave2, chunk_size, self._ft_vol_size
+            self.queue, self.vars_ft.mask2, self.vars_ft.target2, self.vars_ft.ave2, chunk_size, self.ft_vol_size
         )
         self._irfftn_batch(self.vars_ft.ave2, self.vars.ave2)
 
@@ -436,7 +436,7 @@ class OpenCLBatchedCorrelator(Correlator):
             np.float32(self.norm_factor),
             batch_start,
             chunk_size,
-            self._volume_size,
+            self.volume_size,
         )
 
     def retrieve_results(self):
@@ -450,7 +450,7 @@ class OpenCLBatchedCorrelator(Correlator):
         self.vars.lcc.fill(0)
         self.vars.rot.fill(0)
 
-        n_rot = self._rotations.shape[0]
+        n_rot = self.rotations.shape[0]
         logger.info(f"Batching {n_rot} rotations with batch size {self.batch_size} (max {self._max_batch}).")
         for chunk in batched(range(n_rot), self.batch_size):
             self._compute_batch(chunk[0], len(chunk))
