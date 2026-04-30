@@ -32,6 +32,14 @@ for run in 1 2 3 4 5; do
 	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --nproc 6 --progressbar -d runs/m1-cpu6-pb-r${run}
 	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 -d runs/m1-cuda-autobs-r${run}
 	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 1000 -d runs/m1-cuda-bs1000-r${run}
+    powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 500 -d runs/m1-cuda-bs500-r${run}
+	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 250 -d runs/m1-cuda-bs250-r${run}
+	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 200 -d runs/m1-cuda-bs200-r${run}
+	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 150 -d runs/m1-cuda-bs150-r${run}
+	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 100 -d runs/m1-cuda-bs100-r${run}
+	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 75 -d runs/m1-cuda-bs75-r${run}
+	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 50 -d runs/m1-cuda-bs50-r${run}
+	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 10 -d runs/m1-cuda-bs10-r${run}
 	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 0 -d runs/m1-cuda-nobs-r${run}
 	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 -d runs/m1-opencl-autobs-r${run}
 	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 1000 -d runs/m1-opencl-bs1000-r${run}
@@ -169,6 +177,47 @@ around 30 April 2026 on commit 0e60abd4f69d3d438ddaee0651519a79d99fa0f3 of code.
         {
             "filter": {
                 "and": ["slice(datum.run, 0, 10) == 'm3-cuda-bs'", {
+                    "field": "batch_size",
+                    "lt": 1000
+                }]
+            }
+        }
+    ],
+    "params": [{
+        "name": "grid",
+        "select":"interval",
+        "bind":"scales"
+    }],
+    "mark": {"type": "point", "tooltip": true},
+    "encoding": {
+        "x": {
+            "field": "batch_size",
+            "type": "quantitative",
+            "title": "Batch Size"
+        },
+        "y": {
+            "field": "search_seconds",
+            "type": "quantitative",
+            "title": "Search (s)"
+        }
+    }
+}
+```
+
+```vegalite
+{
+    "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
+    "title": "m1 CUDA: Batch Size vs Search Seconds",
+    "data": {
+        "url": "../times.csv",
+        "format": {
+            "type": "csv"
+        }
+    },
+    "transform": [
+        {
+            "filter": {
+                "and": ["slice(datum.run, 0, 10) == 'm1-cuda-bs'", {
                     "field": "batch_size",
                     "lt": 1000
                 }]
