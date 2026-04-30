@@ -1,3 +1,4 @@
+from typing import Any, cast
 from unittest.mock import patch
 
 import numpy as np
@@ -11,10 +12,13 @@ pytestmark = pytest.mark.skipif(not OPENCL_AVAILABLE, reason="OpenCL resources a
 
 from powerfit_em.correlators.cpu import CPUCorrelator  # noqa: E402
 from powerfit_em.correlators.opencl import (  # noqa: E402
+    _K_OPENCL_PERF,
+    _TUNED_BATCH_CEIL,
+    _TUNED_BATCH_FLOOR,
     OpenCLBatchedCorrelator,
     OpenCLSerialCorrelator,
-    _max_batch_size,
-    _tuned_batch_size,
+    guess_batch_size,
+    max_batch_size,
 )
 
 
@@ -122,23 +126,69 @@ def test_batched_invalid_batch_size_raises(opencl_queue):
 
 
 def test_max_batch_size_returns_positive(opencl_queue):
-    result = _max_batch_size(opencl_queue, (32, 32, 32))
+    result = max_batch_size(opencl_queue, (32, 32, 32))
     assert result >= 1
 
 
-def test_tuned_batch_size_returns_positive(opencl_queue):
-    result = _tuned_batch_size(opencl_queue, (32, 32, 32))
+def test_guess_batch_size_returns_positive(opencl_queue):
+    result = guess_batch_size(opencl_queue, (32, 32, 32))
     assert result >= 1
 
 
-def test_tuned_batch_size_at_most_max(opencl_queue):
+def test_guess_batch_size_at_most_max(opencl_queue):
     shape = (32, 32, 32)
-    assert _tuned_batch_size(opencl_queue, shape) <= _max_batch_size(opencl_queue, shape)
+    assert guess_batch_size(opencl_queue, shape) <= max_batch_size(opencl_queue, shape)
+
+
+class TestGuessedBatchSize:
+    def test_uses_floor_when_raw_estimate_is_tiny(self):
+        class _FakeDevice:
+            max_compute_units = 1
+            max_clock_frequency = 1
+
+        class _FakeQueue:
+            device = _FakeDevice()
+
+        # Huge volume ensures raw estimate is effectively 0 before clamping.
+        shape = (512, 512, 512)
+        assert guess_batch_size(cast(Any, _FakeQueue()), shape) == _TUNED_BATCH_FLOOR
+
+    def test_uses_ceiling_for_extreme_raw_estimate(self):
+        class _FakeDevice:
+            max_compute_units = 1_000_000
+            max_clock_frequency = 3_000_000
+
+        class _FakeQueue:
+            device = _FakeDevice()
+
+        shape = (8, 8, 8)
+        assert guess_batch_size(cast(Any, _FakeQueue()), shape) == _TUNED_BATCH_CEIL
+
+    def test_returns_expected_clamped_raw_for_m2_profile(self):
+        class _FakeDevice:
+            max_compute_units = 10
+            max_clock_frequency = 1398
+
+        class _FakeQueue:
+            device = _FakeDevice()
+
+        shape = (32, 32, 32)
+        z, y, x = shape
+        ft_x = x // 2 + 1
+        real_bytes = z * y * x * np.dtype(np.float32).itemsize
+        complex_bytes = z * y * ft_x * np.dtype(np.complex64).itemsize
+        bytes_per_rot = 6 * real_bytes + 6 * complex_bytes
+        expected_raw = int(
+            _K_OPENCL_PERF * _FakeDevice.max_compute_units * _FakeDevice.max_clock_frequency / bytes_per_rot
+        )
+        expected = max(_TUNED_BATCH_FLOOR, min(_TUNED_BATCH_CEIL, expected_raw))
+
+        assert guess_batch_size(cast(Any, _FakeQueue()), shape) == expected
 
 
 def test_batched_explicit_batch_size_exceeds_max_raises(opencl_queue):
     target, template, mask, rotations = _make_inputs()
-    with patch("powerfit_em.correlators.opencl._max_batch_size", return_value=1):  # noqa: SIM117
+    with patch("powerfit_em.correlators.opencl.max_batch_size", return_value=1):  # noqa: SIM117
         with pytest.raises(ValueError, match="exceeds the device memory upper bound"):
             OpenCLBatchedCorrelator(target, template, rotations, mask, opencl_queue, batch_size=2)
 
@@ -146,8 +196,8 @@ def test_batched_explicit_batch_size_exceeds_max_raises(opencl_queue):
 def test_batched_auto_tuned_exceeds_max_raises(opencl_queue):
     target, template, mask, rotations = _make_inputs()
     with (  # noqa: SIM117
-        patch("powerfit_em.correlators.opencl._max_batch_size", return_value=1),
-        patch("powerfit_em.correlators.opencl._tuned_batch_size", return_value=999),
+        patch("powerfit_em.correlators.opencl.max_batch_size", return_value=1),
+        patch("powerfit_em.correlators.opencl.guess_batch_size", return_value=999),
     ):
         with pytest.raises(ValueError, match="Auto-tuned batch size"):
             OpenCLBatchedCorrelator(target, template, rotations, mask, opencl_queue)
