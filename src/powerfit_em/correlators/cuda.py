@@ -8,7 +8,7 @@ from powerfit_em.correlators.cudakernels import CUDAKernels
 from powerfit_em.correlators.shared import (
     DEFAULT_BATCH_SIZE,
     BatchedCorrelator,
-    Correlator,
+    SerialCorrelator,
     f32,
     i32,
     init_correlator_vars,
@@ -144,7 +144,7 @@ def build_cuda_lcc_kernel():
     )
 
 
-class CUDASerialCorrelator(Correlator):
+class CUDASerialCorrelator(SerialCorrelator):
     """GPU-accelerated correlator that processes rotations one-by-one.
 
     No batch buffers are allocated; each rotation is processed individually.
@@ -292,7 +292,8 @@ class CUDABatchedCorrelator(BatchedCorrelator[cp.ndarray]):
         self.max_batch_size = max_batch_size(self.target.shape)
         if batch_size > self.max_batch_size:
             raise ValueError(
-                f"batch_size={batch_size} exceeds the device memory upper bound {self.max_batch_size}. Reduce batch_size."
+                f"batch_size={batch_size} exceeds the device memory upper bound"
+                f" {self.max_batch_size}. Reduce batch_size."
             )
         self.batch_size = batch_size
 

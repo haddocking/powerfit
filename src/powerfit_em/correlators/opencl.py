@@ -11,7 +11,7 @@ from powerfit_em.correlators.clkernels import CLKernels
 from powerfit_em.correlators.shared import (
     DEFAULT_BATCH_SIZE,
     BatchedCorrelator,
-    Correlator,
+    SerialCorrelator,
     Vars,
     VarsFT,
     f32,
@@ -123,7 +123,7 @@ def transform_rotations(rotations: np.ndarray) -> np.ndarray:
     return rot_trans
 
 
-class OpenCLSerialCorrelator(Correlator):
+class OpenCLSerialCorrelator(SerialCorrelator):
     """Compute LCC scores for each rotation one-by-one using OpenCL.
 
     No batch buffers are allocated; each rotation is processed individually.
@@ -268,7 +268,7 @@ class OpenCLBatchedCorrelator(BatchedCorrelator[cl_array.Array]):
         self.norm_factor = 0.0  # to be set by set_template
 
         transformed_rotations = transform_rotations(rotations)
-        self.rotations= cl_array.to_device(self.queue, transformed_rotations)
+        self.rotations = cl_array.to_device(self.queue, transformed_rotations)
         self.volume_size = int(np.prod(self.target.shape))
         self.ft_vol_size = int(np.prod(get_ft_shape(self.target)))
 

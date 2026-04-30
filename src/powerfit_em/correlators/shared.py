@@ -241,8 +241,25 @@ class Correlator(ABC):
         self.rot[:] = 0
 
     @abstractmethod
+    def scan(self, progress: ProgressFactory | None = None):
+        pass
+
+
+class SerialCorrelator(Correlator, ABC):
+    """Base class for correlators that process rotations one at a time."""
+
+    @abstractmethod
     def rotate_grids(self, rotmat: np.ndarray):
         """Rotate the template and mask using the rotational matrix."""
+        pass
+
+    @abstractmethod
+    def compute_lcc_score_and_take_best(self, n: int):
+        """Compute the LCC score and store best result.
+
+        Args:
+            n: iteration number.
+        """
         pass
 
     def compute_gcc(self):
@@ -270,15 +287,6 @@ class Correlator(ABC):
         self.conj_multiply(self.vars_ft.mask2, self.vars_ft.target2, self.vars_ft.ave2)
         self.irfftn(self.vars_ft.ave2, self.vars.ave2)
 
-    @abstractmethod
-    def compute_lcc_score_and_take_best(self, n: int):
-        """Compute the LCC score and store best result.
-
-        Args:
-            n: iteration number.
-        """
-        pass
-
     def compute_rotation(self, n: int, rotmat: np.ndarray):
         """Compute a single rotation.
 
@@ -292,28 +300,18 @@ class Correlator(ABC):
         self.compute_avg_sq_density()
         self.compute_lcc_score_and_take_best(n)
 
-    @abstractmethod
-    def scan(self, progress: ProgressFactory | None = None):
-        pass
-
 
 class BatchedCorrelator(Correlator, ABC, Generic[R]):
     """Base class for correlators that process rotations in batches.
 
     Provides a concrete `compute_batch` orchestration method analogous to
-    `Correlator.compute_rotation`, with three abstract methods for the
+    `SerialCorrelator.compute_rotation`, with three abstract methods for the
     GPU-backend-specific operations.
     """
 
     batch_size: int
     max_batch_size: int
     rotations: R
-
-    def rotate_grids(self, rotmat: np.ndarray):
-        raise NotImplementedError("rotate_grids is not used in the batched correlator.")
-
-    def compute_lcc_score_and_take_best(self, n: int):
-        raise NotImplementedError("compute_lcc_score_and_take_best is not used in the batched correlator.")
 
     @abstractmethod
     def retrieve_results(self):
@@ -329,7 +327,12 @@ class BatchedCorrelator(Correlator, ABC, Generic[R]):
         return contextlib.nullcontext()
 
     def scan(self, progress: ProgressFactory | None = None):
-        """Scan all provided rotations to find the best fit."""
+        """Scan all provided rotations to find the best fit.
+
+        Args:
+            progress: optional factory for progress bars. Note that this is ignored
+                for batched correlators, as this slows down computations.
+        """
         n_rot = self.rotations.shape[0]
         logger.info(f"Batching {n_rot} rotations with batch size {self.batch_size} (max {self.max_batch_size}).")
         with self._scan_context():
@@ -372,6 +375,43 @@ class BatchedCorrelator(Correlator, ABC, Generic[R]):
         """
         pass
 
+    def compute_gcc(self, chunk_size: int):
+        """Compute the batched global cross-correlation.
+
+        Batched equivalent of `SerialCorrelator.compute_gcc`.
+
+        Args:
+            chunk_size: number of rotations in this batch.
+        """
+        self.rfftn(self.vars.rot_template, self.vars_ft.template)
+        self.batch_conj_multiply(self.vars_ft.template, self.vars_ft.target, self.vars_ft.gcc, chunk_size)
+        self.irfftn(self.vars_ft.gcc, self.vars.gcc)
+
+    def compute_sq_avg_density(self, chunk_size: int):
+        """Compute the batched square of the average core-weighted density.
+
+        Batched equivalent of `SerialCorrelator.compute_sq_avg_density`.
+
+        Args:
+            chunk_size: number of rotations in this batch.
+        """
+        self.rfftn(self.vars.rot_mask, self.vars_ft.mask)
+        self.batch_conj_multiply(self.vars_ft.mask, self.vars_ft.target, self.vars_ft.ave, chunk_size)
+        self.irfftn(self.vars_ft.ave, self.vars.ave)
+
+    def compute_avg_sq_density(self, chunk_size: int):
+        """Compute the batched average of the squared core-weighted density.
+
+        Batched equivalent of `SerialCorrelator.compute_avg_sq_density`.
+
+        Args:
+            chunk_size: number of rotations in this batch.
+        """
+        self.square(self.vars.rot_mask, self.vars.rot_mask2)
+        self.rfftn(self.vars.rot_mask2, self.vars_ft.mask2)
+        self.batch_conj_multiply(self.vars_ft.mask2, self.vars_ft.target2, self.vars_ft.ave2, chunk_size)
+        self.irfftn(self.vars_ft.ave2, self.vars.ave2)
+
     def compute_batch(self, batch_start: int, chunk_size: int):
         """Compute correlation for a batch of rotations and reduce to global best.
 
@@ -383,21 +423,7 @@ class BatchedCorrelator(Correlator, ABC, Generic[R]):
             chunk_size: number of rotations in this batch.
         """
         self.rotate_grids_batch(batch_start, chunk_size)
-
-        # Batched equivalent of compute_gcc()
-        self.rfftn(self.vars.rot_template, self.vars_ft.template)
-        self.batch_conj_multiply(self.vars_ft.template, self.vars_ft.target, self.vars_ft.gcc, chunk_size)
-        self.irfftn(self.vars_ft.gcc, self.vars.gcc)
-
-        # Batched equivalent of compute_sq_avg_density()
-        self.rfftn(self.vars.rot_mask, self.vars_ft.mask)
-        self.batch_conj_multiply(self.vars_ft.mask, self.vars_ft.target, self.vars_ft.ave, chunk_size)
-        self.irfftn(self.vars_ft.ave, self.vars.ave)
-
-        # Batched equivalent of compute_avg_sq_density()
-        self.square(self.vars.rot_mask, self.vars.rot_mask2)
-        self.rfftn(self.vars.rot_mask2, self.vars_ft.mask2)
-        self.batch_conj_multiply(self.vars_ft.mask2, self.vars_ft.target2, self.vars_ft.ave2, chunk_size)
-        self.irfftn(self.vars_ft.ave2, self.vars.ave2)
-
+        self.compute_gcc(chunk_size)
+        self.compute_sq_avg_density(chunk_size)
+        self.compute_avg_sq_density(chunk_size)
         self.compute_batch_lcc_score_and_take_best(batch_start, chunk_size)

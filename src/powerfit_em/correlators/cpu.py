@@ -5,8 +5,8 @@ from numpy import typing as npt
 
 from powerfit_em._extensions import rotate_grid3d
 from powerfit_em.correlators.shared import (
-    Correlator,
     ProgressFactory,
+    SerialCorrelator,
     Vars,
     VarsFT,
     f32,
@@ -67,7 +67,7 @@ def init_cpu_vars(
     )
 
 
-class CPUCorrelator(Correlator):
+class CPUCorrelator(SerialCorrelator):
     """Compute the LCC score for a target and template combination."""
 
     def __init__(
