@@ -405,11 +405,11 @@ class CUDABatchedCorrelator(Correlator):
     def compute_lcc_score_and_take_best(self, n: int):
         raise NotImplementedError("compute_lcc_score_and_take_best is not used in the batched correlator.")
 
-    def _compute_batch(self, batch_start: int, batch_size: int, rotmats: cp.ndarray):
+    def _compute_batch(self, batch_start: int, chunk_size: int, rotmats: cp.ndarray):
         """Compute correlation for *batch_size* rotations and reduce to global best."""
         # Rotate template (linear interp) and mask (nearest) for the whole batch.
-        self.cuda_kernels.rotate_image3d_batch(self.vars.template, rotmats, self.vars.rot_template, batch_size)
-        self.cuda_kernels.rotate_image3d_batch(self.vars.mask, rotmats, self.vars.rot_mask, batch_size, nearest=True)
+        self.cuda_kernels.rotate_image3d_batch(self.vars.template, rotmats, self.vars.rot_template, chunk_size)
+        self.cuda_kernels.rotate_image3d_batch(self.vars.mask, rotmats, self.vars.rot_mask, chunk_size, nearest=True)
 
         # Batched equivalent of Correlator.compute_gcc().
         # GCC: rfftn(rot_template) then conj-multiply with target_ft, then irfftn.
@@ -448,7 +448,7 @@ class CUDABatchedCorrelator(Correlator):
                 self.vars.rot,
                 np.float32(self.norm_factor),
                 np.int32(batch_start),
-                np.int32(batch_size),
+                np.int32(chunk_size),
                 np.int32(self._volume_size),
             ),
         )

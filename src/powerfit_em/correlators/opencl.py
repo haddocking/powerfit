@@ -380,9 +380,9 @@ class OpenCLBatchedCorrelator(Correlator):
     def compute_lcc_score_and_take_best(self, n: int):
         raise NotImplementedError("compute_lcc_score_and_take_best is not used in the batched correlator.")
 
-    def _compute_batch(self, batch_start: int, batch_size: int):
+    def _compute_batch(self, batch_start: int, chunk_size: int):
         """Compute correlation for a batch of rotations and reduce to global best."""
-        if batch_size > self.batch_size:
+        if chunk_size > self.batch_size:
             raise ValueError("batch_size exceeds allocated OpenCL batch buffers.")
 
         self.vars.rot_template.fill(0)
@@ -393,7 +393,7 @@ class OpenCLBatchedCorrelator(Correlator):
             self.vars.template,
             self._rotations_gpu,
             batch_start,
-            batch_size,
+            chunk_size,
             self.vars.rot_template,
         )
         self.cl_kernels.rotate_image3d_batch(
@@ -401,27 +401,27 @@ class OpenCLBatchedCorrelator(Correlator):
             self.vars.mask,
             self._rotations_gpu,
             batch_start,
-            batch_size,
+            chunk_size,
             self.vars.rot_mask,
             nearest=True,
         )
 
         self._rfftn_batch(self.vars.rot_template, self.vars_ft.template)
         self.cl_kernels.batch_conj_multiply(
-            self.queue, self.vars_ft.template, self.vars_ft.target, self.vars_ft.gcc, batch_size, self._ft_vol_size
+            self.queue, self.vars_ft.template, self.vars_ft.target, self.vars_ft.gcc, chunk_size, self._ft_vol_size
         )
         self._irfftn_batch(self.vars_ft.gcc, self.vars.gcc)
 
         self._rfftn_batch(self.vars.rot_mask, self.vars_ft.mask)
         self.cl_kernels.batch_conj_multiply(
-            self.queue, self.vars_ft.mask, self.vars_ft.target, self.vars_ft.ave, batch_size, self._ft_vol_size
+            self.queue, self.vars_ft.mask, self.vars_ft.target, self.vars_ft.ave, chunk_size, self._ft_vol_size
         )
         self._irfftn_batch(self.vars_ft.ave, self.vars.ave)
 
         self.square(self.vars.rot_mask, self.vars.rot_mask2)
         self._rfftn_batch(self.vars.rot_mask2, self.vars_ft.mask2)
         self.cl_kernels.batch_conj_multiply(
-            self.queue, self.vars_ft.mask2, self.vars_ft.target2, self.vars_ft.ave2, batch_size, self._ft_vol_size
+            self.queue, self.vars_ft.mask2, self.vars_ft.target2, self.vars_ft.ave2, chunk_size, self._ft_vol_size
         )
         self._irfftn_batch(self.vars_ft.ave2, self.vars.ave2)
 
@@ -435,7 +435,7 @@ class OpenCLBatchedCorrelator(Correlator):
             self.vars.rot,
             np.float32(self.norm_factor),
             batch_start,
-            batch_size,
+            chunk_size,
             self._volume_size,
         )
 
