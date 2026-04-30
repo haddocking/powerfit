@@ -29,45 +29,6 @@ from powerfit_em.correlators.shared import (
 logger = logging.getLogger(__name__)
 
 
-def init_gpu_vars(
-    queue: cl.CommandQueue,
-    target: np.ndarray,
-    laplace: bool,
-) -> tuple[Vars[ClArray, Image], VarsFT[ClArray]]:
-    """Initialize all GPU variables on the specified queue."""
-    lcc_mask = get_lcc_mask(target)
-    filtered_target = laplace_filter(target, mode="wrap") if laplace else target
-    zeros = np.zeros(target.shape, f32)
-    gpu_vars = Vars(
-        target=cl_array.to_device(queue, filtered_target.astype(f32)),
-        template=cl.image_from_array(queue.context, zeros),  # template is set through separate method
-        mask=cl.image_from_array(queue.context, zeros),  # mask is set through separate method
-        lcc_mask=cl_array.to_device(queue, lcc_mask.astype(i32)),
-        target2=cl_array.to_device(queue, zeros),
-        rot_template=cl_array.to_device(queue, zeros),
-        rot_mask=cl_array.to_device(queue, zeros),
-        rot_mask2=cl_array.to_device(queue, zeros),
-        gcc=cl_array.to_device(queue, zeros),
-        ave=cl_array.to_device(queue, zeros),
-        ave2=cl_array.to_device(queue, zeros),
-        lcc=cl_array.to_device(queue, zeros),
-        rot=cl_array.to_device(queue, np.zeros(target.shape, i32)),
-    )
-    zeros_ft = np.zeros(get_ft_shape(target), dtype=np.complex64)
-    gpu_vars_ft = VarsFT(
-        target=cl_array.to_device(queue, zeros_ft),
-        target2=cl_array.to_device(queue, zeros_ft),
-        template=cl_array.to_device(queue, zeros_ft),
-        mask=cl_array.to_device(queue, zeros_ft),
-        mask2=cl_array.to_device(queue, zeros_ft),
-        ave=cl_array.to_device(queue, zeros_ft),
-        ave2=cl_array.to_device(queue, zeros_ft),
-        lcc=cl_array.to_device(queue, zeros_ft),
-        gcc=cl_array.to_device(queue, zeros_ft),
-    )
-    return gpu_vars, gpu_vars_ft
-
-
 def generate_kernels(queue: cl.CommandQueue, target: np.ndarray):
     """Generate the custom OpenCL kernels based on the target's shape"""
     kernel_values = {
@@ -203,7 +164,7 @@ class OpenCLSerialCorrelator(Correlator):
 
         self.rotations = transform_rotations(rotations)
 
-        self.vars, self.vars_ft = init_gpu_vars(queue, self.target, self.laplace)
+        self.init_vars()
 
         self.lcc = np.zeros(self.target.shape, dtype=np.float32)
         self.rot = np.zeros(self.target.shape, dtype=np.int32)
@@ -215,6 +176,38 @@ class OpenCLSerialCorrelator(Correlator):
 
         self.set_template(template, mask)
         precompute_squared_targets(self.vars, self.vars_ft, self.cl_kernels, self.rfftn)
+
+    def init_vars(self):
+        lcc_mask = get_lcc_mask(self.target)
+        filtered_target = laplace_filter(self.target, mode="wrap") if self.laplace else self.target
+        zeros = np.zeros(self.target.shape, f32)
+        self.vars = Vars(
+            target=cl_array.to_device(self.queue, filtered_target.astype(f32)),
+            template=cl.image_from_array(self.queue.context, zeros),
+            mask=cl.image_from_array(self.queue.context, zeros),
+            lcc_mask=cl_array.to_device(self.queue, lcc_mask.astype(i32)),
+            target2=cl_array.to_device(self.queue, zeros),
+            rot_template=cl_array.to_device(self.queue, zeros),
+            rot_mask=cl_array.to_device(self.queue, zeros),
+            rot_mask2=cl_array.to_device(self.queue, zeros),
+            gcc=cl_array.to_device(self.queue, zeros),
+            ave=cl_array.to_device(self.queue, zeros),
+            ave2=cl_array.to_device(self.queue, zeros),
+            lcc=cl_array.to_device(self.queue, zeros),
+            rot=cl_array.to_device(self.queue, np.zeros(self.target.shape, i32)),
+        )
+        zeros_ft = np.zeros(get_ft_shape(self.target), dtype=np.complex64)
+        self.vars_ft = VarsFT(
+            target=cl_array.to_device(self.queue, zeros_ft),
+            target2=cl_array.to_device(self.queue, zeros_ft),
+            template=cl_array.to_device(self.queue, zeros_ft),
+            mask=cl_array.to_device(self.queue, zeros_ft),
+            mask2=cl_array.to_device(self.queue, zeros_ft),
+            ave=cl_array.to_device(self.queue, zeros_ft),
+            ave2=cl_array.to_device(self.queue, zeros_ft),
+            lcc=cl_array.to_device(self.queue, zeros_ft),
+            gcc=cl_array.to_device(self.queue, zeros_ft),
+        )
 
     def _set_template_var(self, template: np.ndarray):
         self.vars.template = cl.image_from_array(self.vars.template.context, template.astype(f32))
@@ -321,7 +314,7 @@ class OpenCLBatchedCorrelator(Correlator):
             )
         self.batch_size = batch_size
 
-        self._allocate_batch_buffers()
+        self.init_vars()
         self.rfftn, self.irfftn = build_opencl_ffts_batched(self.target.shape, self.batch_size, queue)
 
         self.set_template(template, mask)
@@ -329,7 +322,7 @@ class OpenCLBatchedCorrelator(Correlator):
         serial_rfftn, _ = build_opencl_ffts(self.target.shape, queue)
         precompute_squared_targets(self.vars, self.vars_ft, self.cl_kernels, serial_rfftn)
 
-    def _allocate_batch_buffers(self):
+    def init_vars(self):
         """Allocate all GPU arrays needed by the batched path; raises on allocation failure."""
         vol = self.target.shape
         ft = get_ft_shape(self.target)

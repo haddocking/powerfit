@@ -153,43 +153,6 @@ def build_cuda_lcc_kernel():
     )
 
 
-def init_cuda_vars(
-    target: np.ndarray,
-    laplace: bool,
-) -> tuple[Vars, VarsFT]:
-    lcc_mask = get_lcc_mask(target)
-    filtered_target = laplace_filter(target, mode="wrap") if laplace else target
-    zeros = cp.zeros(target.shape, dtype=f32)
-    vars = Vars(
-        target=cp.asarray(filtered_target.astype(f32)),
-        template=zeros.copy(),
-        mask=zeros.copy(),
-        lcc_mask=cp.asarray(lcc_mask.astype(i32)),
-        target2=zeros.copy(),
-        rot_template=zeros.copy(),
-        rot_mask=zeros.copy(),
-        rot_mask2=zeros.copy(),
-        gcc=zeros.copy(),
-        ave=zeros.copy(),
-        ave2=zeros.copy(),
-        lcc=zeros.copy(),
-        rot=cp.zeros(target.shape, dtype=i32),
-    )
-    zeros_ft = cp.zeros(get_ft_shape(target), dtype=cp.complex64)
-    vars_ft = VarsFT(
-        target=zeros_ft.copy(),
-        target2=zeros_ft.copy(),
-        template=zeros_ft.copy(),
-        mask=zeros_ft.copy(),
-        mask2=zeros_ft.copy(),
-        ave=zeros_ft.copy(),
-        ave2=zeros_ft.copy(),
-        lcc=zeros_ft.copy(),
-        gcc=zeros_ft.copy(),
-    )
-    return vars, vars_ft
-
-
 class CUDASerialCorrelator(Correlator):
     """GPU-accelerated correlator that processes rotations one-by-one.
 
@@ -211,7 +174,7 @@ class CUDASerialCorrelator(Correlator):
         self.rotations = cp.asarray(rotations.reshape(rotations.shape[0], -1), dtype=f32)
         self.cuda_stream = cuda_stream
 
-        self.vars, self.vars_ft = init_cuda_vars(self.target, self.laplace)
+        self.init_vars()
 
         self.lcc = np.zeros(self.target.shape, dtype=f32)
         self.rot = np.zeros(self.target.shape, dtype=i32)
@@ -232,6 +195,38 @@ class CUDASerialCorrelator(Correlator):
 
     def _synchronize(self):
         self.cuda_stream.synchronize()
+
+    def init_vars(self):
+        lcc_mask = get_lcc_mask(self.target)
+        filtered_target = laplace_filter(self.target, mode="wrap") if self.laplace else self.target
+        zeros = cp.zeros(self.target.shape, dtype=f32)
+        self.vars = Vars(
+            target=cp.asarray(filtered_target.astype(f32)),
+            template=zeros.copy(),
+            mask=zeros.copy(),
+            lcc_mask=cp.asarray(lcc_mask.astype(i32)),
+            target2=zeros.copy(),
+            rot_template=zeros.copy(),
+            rot_mask=zeros.copy(),
+            rot_mask2=zeros.copy(),
+            gcc=zeros.copy(),
+            ave=zeros.copy(),
+            ave2=zeros.copy(),
+            lcc=zeros.copy(),
+            rot=cp.zeros(self.target.shape, dtype=i32),
+        )
+        zeros_ft = cp.zeros(get_ft_shape(self.target), dtype=cp.complex64)
+        self.vars_ft = VarsFT(
+            target=zeros_ft.copy(),
+            target2=zeros_ft.copy(),
+            template=zeros_ft.copy(),
+            mask=zeros_ft.copy(),
+            mask2=zeros_ft.copy(),
+            ave=zeros_ft.copy(),
+            ave2=zeros_ft.copy(),
+            lcc=zeros_ft.copy(),
+            gcc=zeros_ft.copy(),
+        )
 
     def _set_template_var(self, template: np.ndarray):
         self.vars.template = cp.asarray(template, dtype=f32)
@@ -325,7 +320,6 @@ class CUDABatchedCorrelator(Correlator):
         self.conj_multiply_kernel = build_cuda_conj_multiply_kernel()
 
         self.square = _square
-        rfftn_serial, _ = build_cuda_ffts(self.target.shape, self.cuda_stream)
 
         self._max_batch = max_batch_size(self.target.shape)
         if batch_size > self._max_batch:
@@ -334,17 +328,18 @@ class CUDABatchedCorrelator(Correlator):
             )
         self.batch_size = batch_size
 
-        self._allocate_batch_buffers()
+        self.init_vars()
         self.rfftn, self.irfftn = build_cuda_ffts_batched(self.target.shape, self.batch_size, self.cuda_stream)
 
         with self.cuda_stream:
             self.set_template(template, mask)
+            rfftn_serial, _ = build_cuda_ffts(self.target.shape, self.cuda_stream)
             rfftn_serial(self.vars.target, self.vars_ft.target)
             self.square(self.vars.target, self.vars.target2)
             rfftn_serial(self.vars.target2, self.vars_ft.target2)
         self._synchronize()
 
-    def _allocate_batch_buffers(self):
+    def init_vars(self):
         """Allocate GPU arrays needed by the batched path; raises on OOM."""
         try:
             vol = self.target.shape
