@@ -117,9 +117,14 @@ def max_batch_size(vol_shape: tuple) -> int:
     # into the Z grid dimension using block size 4 (CUDAKernels._block[2]).
     # See https://docs.nvidia.com/cuda/cuda-c-programming-guide/#features-and-technical-specifications
     # ("Maximum y- or z-dimension of a grid of thread blocks: 65535")
-    _BLOCK_Z = 4
-    _MAX_GRID_Z = 65535
-    batch = min(batch, (_MAX_GRID_Z * _BLOCK_Z) // z)
+    BLOCK_Z = 4
+    MAX_GRID_Z = 65535
+    batch = min(batch, (MAX_GRID_Z * BLOCK_Z) // z)
+    if batch < BATCH_FLOOR:
+        raise RuntimeError(
+            "Unable to fit even a single rotation in CUDA memory. "
+            f"Required bytes per rotation: {bytes_per_rot}, free VRAM: {free_mem}."
+        )
     return max(BATCH_FLOOR, int(batch))
 
 

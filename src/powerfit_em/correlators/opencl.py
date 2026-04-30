@@ -123,8 +123,9 @@ def build_opencl_ffts_batched(vol_shape: tuple[int, ...], batch_size: int, queue
 
 def max_batch_size(queue: cl.CommandQueue, vol_shape: tuple[int, int, int]) -> int:
     """Return the hard upper bound on batch size imposed by OpenCL device memory."""
+    BATCH_FLOOR = 1
     # Conservative batch-memory target for auto sizing on OpenCL devices.
-    BATCH_MEM_TARGET = 0.70
+    VRAM_TARGET = 0.70
 
     z, y, x = vol_shape
     ft_x = x // 2 + 1
@@ -134,12 +135,12 @@ def max_batch_size(queue: cl.CommandQueue, vol_shape: tuple[int, int, int]) -> i
 
     global_mem = int(queue.device.global_mem_size)
     max_alloc = int(queue.device.max_mem_alloc_size)
-    budget = int(global_mem * BATCH_MEM_TARGET)
+    budget = int(global_mem * VRAM_TARGET)
     by_total = budget // bytes_per_rot
     by_alloc_real = max_alloc // real_bytes
     by_alloc_complex = max_alloc // complex_bytes
     batch_size = min(by_total, by_alloc_real, by_alloc_complex)
-    if batch_size < 1:
+    if batch_size < BATCH_FLOOR:
         raise RuntimeError("Unable to compute a valid OpenCL memory upper bound for this device.")
     return int(batch_size)
 
@@ -321,18 +322,18 @@ class OpenCLBatchedCorrelator(Correlator):
             )
         self.batch_size = batch_size
 
-        self._allocate_batch_buffers(self.batch_size)
+        self._allocate_batch_buffers()
         self._rfftn_batch, self._irfftn_batch = build_opencl_ffts_batched(self.target.shape, self.batch_size, queue)
 
         self.set_template(template, mask)
         precompute_squared_targets(self.vars, self.vars_ft, self.cl_kernels, self.rfftn)
 
-    def _allocate_batch_buffers(self, batch_size: int):
+    def _allocate_batch_buffers(self):
         """Allocate all GPU arrays needed by the batched path; raises on allocation failure."""
         vol = self.target.shape
         ft = get_ft_shape(self.target)
-        bvol = (batch_size,) + vol
-        bft = (batch_size,) + ft
+        bvol = (self.batch_size,) + vol
+        bft = (self.batch_size,) + ft
         try:
             lcc_mask = get_lcc_mask(self.target)
             _t = laplace_filter(self.target, mode="wrap") if self.laplace else self.target
@@ -365,7 +366,7 @@ class OpenCLBatchedCorrelator(Correlator):
                 gcc=cl_array.zeros(self.queue, bft, dtype=np.complex64),
             )
         except cl.MemoryError as exc:
-            raise RuntimeError(f"Failed to allocate OpenCL batch buffers for batch_size={batch_size}.") from exc
+            raise RuntimeError(f"Failed to allocate OpenCL batch buffers for batch_size={self.batch_size}.") from exc
 
     def _set_template_var(self, template: np.ndarray):
         self.vars.template = cl.image_from_array(self.vars.template.context, template.astype(f32))
