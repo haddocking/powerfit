@@ -325,7 +325,7 @@ class CUDABatchedCorrelator(Correlator):
         self.conj_multiply_kernel = build_cuda_conj_multiply_kernel()
 
         self.square = _square
-        self.rfftn, self.irfftn = build_cuda_ffts(self.target.shape, self.cuda_stream)
+        rfftn_serial, _ = build_cuda_ffts(self.target.shape, self.cuda_stream)
 
         self._max_batch = max_batch_size(self.target.shape)
         if batch_size > self._max_batch:
@@ -335,15 +335,13 @@ class CUDABatchedCorrelator(Correlator):
         self.batch_size = batch_size
 
         self._allocate_batch_buffers()
-        self._rfftn_batch, self._irfftn_batch = build_cuda_ffts_batched(
-            self.target.shape, self.batch_size, self.cuda_stream
-        )
+        self.rfftn, self.irfftn = build_cuda_ffts_batched(self.target.shape, self.batch_size, self.cuda_stream)
 
         with self.cuda_stream:
             self.set_template(template, mask)
-            self.rfftn(self.vars.target, self.vars_ft.target)
+            rfftn_serial(self.vars.target, self.vars_ft.target)
             self.square(self.vars.target, self.vars.target2)
-            self.rfftn(self.vars.target2, self.vars_ft.target2)
+            rfftn_serial(self.vars.target2, self.vars_ft.target2)
         self._synchronize()
 
     def _allocate_batch_buffers(self):
@@ -415,22 +413,22 @@ class CUDABatchedCorrelator(Correlator):
         # GCC: rfftn(rot_template) then conj-multiply with target_ft, then irfftn.
         # self.vars_ft.target has shape (Z, Y, X//2+1); the ElementwiseKernel
         # broadcasts it over the leading batch axis automatically.
-        self._rfftn_batch(self.vars.rot_template, self.vars_ft.template)
+        self.rfftn(self.vars.rot_template, self.vars_ft.template)
         self.conj_multiply_kernel(self.vars_ft.template, self.vars_ft.target, self.vars_ft.gcc)
-        self._irfftn_batch(self.vars_ft.gcc, self.vars.gcc)
+        self.irfftn(self.vars_ft.gcc, self.vars.gcc)
 
         # Batched equivalent of Correlator.compute_sq_avg_density().
         # ave: rfftn(rot_mask), conj-multiply with target_ft, irfftn.
-        self._rfftn_batch(self.vars.rot_mask, self.vars_ft.mask)
+        self.rfftn(self.vars.rot_mask, self.vars_ft.mask)
         self.conj_multiply_kernel(self.vars_ft.mask, self.vars_ft.target, self.vars_ft.ave)
-        self._irfftn_batch(self.vars_ft.ave, self.vars.ave)
+        self.irfftn(self.vars_ft.ave, self.vars.ave)
 
         # Batched equivalent of Correlator.compute_avg_sq_density().
         # ave2: square(rot_mask), rfftn, conj-multiply with target2_ft, irfftn.
-        cp.square(self.vars.rot_mask, out=self.vars.rot_mask2)
-        self._rfftn_batch(self.vars.rot_mask2, self.vars_ft.mask2)
+        self.square(self.vars.rot_mask, out=self.vars.rot_mask2)
+        self.rfftn(self.vars.rot_mask2, self.vars_ft.mask2)
         self.conj_multiply_kernel(self.vars_ft.mask2, self.vars_ft.target2, self.vars_ft.ave2)
-        self._irfftn_batch(self.vars_ft.ave2, self.vars.ave2)
+        self.irfftn(self.vars_ft.ave2, self.vars.ave2)
 
         # Batched equivalent of Correlator.compute_lcc_score_and_take_best().
         # Per-voxel batch reduction: updates vars.lcc and vars.rot in-place.

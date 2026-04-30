@@ -313,7 +313,6 @@ class OpenCLBatchedCorrelator(Correlator):
 
         self.cl_kernels = generate_kernels(queue, self.target)
         self.square = lambda a, b: self.cl_kernels.multiply(a, a, b)
-        self.rfftn, self.irfftn = build_opencl_ffts(self.target.shape, queue)
 
         self._max_batch = max_batch_size(queue, self.target.shape)
         if batch_size > self._max_batch:
@@ -323,10 +322,12 @@ class OpenCLBatchedCorrelator(Correlator):
         self.batch_size = batch_size
 
         self._allocate_batch_buffers()
-        self._rfftn_batch, self._irfftn_batch = build_opencl_ffts_batched(self.target.shape, self.batch_size, queue)
+        self.rfftn, self.irfftn = build_opencl_ffts_batched(self.target.shape, self.batch_size, queue)
 
         self.set_template(template, mask)
-        precompute_squared_targets(self.vars, self.vars_ft, self.cl_kernels, self.rfftn)
+
+        serial_rfftn, _ = build_opencl_ffts(self.target.shape, queue)
+        precompute_squared_targets(self.vars, self.vars_ft, self.cl_kernels, serial_rfftn)
 
     def _allocate_batch_buffers(self):
         """Allocate all GPU arrays needed by the batched path; raises on allocation failure."""
@@ -385,9 +386,6 @@ class OpenCLBatchedCorrelator(Correlator):
         if chunk_size > self.batch_size:
             raise ValueError("batch_size exceeds allocated OpenCL batch buffers.")
 
-        self.vars.rot_template.fill(0)
-        self.vars.rot_mask.fill(0)
-
         self.cl_kernels.rotate_image3d_batch(
             self.queue,
             self.vars.template,
@@ -406,24 +404,24 @@ class OpenCLBatchedCorrelator(Correlator):
             nearest=True,
         )
 
-        self._rfftn_batch(self.vars.rot_template, self.vars_ft.template)
+        self.rfftn(self.vars.rot_template, self.vars_ft.template)
         self.cl_kernels.batch_conj_multiply(
             self.queue, self.vars_ft.template, self.vars_ft.target, self.vars_ft.gcc, chunk_size, self.ft_vol_size
         )
-        self._irfftn_batch(self.vars_ft.gcc, self.vars.gcc)
+        self.irfftn(self.vars_ft.gcc, self.vars.gcc)
 
-        self._rfftn_batch(self.vars.rot_mask, self.vars_ft.mask)
+        self.rfftn(self.vars.rot_mask, self.vars_ft.mask)
         self.cl_kernels.batch_conj_multiply(
             self.queue, self.vars_ft.mask, self.vars_ft.target, self.vars_ft.ave, chunk_size, self.ft_vol_size
         )
-        self._irfftn_batch(self.vars_ft.ave, self.vars.ave)
+        self.irfftn(self.vars_ft.ave, self.vars.ave)
 
         self.square(self.vars.rot_mask, self.vars.rot_mask2)
-        self._rfftn_batch(self.vars.rot_mask2, self.vars_ft.mask2)
+        self.rfftn(self.vars.rot_mask2, self.vars_ft.mask2)
         self.cl_kernels.batch_conj_multiply(
             self.queue, self.vars_ft.mask2, self.vars_ft.target2, self.vars_ft.ave2, chunk_size, self.ft_vol_size
         )
-        self._irfftn_batch(self.vars_ft.ave2, self.vars.ave2)
+        self.irfftn(self.vars_ft.ave2, self.vars.ave2)
 
         self.cl_kernels.batch_lcc_and_take_best(
             self.queue,
