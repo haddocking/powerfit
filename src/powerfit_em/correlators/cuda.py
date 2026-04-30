@@ -23,13 +23,6 @@ from powerfit_em.correlators.shared import (
     i32,
 )
 
-# Hard floor/ceiling used when converting VRAM budget to a legal batch size.
-_BATCH_HARD_FLOOR = 1
-_BATCH_HARD_CEIL = 8192
-# Fraction of total VRAM to target for batch buffers.
-_VRAM_TARGET = 0.80
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -104,15 +97,22 @@ def max_batch_size(vol_shape: tuple) -> int:
     * 6 real (float32) arrays of shape vol_shape
     * 6 complex (complex64) arrays of shape ft_shape
     """
+    # Hard floor/ceiling used when converting VRAM budget to a legal batch size.
+    BATCH_FLOOR = 1
+    BATCH_CEIL = 8192
+    # Fraction of total VRAM to target for batch buffers.
+    VRAM_TARGET = 0.80
+    VRAM_MAX = 0.90
+
     z, y, x = vol_shape
     ft_x = x // 2 + 1
     bytes_per_rot = 6 * z * y * x * 4 + 6 * z * y * ft_x * 8
     free_mem, total_mem = cp.cuda.runtime.memGetInfo()
     # Primary target: a fraction of total VRAM.
-    budget = int(total_mem * _VRAM_TARGET)
+    budget = int(total_mem * VRAM_TARGET)
     # Never exceed 90% of what's currently free to avoid OOM from driver overhead.
-    budget = min(budget, int(free_mem * 0.90))
-    batch = max(_BATCH_HARD_FLOOR, min(_BATCH_HARD_CEIL, budget // bytes_per_rot))
+    budget = min(budget, int(free_mem * VRAM_MAX))
+    batch = max(BATCH_FLOOR, min(BATCH_CEIL, budget // bytes_per_rot))
     # CUDA hard limit: gridDim.z <= 65535. The batch kernel packs (batch * Z)
     # into the Z grid dimension using block size 4 (CUDAKernels._block[2]).
     # See https://docs.nvidia.com/cuda/cuda-c-programming-guide/#features-and-technical-specifications
@@ -120,7 +120,7 @@ def max_batch_size(vol_shape: tuple) -> int:
     _BLOCK_Z = 4
     _MAX_GRID_Z = 65535
     batch = min(batch, (_MAX_GRID_Z * _BLOCK_Z) // z)
-    return max(_BATCH_HARD_FLOOR, int(batch))
+    return max(BATCH_FLOOR, int(batch))
 
 
 def build_cuda_lcc_kernel():

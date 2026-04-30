@@ -26,10 +26,6 @@ from powerfit_em.correlators.shared import (
     i32,
 )
 
-# Conservative batch-memory target for auto sizing on OpenCL devices.
-_BATCH_MEM_TARGET = 0.70
-
-
 logger = logging.getLogger(__name__)
 
 
@@ -127,6 +123,9 @@ def build_opencl_ffts_batched(vol_shape: tuple[int, ...], batch_size: int, queue
 
 def max_batch_size(queue: cl.CommandQueue, vol_shape: tuple[int, int, int]) -> int:
     """Return the hard upper bound on batch size imposed by OpenCL device memory."""
+    # Conservative batch-memory target for auto sizing on OpenCL devices.
+    BATCH_MEM_TARGET = 0.70
+
     z, y, x = vol_shape
     ft_x = x // 2 + 1
     real_bytes = z * y * x * np.dtype(np.float32).itemsize
@@ -135,7 +134,7 @@ def max_batch_size(queue: cl.CommandQueue, vol_shape: tuple[int, int, int]) -> i
 
     global_mem = int(queue.device.global_mem_size)
     max_alloc = int(queue.device.max_mem_alloc_size)
-    budget = int(global_mem * _BATCH_MEM_TARGET)
+    budget = int(global_mem * BATCH_MEM_TARGET)
     by_total = budget // bytes_per_rot
     by_alloc_real = max_alloc // real_bytes
     by_alloc_complex = max_alloc // complex_bytes
