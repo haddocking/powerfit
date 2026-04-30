@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, Any
 import numpy as np
 
 from powerfit_em.correlators.cpu import CPUCorrelator
-from powerfit_em.correlators.shared import ProgressFactory
+from powerfit_em.correlators.shared import DEFAULT_BATCH_SIZE, ProgressFactory
 from powerfit_em.volume import Volume
 
 if TYPE_CHECKING:
@@ -69,7 +69,7 @@ class PowerFitter:
         nproc: int = 1,
         laplace: bool = False,
         cuda_stream: object | None = None,
-        batch_size: int | None = None,
+        batch_size: int = DEFAULT_BATCH_SIZE,
     ):
         self._target = target
         self._rotations = rotations

@@ -25,7 +25,7 @@ from powerfit_em import (
     structure_to_shape_like,
 )
 from powerfit_em.analyzer import Analyzer
-from powerfit_em.correlators.shared import ProgressFactory
+from powerfit_em.correlators.shared import DEFAULT_BATCH_SIZE, ProgressFactory
 from powerfit_em.gpu import setup_gpu_backend
 from powerfit_em.helpers import fisher_sigma, write_fits_to_pdb
 from powerfit_em.powerfitter import PowerFitter
@@ -70,13 +70,12 @@ def add_computational_resources2parser(p: ArgumentParser):
         "--batch-size",
         dest="batch_size",
         type=int,
-        default=None,
+        default=DEFAULT_BATCH_SIZE,
         metavar="<int>",
         help=(
-            "Override the auto-tuned GPU batch size. "
+            "GPU batch size to use. "
             "Use 0 to disable batching entirely, or a positive integer to force a specific batch size. "
             "Applies to GPU backends (CUDA/OpenCL). "
-            "Default: auto-tuned based on available VRAM/device memory. "
             "If set too high will cause out-of-memory errors."
         ),
     )
@@ -417,7 +416,7 @@ def powerfit(
     num: int = 10,
     gpu: str | None = None,
     nproc: int = 1,
-    batch_size: int | None = None,
+    batch_size: int = DEFAULT_BATCH_SIZE,
     delimiter: str | None = None,
     progress: ProgressFactory | None = None,
 ):
@@ -426,9 +425,9 @@ def powerfit(
 
     opencl_queue, cuda_stream = setup_gpu_backend(gpu)
 
-    if batch_size is not None and opencl_queue is None and cuda_stream is None:
+    if batch_size != DEFAULT_BATCH_SIZE and opencl_queue is None and cuda_stream is None:
         raise ValueError("--batch-size only applies to GPU backends. Set --gpu to use CUDA or OpenCL.")
-    if batch_size is not None and batch_size < 0:
+    if batch_size < 0:
         raise ValueError("--batch-size must be a non-negative integer. Use 0 to disable batching.")
 
     target = setup_target(target_volume, resolution, no_resampling, resampling_rate, no_trimming, trimming_cutoff)
@@ -499,7 +498,7 @@ def powerfit_many(
     trimming_cutoff: float | None = None,
     gpu: str | None = None,
     nproc: int = 1,
-    batch_size: int | None = None,
+    batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> list[list[list[float]]]:
     """Run powerfit on multiple templates, returning the solution table for each.
 
@@ -520,8 +519,8 @@ def powerfit_many(
         gpu: GPU backend to use. Use "auto" for automatic backend selection,
             "cuda:N" for CUDA device N, or "P:D" for OpenCL platform P and device D. If None, does not use GPU.
         nproc: Number of processors used during search.
-        batch_size: Override the auto-tuned GPU batch size.
-            Use 0 to disable batching entirely, or a positive integer to force a specific batch size.
+        batch_size: GPU batch size to use. Use 0 to disable batching entirely,
+            or a positive integer to force a specific batch size.
 
     Returns:
         Solutions for each template structure.
@@ -534,7 +533,7 @@ def powerfit_many(
 
     opencl_queue, cuda_stream = setup_gpu_backend(gpu)
 
-    if batch_size is not None and opencl_queue is None and cuda_stream is None:
+    if batch_size != DEFAULT_BATCH_SIZE and opencl_queue is None and cuda_stream is None:
         raise ValueError("--batch-size only applies to GPU backends.")
 
     with target_volume.open("rb") as f:

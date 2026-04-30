@@ -13,6 +13,7 @@ from scipy.ndimage import laplace as laplace_filter
 
 from powerfit_em.correlators.cudakernels import CUDAKernels
 from powerfit_em.correlators.shared import (
+    DEFAULT_BATCH_SIZE,
     Correlator,
     Vars,
     VarsFT,
@@ -22,22 +23,11 @@ from powerfit_em.correlators.shared import (
     i32,
 )
 
-# Minimum and maximum batch sizes considered during batch size guessing.
-_BATCH_MIN = 1
-_BATCH_MAX = 8192
+# Hard floor/ceiling used when converting VRAM budget to a legal batch size.
+_BATCH_HARD_FLOOR = 1
+_BATCH_HARD_CEIL = 8192
 # Fraction of total VRAM to target for batch buffers.
 _VRAM_TARGET = 0.80
-# Empirical performance-scaling constant for batch size guessing.
-# Calibrated on an RTX 3050 (82 SMs, 1695 MHz) to target the largest batch
-# within 10% of peak throughput. May need re-tuning for very different GPUs.
-_K_CUDA_PERF = 81
-# Practical bounds from docs/times.csv CUDA benchmarks (m3, m4).
-# They prevent pathological tiny batches (batch=1) and oversized degraded ones.
-_TUNED_BATCH_FLOOR = 20
-_TUNED_BATCH_CEIL = 256
-# Conservative device-attribute fallbacks used when CUDA reports zeros/missing.
-_DEFAULT_SMS = 32
-_DEFAULT_CLOCK_MHZ = 1500
 
 
 logger = logging.getLogger(__name__)
@@ -122,7 +112,7 @@ def max_batch_size(vol_shape: tuple) -> int:
     budget = int(total_mem * _VRAM_TARGET)
     # Never exceed 90% of what's currently free to avoid OOM from driver overhead.
     budget = min(budget, int(free_mem * 0.90))
-    batch = max(_BATCH_MIN, min(_BATCH_MAX, budget // bytes_per_rot))
+    batch = max(_BATCH_HARD_FLOOR, min(_BATCH_HARD_CEIL, budget // bytes_per_rot))
     # CUDA hard limit: gridDim.z <= 65535. The batch kernel packs (batch * Z)
     # into the Z grid dimension using block size 4 (CUDAKernels._block[2]).
     # See https://docs.nvidia.com/cuda/cuda-c-programming-guide/#features-and-technical-specifications
@@ -130,50 +120,7 @@ def max_batch_size(vol_shape: tuple) -> int:
     _BLOCK_Z = 4
     _MAX_GRID_Z = 65535
     batch = min(batch, (_MAX_GRID_Z * _BLOCK_Z) // z)
-    return max(_BATCH_MIN, int(batch))
-
-
-def guess_batch_size(vol_shape: tuple, device: None | cp.cuda.Device = None) -> int:
-    """Estimate a practical CUDA batch size from device throughput proxies.
-
-    Starts from a compute-capability proxy (SM count × clock frequency) scaled
-    by *_K_CUDA_PERF*, then clamps into an empirically robust interval.
-    This avoids pathological tiny auto-batches on some GPUs and oversized
-    batches that can hurt throughput.
-
-    Args:
-        vol_shape: Spatial shape of the target volume.
-        device: Optional CUDA device object. If None, uses current default
-            device from CuPy.
-
-    Returns:
-        An estimated batch size that should yield good performance on the given device.
-    """
-    z, y, x = vol_shape
-    ft_x = x // 2 + 1
-    bytes_per_rot = 6 * z * y * x * 4 + 6 * z * y * ft_x * 8
-    dev = cp.cuda.Device() if device is None else device
-    n_sms = int(dev.attributes.get("MultiProcessorCount", 0))
-    if n_sms <= 0:
-        logger.warning(
-            "CUDA device reported invalid MultiProcessorCount=%s; using fallback %s.",
-            n_sms,
-            _DEFAULT_SMS,
-        )
-        n_sms = _DEFAULT_SMS
-
-    clock_khz = int(dev.attributes.get("ClockRate", 0))
-    clock_mhz = clock_khz // 1000  # kHz -> MHz
-    if clock_mhz <= 0:
-        logger.warning(
-            "CUDA device reported invalid ClockRate=%s kHz; using fallback %s MHz.",
-            clock_khz,
-            _DEFAULT_CLOCK_MHZ,
-        )
-        clock_mhz = _DEFAULT_CLOCK_MHZ
-
-    raw = int(_K_CUDA_PERF * n_sms * clock_mhz / bytes_per_rot)
-    return max(_TUNED_BATCH_FLOOR, min(_TUNED_BATCH_CEIL, raw))
+    return max(_BATCH_HARD_FLOOR, int(batch))
 
 
 def build_cuda_lcc_kernel():
@@ -340,7 +287,7 @@ class CUDABatchedCorrelator(Correlator):
         mask: np.ndarray,
         cuda_stream: cp.cuda.Stream,
         laplace: bool = False,
-        batch_size: int | None = None,
+        batch_size: int = DEFAULT_BATCH_SIZE,
     ):
         """GPU-accelerated batched correlator using CuPy and custom CUDA kernels.
 
@@ -352,11 +299,10 @@ class CUDABatchedCorrelator(Correlator):
             mask: 3-D array representing the mask volume.
             cuda_stream: CuPy CUDA stream for asynchronous execution.
             laplace: Whether to apply a Laplacian filter to the target volume.
-            batch_size: Number of rotations per batch. If None, auto-tune from
-                available GPU memory. Must be > 0; use CUDASerialCorrelator for
-                serial processing.
+            batch_size: Number of rotations per batch. Must be > 0;
+                use CUDASerialCorrelator for serial processing.
         """
-        if batch_size is not None and batch_size <= 0:
+        if batch_size <= 0:
             raise ValueError(
                 "batch_size must be > 0 for CUDABatchedCorrelator. Use CUDASerialCorrelator for serial processing."
             )
@@ -377,20 +323,11 @@ class CUDABatchedCorrelator(Correlator):
         self.rfftn, self.irfftn = build_cuda_ffts(self.target.shape, self.cuda_stream)
 
         self._max_batch = max_batch_size(self.target.shape)
-        if batch_size is None:
-            auto_batch = guess_batch_size(self.target.shape)
-            if auto_batch > self._max_batch:
-                raise ValueError(
-                    f"Auto-tuned batch size {auto_batch} exceeds the device memory upper bound {self._max_batch}."
-                )
-            self.batch_size = auto_batch
-        else:
-            if batch_size > self._max_batch:
-                raise ValueError(
-                    f"batch_size={batch_size} exceeds the device memory upper bound "
-                    f"{self._max_batch}. Reduce batch_size."
-                )
-            self.batch_size = batch_size
+        if batch_size > self._max_batch:
+            raise ValueError(
+                f"batch_size={batch_size} exceeds the device memory upper bound {self._max_batch}. Reduce batch_size."
+            )
+        self.batch_size = batch_size
 
         self._allocate_batch_buffers()
         self._rfftn_batch, self._irfftn_batch = build_cuda_ffts_batched(

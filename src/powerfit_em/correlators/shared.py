@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 
 f32 = np.float32
 i32 = np.int32
+# best batch size based on performance measurements in docs/performances.md and docs/timings.csv.
+DEFAULT_BATCH_SIZE = 100
 
 T = TypeVar("T", np.ndarray, "ClArray")
 I = TypeVar("I", np.ndarray, "Image")  # noqa: E741
