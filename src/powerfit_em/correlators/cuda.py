@@ -460,14 +460,13 @@ class CUDABatchedCorrelator(Correlator):
 
     def scan(self, progress=None):
         n_rot = self.rotations.shape[0]
-        B = self.batch_size
 
         with self.cuda_stream:
             self.vars.lcc.fill(0)
             self.vars.rot.fill(0)
 
-            logger.info(f"Batching {n_rot} rotations with batch size {B} (max {self._max_batch}).")
-            for chunk in batched(range(n_rot), B):
+            logger.info(f"Batching {n_rot} rotations with batch size {self.batch_size} (max {self._max_batch}).")
+            for chunk in batched(range(n_rot), self.batch_size):
                 start = chunk[0]
                 self._compute_batch(start, len(chunk), self.rotations[start : start + len(chunk)])
 

@@ -451,8 +451,7 @@ class OpenCLBatchedCorrelator(Correlator):
         self.vars.rot.fill(0)
 
         n_rot = self._rotations.shape[0]
-        batch = self.batch_size
-        logger.info(f"Batching {n_rot} rotations with batch size {batch} (max {self._max_batch}).")
-        for chunk in batched(range(n_rot), batch):
+        logger.info(f"Batching {n_rot} rotations with batch size {self.batch_size} (max {self._max_batch}).")
+        for chunk in batched(range(n_rot), self.batch_size):
             self._compute_batch(chunk[0], len(chunk))
         self.retrieve_results()
