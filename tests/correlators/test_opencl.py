@@ -138,14 +138,14 @@ def test_tuned_batch_size_at_most_max(opencl_queue):
 
 def test_batched_explicit_batch_size_exceeds_max_raises(opencl_queue):
     target, template, mask, rotations = _make_inputs()
-    with patch("powerfit_em.correlators.opencl._max_batch_size", return_value=1):
+    with patch("powerfit_em.correlators.opencl._max_batch_size", return_value=1):  # noqa: SIM117
         with pytest.raises(ValueError, match="exceeds the device memory upper bound"):
             OpenCLBatchedCorrelator(target, template, rotations, mask, opencl_queue, batch_size=2)
 
 
 def test_batched_auto_tuned_exceeds_max_raises(opencl_queue):
     target, template, mask, rotations = _make_inputs()
-    with (
+    with (  # noqa: SIM117
         patch("powerfit_em.correlators.opencl._max_batch_size", return_value=1),
         patch("powerfit_em.correlators.opencl._tuned_batch_size", return_value=999),
     ):
