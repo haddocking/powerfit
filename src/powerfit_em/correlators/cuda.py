@@ -22,15 +22,22 @@ from powerfit_em.correlators.shared import (
     i32,
 )
 
-# Minimum and maximum batch sizes considered during auto-tuning.
+# Minimum and maximum batch sizes considered during batch size guessing.
 _BATCH_MIN = 1
 _BATCH_MAX = 8192
 # Fraction of total VRAM to target for batch buffers.
 _VRAM_TARGET = 0.80
-# Empirical performance-scaling constant for auto-tuning CUDA batch size.
+# Empirical performance-scaling constant for batch size guessing.
 # Calibrated on an RTX 3050 (82 SMs, 1695 MHz) to target the largest batch
 # within 10% of peak throughput. May need re-tuning for very different GPUs.
 _K_CUDA_PERF = 81
+# Practical bounds from docs/times.csv CUDA benchmarks (m3, m4).
+# They prevent pathological tiny batches (batch=1) and oversized degraded ones.
+_TUNED_BATCH_FLOOR = 20
+_TUNED_BATCH_CEIL = 256
+# Conservative device-attribute fallbacks used when CUDA reports zeros/missing.
+_DEFAULT_SMS = 32
+_DEFAULT_CLOCK_MHZ = 1500
 
 
 logger = logging.getLogger(__name__)
@@ -96,7 +103,7 @@ def build_cuda_ffts_batched(vol_shape: tuple, batch_size: int, cuda_stream=None)
     return rfftn_batch, irfftn_batch
 
 
-def _max_batch_size(vol_shape: tuple) -> int:
+def max_batch_size(vol_shape: tuple) -> int:
     """Return the hard upper bound on batch size imposed by CUDA device memory.
 
     Targets *_VRAM_TARGET* fraction of total device VRAM, capped by what is
@@ -126,21 +133,47 @@ def _max_batch_size(vol_shape: tuple) -> int:
     return max(_BATCH_MIN, int(batch))
 
 
-def _tuned_batch_size(vol_shape: tuple) -> int:
-    """Estimate a performance-optimal batch size for the current CUDA device.
+def guess_batch_size(vol_shape: tuple, device: None | cp.cuda.Device = None) -> int:
+    """Estimate a practical CUDA batch size from device throughput proxies.
 
-    Uses a compute-capability heuristic (SM count × clock frequency) scaled by
-    empirical constant *_K_CUDA_PERF*. The estimate targets the largest batch
-    within ~10% of peak throughput. Returns the raw estimate without clamping
-    to the memory upper bound; the caller must validate against _max_batch_size().
+    Starts from a compute-capability proxy (SM count × clock frequency) scaled
+    by *_K_CUDA_PERF*, then clamps into an empirically robust interval.
+    This avoids pathological tiny auto-batches on some GPUs and oversized
+    batches that can hurt throughput.
+
+    Args:
+        vol_shape: Spatial shape of the target volume.
+        device: Optional CUDA device object. If None, uses current default
+            device from CuPy.
+
+    Returns:
+        An estimated batch size that should yield good performance on the given device.
     """
     z, y, x = vol_shape
     ft_x = x // 2 + 1
     bytes_per_rot = 6 * z * y * x * 4 + 6 * z * y * ft_x * 8
-    dev = cp.cuda.Device()
-    n_sms = int(dev.attributes["MultiProcessorCount"])
-    clock_mhz = int(dev.attributes["ClockRate"]) // 1000  # kHz → MHz
-    return max(_BATCH_MIN, int(_K_CUDA_PERF * n_sms * clock_mhz / bytes_per_rot))
+    dev = cp.cuda.Device() if device is None else device
+    n_sms = int(dev.attributes.get("MultiProcessorCount", 0))
+    if n_sms <= 0:
+        logger.warning(
+            "CUDA device reported invalid MultiProcessorCount=%s; using fallback %s.",
+            n_sms,
+            _DEFAULT_SMS,
+        )
+        n_sms = _DEFAULT_SMS
+
+    clock_khz = int(dev.attributes.get("ClockRate", 0))
+    clock_mhz = clock_khz // 1000  # kHz -> MHz
+    if clock_mhz <= 0:
+        logger.warning(
+            "CUDA device reported invalid ClockRate=%s kHz; using fallback %s MHz.",
+            clock_khz,
+            _DEFAULT_CLOCK_MHZ,
+        )
+        clock_mhz = _DEFAULT_CLOCK_MHZ
+
+    raw = int(_K_CUDA_PERF * n_sms * clock_mhz / bytes_per_rot)
+    return max(_TUNED_BATCH_FLOOR, min(_TUNED_BATCH_CEIL, raw))
 
 
 def build_cuda_lcc_kernel():
@@ -343,9 +376,9 @@ class CUDABatchedCorrelator(Correlator):
         self.square = _square
         self.rfftn, self.irfftn = build_cuda_ffts(self.target.shape, self.cuda_stream)
 
-        self._max_batch = _max_batch_size(self.target.shape)
+        self._max_batch = max_batch_size(self.target.shape)
         if batch_size is None:
-            auto_batch = _tuned_batch_size(self.target.shape)
+            auto_batch = guess_batch_size(self.target.shape)
             if auto_batch > self._max_batch:
                 raise ValueError(
                     f"Auto-tuned batch size {auto_batch} exceeds the device memory upper bound {self._max_batch}."

@@ -13,11 +13,16 @@ cp = pytest.importorskip("cupy", reason="CUDA resources are not available.")
 
 from powerfit_em.correlators.cpu import CPUCorrelator  # noqa: E402
 from powerfit_em.correlators.cuda import (  # noqa: E402
+    _DEFAULT_CLOCK_MHZ,
+    _DEFAULT_SMS,
+    _K_CUDA_PERF,
+    _TUNED_BATCH_CEIL,
+    _TUNED_BATCH_FLOOR,
     CUDABatchedCorrelator,
     CUDASerialCorrelator,
-    _max_batch_size,
-    _tuned_batch_size,
     build_cuda_ffts,
+    guess_batch_size,
+    max_batch_size,
 )
 
 
@@ -152,32 +157,69 @@ def test_batched_invalid_batch_size_raises(cuda_stream):
 
 
 def test_max_batch_size_returns_positive():
-    result = _max_batch_size((32, 32, 32))
+    result = max_batch_size((32, 32, 32))
     assert result >= 1
 
 
-def test_tuned_batch_size_returns_positive():
-    result = _tuned_batch_size((32, 32, 32))
-    assert result >= 1
+class TestGuessedBatchSize:
+    def test_returns_positive(self):
+        result = guess_batch_size((32, 32, 32))
+        assert result >= 1
 
+    def test_at_most_max(self):
+        shape = (32, 32, 32)
+        assert guess_batch_size(shape) <= max_batch_size(shape)
 
-def test_tuned_batch_size_at_most_max():
-    shape = (32, 32, 32)
-    assert _tuned_batch_size(shape) <= _max_batch_size(shape)
+    def test_uses_floor_when_raw_estimate_is_tiny(self):
+        class _FakeDevice:
+            attributes = {
+                "MultiProcessorCount": 1,
+                "ClockRate": 1_000_000,
+            }
+
+        # Huge volume ensures raw estimate is effectively 0 before clamping.
+        shape = (512, 512, 512)
+        assert guess_batch_size(shape, _FakeDevice()) == _TUNED_BATCH_FLOOR
+
+    def test_uses_fallbacks_for_invalid_device_attributes(self):
+        class _FakeDevice:
+            attributes = {
+                "MultiProcessorCount": 0,
+                "ClockRate": 0,
+            }
+
+        shape = (64, 64, 64)
+        z, y, x = shape
+        ft_x = x // 2 + 1
+        bytes_per_rot = 6 * z * y * x * 4 + 6 * z * y * ft_x * 8
+        expected_raw = int(_K_CUDA_PERF * _DEFAULT_SMS * _DEFAULT_CLOCK_MHZ / bytes_per_rot)
+        expected = max(_TUNED_BATCH_FLOOR, min(_TUNED_BATCH_CEIL, expected_raw))
+
+        assert guess_batch_size(shape, _FakeDevice()) == expected
+
+    def test_uses_ceiling_for_extreme_raw_estimate(self):
+        class _FakeDevice:
+            attributes = {
+                "MultiProcessorCount": 1_000_000,
+                "ClockRate": 3_000_000,
+            }
+
+        shape = (8, 8, 8)
+        assert guess_batch_size(shape, _FakeDevice()) == _TUNED_BATCH_CEIL
 
 
 def test_batched_explicit_batch_size_exceeds_max_raises(cuda_stream):
     target, template, mask, rotations = _make_inputs()
-    with patch("powerfit_em.correlators.cuda._max_batch_size", return_value=1):
+    with patch("powerfit_em.correlators.cuda.max_batch_size", return_value=1):  # noqa: SIM117
         with pytest.raises(ValueError, match="exceeds the device memory upper bound"):
             CUDABatchedCorrelator(target, template, rotations, mask, cuda_stream, batch_size=2)
 
 
 def test_batched_auto_tuned_exceeds_max_raises(cuda_stream):
     target, template, mask, rotations = _make_inputs()
-    with (
-        patch("powerfit_em.correlators.cuda._max_batch_size", return_value=1),
-        patch("powerfit_em.correlators.cuda._tuned_batch_size", return_value=999),
+    with (  # noqa: SIM117
+        patch("powerfit_em.correlators.cuda.max_batch_size", return_value=1),
+        patch("powerfit_em.correlators.cuda.guess_batch_size", return_value=999),
     ):
         with pytest.raises(ValueError, match="Auto-tuned batch size"):
             CUDABatchedCorrelator(target, template, rotations, mask, cuda_stream)
