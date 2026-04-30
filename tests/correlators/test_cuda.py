@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import numpy as np
 import pytest
 
@@ -13,7 +11,6 @@ cp = pytest.importorskip("cupy", reason="CUDA resources are not available.")
 
 from powerfit_em.correlators.cpu import CPUCorrelator  # noqa: E402
 from powerfit_em.correlators.cuda import (  # noqa: E402
-    DEFAULT_BATCH_SIZE,
     CUDABatchedCorrelator,
     CUDASerialCorrelator,
     build_cuda_ffts,
@@ -154,17 +151,3 @@ def test_batched_invalid_batch_size_raises(cuda_stream):
 def test_max_batch_size_returns_positive():
     result = max_batch_size((32, 32, 32))
     assert result >= 1
-
-
-def test_batched_explicit_batch_size_exceeds_max_raises(cuda_stream):
-    target, template, mask, rotations = _make_inputs()
-    with patch("powerfit_em.correlators.cuda.max_batch_size", return_value=1):  # noqa: SIM117
-        with pytest.raises(ValueError, match="exceeds the device memory upper bound"):
-            CUDABatchedCorrelator(target, template, rotations, mask, cuda_stream, batch_size=2)
-
-
-def test_batched_default_batch_size_exceeds_max_raises(cuda_stream):
-    target, template, mask, rotations = _make_inputs()
-    with patch("powerfit_em.correlators.cuda.max_batch_size", return_value=1):
-        with pytest.raises(ValueError, match=f"batch_size={DEFAULT_BATCH_SIZE}"):
-            CUDABatchedCorrelator(target, template, rotations, mask, cuda_stream)

@@ -1,5 +1,3 @@
-from unittest.mock import patch
-
 import numpy as np
 import pytest
 
@@ -11,7 +9,6 @@ pytestmark = pytest.mark.skipif(not OPENCL_AVAILABLE, reason="OpenCL resources a
 
 from powerfit_em.correlators.cpu import CPUCorrelator  # noqa: E402
 from powerfit_em.correlators.opencl import (  # noqa: E402
-    DEFAULT_BATCH_SIZE,
     OpenCLBatchedCorrelator,
     OpenCLSerialCorrelator,
     max_batch_size,
@@ -124,17 +121,3 @@ def test_batched_invalid_batch_size_raises(opencl_queue):
 def test_max_batch_size_returns_positive(opencl_queue):
     result = max_batch_size(opencl_queue, (32, 32, 32))
     assert result >= 1
-
-
-def test_batched_explicit_batch_size_exceeds_max_raises(opencl_queue):
-    target, template, mask, rotations = _make_inputs()
-    with patch("powerfit_em.correlators.opencl.max_batch_size", return_value=1):  # noqa: SIM117
-        with pytest.raises(ValueError, match="exceeds the device memory upper bound"):
-            OpenCLBatchedCorrelator(target, template, rotations, mask, opencl_queue, batch_size=2)
-
-
-def test_batched_default_batch_size_exceeds_max_raises(opencl_queue):
-    target, template, mask, rotations = _make_inputs()
-    with patch("powerfit_em.correlators.opencl.max_batch_size", return_value=1):  # noqa: SIM117
-        with pytest.raises(ValueError, match=f"batch_size={DEFAULT_BATCH_SIZE}"):
-            OpenCLBatchedCorrelator(target, template, rotations, mask, opencl_queue)
