@@ -12,7 +12,6 @@ import pyopencl.array as cl_array
 from pyopencl import Image
 from pyopencl.array import Array as ClArray
 from pyvkfft.opencl import VkFFTApp
-from scipy.ndimage import laplace as laplace_filter
 
 from powerfit_em.correlators.clkernels import CLKernels
 from powerfit_em.correlators.shared import (
@@ -22,8 +21,8 @@ from powerfit_em.correlators.shared import (
     VarsFT,
     f32,
     get_ft_shape,
-    get_lcc_mask,
     i32,
+    init_correlator_vars,
 )
 
 logger = logging.getLogger(__name__)
@@ -178,35 +177,12 @@ class OpenCLSerialCorrelator(Correlator):
         precompute_squared_targets(self.vars, self.vars_ft, self.cl_kernels, self.rfftn)
 
     def init_vars(self):
-        lcc_mask = get_lcc_mask(self.target)
-        filtered_target = laplace_filter(self.target, mode="wrap") if self.laplace else self.target
-        zeros = np.zeros(self.target.shape, f32)
-        self.vars = Vars(
-            target=cl_array.to_device(self.queue, filtered_target.astype(f32)),
-            template=cl.image_from_array(self.queue.context, zeros),
-            mask=cl.image_from_array(self.queue.context, zeros),
-            lcc_mask=cl_array.to_device(self.queue, lcc_mask.astype(i32)),
-            target2=cl_array.to_device(self.queue, zeros),
-            rot_template=cl_array.to_device(self.queue, zeros),
-            rot_mask=cl_array.to_device(self.queue, zeros),
-            rot_mask2=cl_array.to_device(self.queue, zeros),
-            gcc=cl_array.to_device(self.queue, zeros),
-            ave=cl_array.to_device(self.queue, zeros),
-            ave2=cl_array.to_device(self.queue, zeros),
-            lcc=cl_array.to_device(self.queue, zeros),
-            rot=cl_array.to_device(self.queue, np.zeros(self.target.shape, i32)),
-        )
-        zeros_ft = np.zeros(get_ft_shape(self.target), dtype=np.complex64)
-        self.vars_ft = VarsFT(
-            target=cl_array.to_device(self.queue, zeros_ft),
-            target2=cl_array.to_device(self.queue, zeros_ft),
-            template=cl_array.to_device(self.queue, zeros_ft),
-            mask=cl_array.to_device(self.queue, zeros_ft),
-            mask2=cl_array.to_device(self.queue, zeros_ft),
-            ave=cl_array.to_device(self.queue, zeros_ft),
-            ave2=cl_array.to_device(self.queue, zeros_ft),
-            lcc=cl_array.to_device(self.queue, zeros_ft),
-            gcc=cl_array.to_device(self.queue, zeros_ft),
+        self.vars, self.vars_ft = init_correlator_vars(
+            self.target,
+            self.laplace,
+            array_from_host=lambda arr: cl_array.to_device(self.queue, arr),
+            zeros_array=lambda shape, dtype: cl_array.zeros(self.queue, shape, dtype=dtype),
+            make_image=lambda arr: cl.image_from_array(self.queue.context, arr),
         )
 
     def _set_template_var(self, template: np.ndarray):
@@ -324,40 +300,15 @@ class OpenCLBatchedCorrelator(Correlator):
 
     def init_vars(self):
         """Allocate all GPU arrays needed by the batched path; raises on allocation failure."""
-        vol = self.target.shape
-        ft = get_ft_shape(self.target)
-        bvol = (self.batch_size,) + vol
-        bft = (self.batch_size,) + ft
         try:
-            lcc_mask = get_lcc_mask(self.target)
-            filtered_target = laplace_filter(self.target, mode="wrap") if self.laplace else self.target
-            zeros = np.zeros(vol, f32)
-            zeros_ft = np.zeros(ft, dtype=np.complex64)
-            self.vars = Vars(
-                target=cl_array.to_device(self.queue, filtered_target.astype(f32)),
-                template=cl.image_from_array(self.queue.context, zeros),
-                mask=cl.image_from_array(self.queue.context, zeros),
-                lcc_mask=cl_array.to_device(self.queue, lcc_mask.astype(i32)),
-                target2=cl_array.to_device(self.queue, zeros),
-                rot_template=cl_array.zeros(self.queue, bvol, dtype=f32),
-                rot_mask=cl_array.zeros(self.queue, bvol, dtype=f32),
-                rot_mask2=cl_array.zeros(self.queue, bvol, dtype=f32),
-                gcc=cl_array.zeros(self.queue, bvol, dtype=f32),
-                ave=cl_array.zeros(self.queue, bvol, dtype=f32),
-                ave2=cl_array.zeros(self.queue, bvol, dtype=f32),
-                lcc=cl_array.to_device(self.queue, zeros),
-                rot=cl_array.to_device(self.queue, np.zeros(vol, i32)),
-            )
-            self.vars_ft = VarsFT(
-                target=cl_array.to_device(self.queue, zeros_ft),
-                target2=cl_array.to_device(self.queue, zeros_ft),
-                template=cl_array.zeros(self.queue, bft, dtype=np.complex64),
-                mask=cl_array.zeros(self.queue, bft, dtype=np.complex64),
-                mask2=cl_array.zeros(self.queue, bft, dtype=np.complex64),
-                ave=cl_array.zeros(self.queue, bft, dtype=np.complex64),
-                ave2=cl_array.zeros(self.queue, bft, dtype=np.complex64),
-                lcc=cl_array.zeros(self.queue, (0,), dtype=np.complex64),
-                gcc=cl_array.zeros(self.queue, bft, dtype=np.complex64),
+            self.vars, self.vars_ft = init_correlator_vars(
+                self.target,
+                self.laplace,
+                array_from_host=lambda arr: cl_array.to_device(self.queue, arr),
+                zeros_array=lambda shape, dtype: cl_array.zeros(self.queue, shape, dtype=dtype),
+                make_image=lambda arr: cl.image_from_array(self.queue.context, arr),
+                batch_size=self.batch_size,
+                empty_lcc_ft=True,
             )
         except cl.MemoryError as exc:
             raise RuntimeError(f"Failed to allocate OpenCL batch buffers for batch_size={self.batch_size}.") from exc

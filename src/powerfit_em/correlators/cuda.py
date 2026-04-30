@@ -9,18 +9,14 @@ else:
 import cupy as cp
 import numpy as np
 from pyvkfft.cuda import VkFFTApp
-from scipy.ndimage import laplace as laplace_filter
 
 from powerfit_em.correlators.cudakernels import CUDAKernels
 from powerfit_em.correlators.shared import (
     DEFAULT_BATCH_SIZE,
     Correlator,
-    Vars,
-    VarsFT,
     f32,
-    get_ft_shape,
-    get_lcc_mask,
     i32,
+    init_correlator_vars,
 )
 
 logger = logging.getLogger(__name__)
@@ -197,35 +193,12 @@ class CUDASerialCorrelator(Correlator):
         self.cuda_stream.synchronize()
 
     def init_vars(self):
-        lcc_mask = get_lcc_mask(self.target)
-        filtered_target = laplace_filter(self.target, mode="wrap") if self.laplace else self.target
-        zeros = cp.zeros(self.target.shape, dtype=f32)
-        self.vars = Vars(
-            target=cp.asarray(filtered_target.astype(f32)),
-            template=zeros.copy(),
-            mask=zeros.copy(),
-            lcc_mask=cp.asarray(lcc_mask.astype(i32)),
-            target2=zeros.copy(),
-            rot_template=zeros.copy(),
-            rot_mask=zeros.copy(),
-            rot_mask2=zeros.copy(),
-            gcc=zeros.copy(),
-            ave=zeros.copy(),
-            ave2=zeros.copy(),
-            lcc=zeros.copy(),
-            rot=cp.zeros(self.target.shape, dtype=i32),
-        )
-        zeros_ft = cp.zeros(get_ft_shape(self.target), dtype=cp.complex64)
-        self.vars_ft = VarsFT(
-            target=zeros_ft.copy(),
-            target2=zeros_ft.copy(),
-            template=zeros_ft.copy(),
-            mask=zeros_ft.copy(),
-            mask2=zeros_ft.copy(),
-            ave=zeros_ft.copy(),
-            ave2=zeros_ft.copy(),
-            lcc=zeros_ft.copy(),
-            gcc=zeros_ft.copy(),
+        self.vars, self.vars_ft = init_correlator_vars(
+            self.target,
+            self.laplace,
+            array_from_host=cp.asarray,
+            zeros_array=lambda shape, dtype: cp.zeros(shape, dtype=dtype),
+            make_image=cp.asarray,
         )
 
     def _set_template_var(self, template: np.ndarray):
@@ -342,40 +315,14 @@ class CUDABatchedCorrelator(Correlator):
     def init_vars(self):
         """Allocate GPU arrays needed by the batched path; raises on OOM."""
         try:
-            vol = self.target.shape
-            ft = get_ft_shape(self.target)
-            bvol = (self.batch_size,) + vol
-            bft = (self.batch_size,) + ft
-
-            lcc_mask = get_lcc_mask(self.target)
-            filtered_target = laplace_filter(self.target, mode="wrap") if self.laplace else self.target
-            zeros = cp.zeros(vol, dtype=f32)
-            zeros_ft = cp.zeros(ft, dtype=cp.complex64)
-            self.vars = Vars(
-                target=cp.asarray(filtered_target.astype(f32)),
-                template=zeros.copy(),
-                mask=zeros.copy(),
-                lcc_mask=cp.asarray(lcc_mask.astype(i32)),
-                target2=zeros.copy(),
-                rot_template=cp.zeros(bvol, dtype=f32),
-                rot_mask=cp.zeros(bvol, dtype=f32),
-                rot_mask2=cp.zeros(bvol, dtype=f32),
-                gcc=cp.zeros(bvol, dtype=f32),
-                ave=cp.zeros(bvol, dtype=f32),
-                ave2=cp.zeros(bvol, dtype=f32),
-                lcc=cp.zeros(vol, dtype=f32),
-                rot=cp.zeros(vol, dtype=i32),
-            )
-            self.vars_ft = VarsFT(
-                target=zeros_ft.copy(),
-                target2=zeros_ft.copy(),
-                template=cp.zeros(bft, dtype=cp.complex64),
-                mask=cp.zeros(bft, dtype=cp.complex64),
-                mask2=cp.zeros(bft, dtype=cp.complex64),
-                ave=cp.zeros(bft, dtype=cp.complex64),
-                ave2=cp.zeros(bft, dtype=cp.complex64),
-                lcc=cp.zeros(0, dtype=cp.complex64),
-                gcc=cp.zeros(bft, dtype=cp.complex64),
+            self.vars, self.vars_ft = init_correlator_vars(
+                self.target,
+                self.laplace,
+                array_from_host=cp.asarray,
+                zeros_array=lambda shape, dtype: cp.zeros(shape, dtype=dtype),
+                make_image=cp.asarray,
+                batch_size=self.batch_size,
+                empty_lcc_ft=True,
             )
         except cp.cuda.memory.OutOfMemoryError as exc:
             raise RuntimeError(

@@ -7,6 +7,7 @@ from types import TracebackType
 from typing import TYPE_CHECKING, Generic, Protocol, TypeVar, overload
 
 import numpy as np
+from numpy.typing import DTypeLike
 from scipy.ndimage import laplace as laplace_filter
 
 if TYPE_CHECKING:
@@ -115,6 +116,57 @@ def get_normalization_factor(mask: np.ndarray) -> np.float32:
     if norm_factor == 0:
         raise ValueError("Zero-filled mask is not allowed.")
     return norm_factor
+
+
+def init_correlator_vars(
+    target: np.ndarray,
+    laplace: bool,
+    *,
+    array_from_host: Callable[[np.ndarray], T],
+    zeros_array: Callable[[tuple[int, ...], DTypeLike], T],
+    make_image: Callable[[np.ndarray], I],
+    batch_size: int | None = None,
+    empty_lcc_ft: bool = False,
+    lcc_mask_dtype: DTypeLike = i32,
+) -> tuple[Vars[T, I], VarsFT[T]]:
+    """Create Vars and VarsFT containers for serial or batched correlators."""
+    vol = target.shape
+    ft = get_ft_shape(target)
+    rot_vol = vol if batch_size is None else (batch_size,) + vol
+    rot_ft = ft if batch_size is None else (batch_size,) + ft
+    lcc_ft_shape = (0,) if empty_lcc_ft else ft
+
+    lcc_mask = get_lcc_mask(target)
+    filtered_target = laplace_filter(target, mode="wrap") if laplace else target
+    zeros_vol = np.zeros(vol, dtype=f32)
+
+    vars = Vars(
+        target=array_from_host(filtered_target.astype(f32)),
+        template=make_image(zeros_vol),
+        mask=make_image(zeros_vol),
+        lcc_mask=array_from_host(lcc_mask.astype(lcc_mask_dtype)),
+        target2=zeros_array(vol, f32),
+        rot_template=zeros_array(rot_vol, f32),
+        rot_mask=zeros_array(rot_vol, f32),
+        rot_mask2=zeros_array(rot_vol, f32),
+        gcc=zeros_array(rot_vol, f32),
+        ave=zeros_array(rot_vol, f32),
+        ave2=zeros_array(rot_vol, f32),
+        lcc=zeros_array(vol, f32),
+        rot=array_from_host(np.zeros(vol, dtype=i32)),
+    )
+    vars_ft = VarsFT(
+        target=zeros_array(ft, np.complex64),
+        target2=zeros_array(ft, np.complex64),
+        template=zeros_array(rot_ft, np.complex64),
+        mask=zeros_array(rot_ft, np.complex64),
+        mask2=zeros_array(rot_ft, np.complex64),
+        ave=zeros_array(rot_ft, np.complex64),
+        ave2=zeros_array(rot_ft, np.complex64),
+        lcc=zeros_array(lcc_ft_shape, np.complex64),
+        gcc=zeros_array(rot_ft, np.complex64),
+    )
+    return vars, vars_ft
 
 
 class Correlator(ABC):

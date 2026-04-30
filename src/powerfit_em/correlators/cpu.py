@@ -2,7 +2,6 @@ import warnings
 
 import numpy as np
 from numpy import typing as npt
-from scipy.ndimage import laplace as laplace_filter
 
 from powerfit_em._extensions import rotate_grid3d
 from powerfit_em.correlators.shared import (
@@ -11,9 +10,8 @@ from powerfit_em.correlators.shared import (
     Vars,
     VarsFT,
     f32,
-    get_ft_shape,
-    get_lcc_mask,
     i32,
+    init_correlator_vars,
 )
 from powerfit_em.helpers import pyfftw_available
 
@@ -43,7 +41,7 @@ def rmax(target: np.ndarray) -> int:
     return min(target.shape) // 2
 
 
-def zeros_array(shape: tuple[int], dtype: npt.DTypeLike, fftw: bool) -> np.ndarray:
+def zeros_array(shape: tuple[int, ...], dtype: npt.DTypeLike, fftw: bool) -> np.ndarray:
     """Returns optimally SIMD aligned array if PyFFTW is used, for faster computation."""
     if fftw and pyfftw_available():
         from pyfftw import simd_alignment, zeros_aligned
@@ -59,38 +57,14 @@ def init_cpu_vars(
     fftw: bool,
 ) -> tuple[Vars[np.ndarray, np.ndarray], VarsFT[np.ndarray]]:
     """Initialize all CPU variables on the specified queue."""
-
-    lcc_mask = get_lcc_mask(target)
-    filtered_target = laplace_filter(target, mode="wrap") if laplace else target
-
-    vars = Vars(
-        target=filtered_target.astype(f32),
-        template=zeros_array(target.shape, f32, fftw),
-        mask=zeros_array(target.shape, f32, fftw),
-        lcc_mask=lcc_mask.astype(np.uint8),
-        target2=zeros_array(target.shape, f32, fftw),
-        rot_template=zeros_array(target.shape, f32, fftw),
-        rot_mask=zeros_array(target.shape, f32, fftw),
-        rot_mask2=zeros_array(target.shape, f32, fftw),
-        gcc=zeros_array(target.shape, f32, fftw),
-        ave=zeros_array(target.shape, f32, fftw),
-        ave2=zeros_array(target.shape, f32, fftw),
-        lcc=zeros_array(target.shape, f32, fftw),
-        rot=zeros_array(target.shape, i32, fftw),
+    return init_correlator_vars(
+        target,
+        laplace,
+        array_from_host=lambda arr: arr,
+        zeros_array=lambda shape, dtype: zeros_array(shape, dtype, fftw),
+        make_image=lambda arr: arr,
+        lcc_mask_dtype=np.uint8,
     )
-
-    vars_ft = VarsFT(
-        target=zeros_array(get_ft_shape(target), np.complex64, fftw),
-        target2=zeros_array(get_ft_shape(target), np.complex64, fftw),
-        template=zeros_array(get_ft_shape(target), np.complex64, fftw),
-        mask=zeros_array(get_ft_shape(target), np.complex64, fftw),
-        mask2=zeros_array(get_ft_shape(target), np.complex64, fftw),
-        ave=zeros_array(get_ft_shape(target), np.complex64, fftw),
-        ave2=zeros_array(get_ft_shape(target), np.complex64, fftw),
-        lcc=zeros_array(get_ft_shape(target), np.complex64, fftw),
-        gcc=zeros_array(get_ft_shape(target), np.complex64, fftw),
-    )
-    return vars, vars_ft
 
 
 class CPUCorrelator(Correlator):
