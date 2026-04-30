@@ -1,10 +1,4 @@
 import logging
-import sys
-
-if sys.version_info >= (3, 12):
-    from itertools import batched
-else:
-    from more_itertools import batched
 
 import cupy as cp
 import numpy as np
@@ -13,6 +7,7 @@ from pyvkfft.cuda import VkFFTApp
 from powerfit_em.correlators.cudakernels import CUDAKernels
 from powerfit_em.correlators.shared import (
     DEFAULT_BATCH_SIZE,
+    BatchedCorrelator,
     Correlator,
     f32,
     i32,
@@ -245,7 +240,7 @@ class CUDASerialCorrelator(Correlator):
         self.retrieve_results()
 
 
-class CUDABatchedCorrelator(Correlator):
+class CUDABatchedCorrelator(BatchedCorrelator[cp.ndarray]):
     """GPU-accelerated correlator that processes rotations in batches.
 
     Batch buffers are allocated upfront and rotations are processed in groups
@@ -294,10 +289,10 @@ class CUDABatchedCorrelator(Correlator):
 
         self.square = _square
 
-        self._max_batch = max_batch_size(self.target.shape)
-        if batch_size > self._max_batch:
+        self.max_batch_size = max_batch_size(self.target.shape)
+        if batch_size > self.max_batch_size:
             raise ValueError(
-                f"batch_size={batch_size} exceeds the device memory upper bound {self._max_batch}. Reduce batch_size."
+                f"batch_size={batch_size} exceeds the device memory upper bound {self.max_batch_size}. Reduce batch_size."
             )
         self.batch_size = batch_size
 
@@ -339,41 +334,17 @@ class CUDABatchedCorrelator(Correlator):
     def _set_mask_var(self, mask: np.ndarray):
         self.vars.mask = cp.asarray(mask, dtype=f32)
 
-    def rotate_grids(self, rotmat: np.ndarray):
-        raise NotImplementedError("rotate_grids is not used in the batched correlator.")
-
-    def compute_lcc_score_and_take_best(self, n: int):
-        raise NotImplementedError("compute_lcc_score_and_take_best is not used in the batched correlator.")
-
-    def compute_batch(self, batch_start: int, chunk_size: int, rotmats: cp.ndarray):
-        """Compute correlation for *batch_size* rotations and reduce to global best."""
-        # Rotate template (linear interp) and mask (nearest) for the whole batch.
+    def rotate_grids_batch(self, batch_start: int, chunk_size: int):
+        rotmats = self.rotations[batch_start : batch_start + chunk_size]
         self.cuda_kernels.rotate_image3d_batch(self.vars.template, rotmats, self.vars.rot_template, chunk_size)
         self.cuda_kernels.rotate_image3d_batch(self.vars.mask, rotmats, self.vars.rot_mask, chunk_size, nearest=True)
 
-        # Batched equivalent of Correlator.compute_gcc().
-        # GCC: rfftn(rot_template) then conj-multiply with target_ft, then irfftn.
+    def batch_conj_multiply(self, a, b, out, chunk_size: int):
         # self.vars_ft.target has shape (Z, Y, X//2+1); the ElementwiseKernel
         # broadcasts it over the leading batch axis automatically.
-        self.rfftn(self.vars.rot_template, self.vars_ft.template)
-        self.conj_multiply_kernel(self.vars_ft.template, self.vars_ft.target, self.vars_ft.gcc)
-        self.irfftn(self.vars_ft.gcc, self.vars.gcc)
+        self.conj_multiply_kernel(a, b, out)
 
-        # Batched equivalent of Correlator.compute_sq_avg_density().
-        # ave: rfftn(rot_mask), conj-multiply with target_ft, irfftn.
-        self.rfftn(self.vars.rot_mask, self.vars_ft.mask)
-        self.conj_multiply_kernel(self.vars_ft.mask, self.vars_ft.target, self.vars_ft.ave)
-        self.irfftn(self.vars_ft.ave, self.vars.ave)
-
-        # Batched equivalent of Correlator.compute_avg_sq_density().
-        # ave2: square(rot_mask), rfftn, conj-multiply with target2_ft, irfftn.
-        self.square(self.vars.rot_mask, out=self.vars.rot_mask2)
-        self.rfftn(self.vars.rot_mask2, self.vars_ft.mask2)
-        self.conj_multiply_kernel(self.vars_ft.mask2, self.vars_ft.target2, self.vars_ft.ave2)
-        self.irfftn(self.vars_ft.ave2, self.vars.ave2)
-
-        # Batched equivalent of Correlator.compute_lcc_score_and_take_best().
-        # Per-voxel batch reduction: updates vars.lcc and vars.rot in-place.
+    def compute_batch_lcc_score_and_take_best(self, batch_start: int, chunk_size: int):
         block = 256
         grid = (self.volume_size + block - 1) // block
         self.batch_lcc_kernel(
@@ -398,16 +369,5 @@ class CUDABatchedCorrelator(Correlator):
         self.lcc = cp.asnumpy(self.vars.lcc)
         self.rot = cp.asnumpy(self.vars.rot)
 
-    def scan(self, progress=None):
-        n_rot = self.rotations.shape[0]
-
-        with self.cuda_stream:
-            self.vars.lcc.fill(0)
-            self.vars.rot.fill(0)
-
-            logger.info(f"Batching {n_rot} rotations with batch size {self.batch_size} (max {self._max_batch}).")
-            for chunk in batched(range(n_rot), self.batch_size):
-                start = chunk[0]
-                self.compute_batch(start, len(chunk), self.rotations[start : start + len(chunk)])
-
-        self.retrieve_results()
+    def _scan_context(self):
+        return self.cuda_stream

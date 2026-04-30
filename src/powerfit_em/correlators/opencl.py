@@ -1,10 +1,4 @@
 import logging
-import sys
-
-if sys.version_info >= (3, 12):
-    from itertools import batched
-else:
-    from more_itertools import batched
 
 import numpy as np
 import pyopencl as cl
@@ -16,6 +10,7 @@ from pyvkfft.opencl import VkFFTApp
 from powerfit_em.correlators.clkernels import CLKernels
 from powerfit_em.correlators.shared import (
     DEFAULT_BATCH_SIZE,
+    BatchedCorrelator,
     Correlator,
     Vars,
     VarsFT,
@@ -231,7 +226,7 @@ class OpenCLSerialCorrelator(Correlator):
         self.retrieve_results()
 
 
-class OpenCLBatchedCorrelator(Correlator):
+class OpenCLBatchedCorrelator(BatchedCorrelator[cl_array.Array]):
     """Compute LCC scores in batches of rotations using OpenCL.
 
     Batch buffers are allocated upfront and rotations are processed in groups
@@ -272,8 +267,8 @@ class OpenCLBatchedCorrelator(Correlator):
         self.queue = queue
         self.norm_factor = 0.0  # to be set by set_template
 
-        self.rotations = transform_rotations(rotations)
-        self.rotations_gpu = cl_array.to_device(self.queue, self.rotations)
+        transformed_rotations = transform_rotations(rotations)
+        self.rotations= cl_array.to_device(self.queue, transformed_rotations)
         self.volume_size = int(np.prod(self.target.shape))
         self.ft_vol_size = int(np.prod(get_ft_shape(self.target)))
 
@@ -283,10 +278,10 @@ class OpenCLBatchedCorrelator(Correlator):
         self.cl_kernels = generate_kernels(queue, self.target)
         self.square = lambda a, b: self.cl_kernels.multiply(a, a, b)
 
-        self._max_batch = max_batch_size(queue, self.target.shape)
-        if batch_size > self._max_batch:
+        self.max_batch_size = max_batch_size(queue, self.target.shape)
+        if batch_size > self.max_batch_size:
             raise ValueError(
-                f"batch_size={batch_size} exceeds the device memory upper bound {self._max_batch}. Reduce batch_size."
+                f"batch_size={batch_size} exceeds the device memory upper bound {self.max_batch_size}. Reduce batch_size."
             )
         self.batch_size = batch_size
 
@@ -319,22 +314,11 @@ class OpenCLBatchedCorrelator(Correlator):
     def _set_mask_var(self, mask: np.ndarray):
         self.vars.mask = cl.image_from_array(self.vars.mask.context, mask.astype(f32))
 
-    def rotate_grids(self, rotmat: np.ndarray):
-        raise NotImplementedError("rotate_grids is not used in the batched correlator.")
-
-    def compute_lcc_score_and_take_best(self, n: int):
-        raise NotImplementedError("compute_lcc_score_and_take_best is not used in the batched correlator.")
-
-    def compute_batch(self, batch_start: int, chunk_size: int):
-        """Compute correlation for a batch of rotations and reduce to global best."""
-        if chunk_size > self.batch_size:
-            raise ValueError("batch_size exceeds allocated OpenCL batch buffers.")
-
-        # Batch equavalent of Correlator.rotate_grids().
+    def rotate_grids_batch(self, batch_start: int, chunk_size: int):
         self.cl_kernels.rotate_image3d_batch(
             self.queue,
             self.vars.template,
-            self.rotations_gpu,
+            self.rotations,
             batch_start,
             chunk_size,
             self.vars.rot_template,
@@ -342,36 +326,17 @@ class OpenCLBatchedCorrelator(Correlator):
         self.cl_kernels.rotate_image3d_batch(
             self.queue,
             self.vars.mask,
-            self.rotations_gpu,
+            self.rotations,
             batch_start,
             chunk_size,
             self.vars.rot_mask,
             nearest=True,
         )
 
-        # Batched equivalent of Correlator.compute_gcc().
-        self.rfftn(self.vars.rot_template, self.vars_ft.template)
-        self.cl_kernels.batch_conj_multiply(
-            self.queue, self.vars_ft.template, self.vars_ft.target, self.vars_ft.gcc, chunk_size, self.ft_vol_size
-        )
-        self.irfftn(self.vars_ft.gcc, self.vars.gcc)
+    def batch_conj_multiply(self, a, b, out, chunk_size: int):
+        self.cl_kernels.batch_conj_multiply(self.queue, a, b, out, chunk_size, self.ft_vol_size)
 
-        # Batched equivalent of Correlator.compute_sq_avg_density().
-        self.rfftn(self.vars.rot_mask, self.vars_ft.mask)
-        self.cl_kernels.batch_conj_multiply(
-            self.queue, self.vars_ft.mask, self.vars_ft.target, self.vars_ft.ave, chunk_size, self.ft_vol_size
-        )
-        self.irfftn(self.vars_ft.ave, self.vars.ave)
-
-        # Batched equivalent of Correlator.compute_avg_sq_density().
-        self.square(self.vars.rot_mask, self.vars.rot_mask2)
-        self.rfftn(self.vars.rot_mask2, self.vars_ft.mask2)
-        self.cl_kernels.batch_conj_multiply(
-            self.queue, self.vars_ft.mask2, self.vars_ft.target2, self.vars_ft.ave2, chunk_size, self.ft_vol_size
-        )
-        self.irfftn(self.vars_ft.ave2, self.vars.ave2)
-
-        # Batched equivalent of Correlator.compute_lcc_score_and_take_best().
+    def compute_batch_lcc_score_and_take_best(self, batch_start: int, chunk_size: int):
         self.cl_kernels.batch_lcc_and_take_best(
             self.queue,
             self.vars.gcc,
@@ -391,14 +356,3 @@ class OpenCLBatchedCorrelator(Correlator):
         self.vars.lcc.get(ary=self.lcc)
         self.vars.rot.get(ary=self.rot)
         self.queue.finish()
-
-    def scan(self, progress=None):
-        """Scan all provided rotations to find the best fit."""
-        self.vars.lcc.fill(0)
-        self.vars.rot.fill(0)
-
-        n_rot = self.rotations.shape[0]
-        logger.info(f"Batching {n_rot} rotations with batch size {self.batch_size} (max {self._max_batch}).")
-        for chunk in batched(range(n_rot), self.batch_size):
-            self.compute_batch(chunk[0], len(chunk))
-        self.retrieve_results()

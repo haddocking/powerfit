@@ -1,14 +1,24 @@
 """Shared functionality between GPU and CPU correlators."""
 
+import contextlib
+import logging
+import sys
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from types import TracebackType
 from typing import TYPE_CHECKING, Generic, Protocol, TypeVar, overload
 
+if sys.version_info >= (3, 12):
+    from itertools import batched
+else:
+    from more_itertools import batched
+
 import numpy as np
 from numpy.typing import DTypeLike
 from scipy.ndimage import laplace as laplace_filter
+
+logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
     from pyopencl import Image
@@ -21,6 +31,14 @@ DEFAULT_BATCH_SIZE = 100
 
 T = TypeVar("T", np.ndarray, "ClArray")
 I = TypeVar("I", np.ndarray, "Image")  # noqa: E741
+
+
+class HasShape(Protocol):
+    @property
+    def shape(self) -> tuple[int, ...]: ...
+
+
+R = TypeVar("R", bound=HasShape)
 
 
 class ProgressBar(Protocol):
@@ -277,3 +295,109 @@ class Correlator(ABC):
     @abstractmethod
     def scan(self, progress: ProgressFactory | None = None):
         pass
+
+
+class BatchedCorrelator(Correlator, ABC, Generic[R]):
+    """Base class for correlators that process rotations in batches.
+
+    Provides a concrete `compute_batch` orchestration method analogous to
+    `Correlator.compute_rotation`, with three abstract methods for the
+    GPU-backend-specific operations.
+    """
+
+    batch_size: int
+    max_batch_size: int
+    rotations: R
+
+    def rotate_grids(self, rotmat: np.ndarray):
+        raise NotImplementedError("rotate_grids is not used in the batched correlator.")
+
+    def compute_lcc_score_and_take_best(self, n: int):
+        raise NotImplementedError("compute_lcc_score_and_take_best is not used in the batched correlator.")
+
+    @abstractmethod
+    def retrieve_results(self):
+        """Retrieve the LCC and rotation results from the GPU to CPU."""
+        pass
+
+    def _scan_context(self):
+        """Return a context manager wrapping the scan loop.
+
+        Subclasses may override this to provide a GPU stream context (e.g.
+        ``with self.cuda_stream:``). The default returns a no-op context.
+        """
+        return contextlib.nullcontext()
+
+    def scan(self, progress: ProgressFactory | None = None):
+        """Scan all provided rotations to find the best fit."""
+        n_rot = self.rotations.shape[0]
+        logger.info(f"Batching {n_rot} rotations with batch size {self.batch_size} (max {self.max_batch_size}).")
+        with self._scan_context():
+            self.vars.lcc.fill(0)
+            self.vars.rot.fill(0)
+            for chunk in batched(range(n_rot), self.batch_size):
+                self.compute_batch(chunk[0], len(chunk))
+        self.retrieve_results()
+
+    @abstractmethod
+    def rotate_grids_batch(self, batch_start: int, chunk_size: int):
+        """Rotate the template and mask for a whole batch of rotations.
+
+        Args:
+            batch_start: index of the first rotation in this batch.
+            chunk_size: number of rotations in this batch.
+        """
+        pass
+
+    @abstractmethod
+    def batch_conj_multiply(self, a, b, out, chunk_size: int):
+        """Conjugate-multiply two batched Fourier arrays element-wise.
+
+        Args:
+            a: first array (conjugated).
+            b: second array.
+            out: output array.
+            chunk_size: number of rotations in this batch (may be ignored by
+                backends whose kernels broadcast over the batch axis).
+        """
+        pass
+
+    @abstractmethod
+    def compute_batch_lcc_score_and_take_best(self, batch_start: int, chunk_size: int):
+        """Reduce per-batch LCC scores to the per-voxel best result.
+
+        Args:
+            batch_start: index of the first rotation in this batch.
+            chunk_size: number of rotations in this batch.
+        """
+        pass
+
+    def compute_batch(self, batch_start: int, chunk_size: int):
+        """Compute correlation for a batch of rotations and reduce to global best.
+
+        Batched equivalent of `compute_rotation`: rotate → GCC → sq-avg density
+        → avg-sq density → LCC reduction.
+
+        Args:
+            batch_start: index of the first rotation in this batch.
+            chunk_size: number of rotations in this batch.
+        """
+        self.rotate_grids_batch(batch_start, chunk_size)
+
+        # Batched equivalent of compute_gcc()
+        self.rfftn(self.vars.rot_template, self.vars_ft.template)
+        self.batch_conj_multiply(self.vars_ft.template, self.vars_ft.target, self.vars_ft.gcc, chunk_size)
+        self.irfftn(self.vars_ft.gcc, self.vars.gcc)
+
+        # Batched equivalent of compute_sq_avg_density()
+        self.rfftn(self.vars.rot_mask, self.vars_ft.mask)
+        self.batch_conj_multiply(self.vars_ft.mask, self.vars_ft.target, self.vars_ft.ave, chunk_size)
+        self.irfftn(self.vars_ft.ave, self.vars.ave)
+
+        # Batched equivalent of compute_avg_sq_density()
+        self.square(self.vars.rot_mask, self.vars.rot_mask2)
+        self.rfftn(self.vars.rot_mask2, self.vars_ft.mask2)
+        self.batch_conj_multiply(self.vars_ft.mask2, self.vars_ft.target2, self.vars_ft.ave2, chunk_size)
+        self.irfftn(self.vars_ft.ave2, self.vars.ave2)
+
+        self.compute_batch_lcc_score_and_take_best(batch_start, chunk_size)
