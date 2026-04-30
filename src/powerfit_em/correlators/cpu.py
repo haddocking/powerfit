@@ -18,6 +18,7 @@ from powerfit_em.correlators.shared import (
 from powerfit_em.helpers import pyfftw_available
 
 
+# TODO also use batching of rotations for CPU correlator, for better performance on large numbers of rotations.
 def build_ffts(target: np.ndarray, gcc: np.ndarray, ft_gcc: np.ndarray, fftw: bool):
     """Build the FFTs (in case of pyfftw), or patch the numpy fft interface to resemble pyfftw."""
     if fftw and pyfftw_available():
