@@ -427,7 +427,7 @@ class OpenCLBatchedCorrelator(Correlator):
         )
         self.irfftn(self.vars_ft.ave2, self.vars.ave2)
 
-         # Batched equivalent of Correlator.compute_lcc_score_and_take_best().
+        # Batched equivalent of Correlator.compute_lcc_score_and_take_best().
         self.cl_kernels.batch_lcc_and_take_best(
             self.queue,
             self.vars.gcc,
