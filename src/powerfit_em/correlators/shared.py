@@ -21,6 +21,7 @@ from scipy.ndimage import laplace as laplace_filter
 logger = logging.getLogger(__name__)
 
 if TYPE_CHECKING:
+    from cupy import ndarray as CpArray
     from pyopencl import Image
     from pyopencl.array import Array as ClArray
 
@@ -29,8 +30,18 @@ i32 = np.int32
 # best batch size based on performance measurements in docs/performances.md and docs/timings.csv.
 DEFAULT_BATCH_SIZE = 100
 
-T = TypeVar("T", np.ndarray, "ClArray")
-I = TypeVar("I", np.ndarray, "Image")  # noqa: E741
+T = TypeVar("T", np.ndarray, "ClArray", "CpArray")
+
+
+class NvidiaTexture(Protocol):
+    """Minimal protocol for CUDA/NVIDIA texture-like handles."""
+
+    @property
+    def ptr(self) -> int: ...
+
+
+# CPU uses ndarray, OpenCL uses Image, CUDA uses texture-like wrappers.
+I = TypeVar("I", np.ndarray, "Image", NvidiaTexture)  # noqa: E741
 
 
 class HasShape(Protocol):

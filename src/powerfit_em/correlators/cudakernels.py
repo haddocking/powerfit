@@ -1,10 +1,16 @@
 import importlib.resources
 from string import Template
+from typing import Protocol
 
 import cupy as cp
 import numpy as np
 
 import powerfit_em.correlators
+
+
+class TextureLike(Protocol):
+    @property
+    def ptr(self) -> int: ...
 
 
 class CUDAKernels:
@@ -36,28 +42,29 @@ class CUDAKernels:
             (shape[0] + self._block[2] - 1) // self._block[2],
         )
 
-    def rotate_image3d(self, image: cp.ndarray, rotmat, out: cp.ndarray, nearest: bool = False):
+    def rotate_image3d(self, tex: TextureLike, rotmat, out: cp.ndarray, nearest: bool = False):
         if isinstance(rotmat, cp.ndarray) and rotmat.dtype == cp.float32:
             rot = rotmat.ravel()
         else:
             rot = cp.asarray(rotmat, dtype=cp.float32).ravel()
+        tex_ptr = np.uint64(tex.ptr)
         if nearest:
-            self._rotate_image3d_nearest(self._grid, self._block, (image, rot, out))
+            self._rotate_image3d_nearest(self._grid, self._block, (tex_ptr, rot, out))
         else:
-            self._rotate_image3d_linear(self._grid, self._block, (image, rot, out))
+            self._rotate_image3d_linear(self._grid, self._block, (tex_ptr, rot, out))
 
     def rotate_image3d_batch(
         self,
-        image: cp.ndarray,
+        tex: TextureLike,
         rotmats: cp.ndarray,
         out: cp.ndarray,
         batch_size: int,
         nearest: bool = False,
     ):
-        """Rotate *image* for a batch of rotation matrices in one kernel launch.
+        """Rotate the image for a batch of rotation matrices in one kernel launch.
 
         Args:
-            image: source volume, shape (Z, Y, X).
+            tex: TextureObject wrapping the source volume.
             rotmats: flat rotation matrices, shape (batch_size, 9) or (batch_size * 9,).
             out: destination buffer, shape (batch_size, Z, Y, X).
             batch_size: number of rotations to process.
@@ -67,6 +74,7 @@ class CUDAKernels:
             rotmats = cp.asarray(rotmats, dtype=cp.float32)
         rot_flat = rotmats.ravel()
         n_batch = np.int32(batch_size)
+        tex_ptr = np.uint64(tex.ptr)
         total_z = self._shape[0] * batch_size
         grid = (
             self._grid[0],
@@ -74,9 +82,9 @@ class CUDAKernels:
             (total_z + self._block[2] - 1) // self._block[2],
         )
         if nearest:
-            self._rotate_image3d_nearest_batch(grid, self._block, (image, rot_flat, out, n_batch))
+            self._rotate_image3d_nearest_batch(grid, self._block, (tex_ptr, rot_flat, out, n_batch))
         else:
-            self._rotate_image3d_linear_batch(grid, self._block, (image, rot_flat, out, n_batch))
+            self._rotate_image3d_linear_batch(grid, self._block, (tex_ptr, rot_flat, out, n_batch))
 
     @property
     def batch_lcc_kernel(self):

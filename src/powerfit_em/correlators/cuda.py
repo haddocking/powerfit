@@ -1,7 +1,15 @@
 import logging
+from dataclasses import dataclass
 
 import cupy as cp
 import numpy as np
+from cupy.cuda.texture import (
+    ChannelFormatDescriptor,
+    CUDAarray,
+    ResourceDescriptor,
+    TextureDescriptor,
+    TextureObject,
+)
 from pyvkfft.cuda import VkFFTApp
 
 from powerfit_em.correlators.cudakernels import CUDAKernels
@@ -15,6 +23,46 @@ from powerfit_em.correlators.shared import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+@dataclass
+class CUDATexture:
+    """Texture handle paired with its backing CUDA array."""
+
+    texture: TextureObject
+    cuda_array: CUDAarray
+
+    @property
+    def ptr(self) -> int:
+        return self.texture.ptr
+
+
+def _make_cuda_texture(arr: np.ndarray, filter_mode: int) -> CUDATexture:
+    """Upload *arr* to a CUDA array and wrap it in a TextureObject."""
+    data = np.ascontiguousarray(arr, dtype=np.float32)
+    # ChannelFormatDescriptor: 32-bit float, single channel (x=32, y=z=w=0, kind=float=2)
+    channel = ChannelFormatDescriptor(32, 0, 0, 0, cp.cuda.runtime.cudaChannelFormatKindFloat)
+    # CUDAarray shape is (depth, height, width) matching (Z, Y, X)
+    cuda_arr = CUDAarray(channel, data.shape[2], data.shape[1], data.shape[0])
+    # Copy host data into the CUDA array
+    cuda_arr.copy_from(data)
+    res_desc = ResourceDescriptor(cp.cuda.runtime.cudaResourceTypeArray, cuArr=cuda_arr)
+    tex_desc = TextureDescriptor(
+        addressModes=[cp.cuda.runtime.cudaAddressModeWrap] * 3,
+        filterMode=filter_mode,
+        normalizedCoords=1,
+    )
+    return CUDATexture(texture=TextureObject(res_desc, tex_desc), cuda_array=cuda_arr)
+
+
+def make_cuda_texture_linear(arr: np.ndarray) -> CUDATexture:
+    """Create a CUDA texture with trilinear filtering."""
+    return _make_cuda_texture(arr, cp.cuda.runtime.cudaFilterModeLinear)
+
+
+def make_cuda_texture_nearerst(arr: np.ndarray) -> CUDATexture:
+    """Create a CUDA texture with nearest-neighbour filtering."""
+    return _make_cuda_texture(arr, cp.cuda.runtime.cudaFilterModePoint)
 
 
 def _square(a: cp.ndarray, out: cp.ndarray):
@@ -193,14 +241,14 @@ class CUDASerialCorrelator(SerialCorrelator):
             self.laplace,
             array_from_host=cp.asarray,
             zeros_array=lambda shape, dtype: cp.zeros(shape, dtype=dtype),
-            make_image=cp.asarray,
+            make_image=make_cuda_texture_linear,
         )
 
     def _set_template_var(self, template: np.ndarray):
-        self.vars.template = cp.asarray(template, dtype=f32)
+        self.vars.template = make_cuda_texture_linear(template)
 
     def _set_mask_var(self, mask: np.ndarray):
-        self.vars.mask = cp.asarray(mask, dtype=f32)
+        self.vars.mask = make_cuda_texture_nearerst(mask)
 
     def conj_multiply(self, a: cp.ndarray, b: cp.ndarray, out: cp.ndarray):
         self.conj_multiply_kernel(a, b, out)
@@ -316,7 +364,7 @@ class CUDABatchedCorrelator(BatchedCorrelator[cp.ndarray]):
                 self.laplace,
                 array_from_host=cp.asarray,
                 zeros_array=lambda shape, dtype: cp.zeros(shape, dtype=dtype),
-                make_image=cp.asarray,
+                make_image=make_cuda_texture_linear,
                 batch_size=self.batch_size,
                 empty_lcc_ft=True,
             )
@@ -330,10 +378,10 @@ class CUDABatchedCorrelator(BatchedCorrelator[cp.ndarray]):
         self.cuda_stream.synchronize()
 
     def _set_template_var(self, template: np.ndarray):
-        self.vars.template = cp.asarray(template, dtype=f32)
+        self.vars.template = make_cuda_texture_linear(template)
 
     def _set_mask_var(self, mask: np.ndarray):
-        self.vars.mask = cp.asarray(mask, dtype=f32)
+        self.vars.mask = make_cuda_texture_nearerst(mask)
 
     def rotate_grids_batch(self, batch_start: int, chunk_size: int):
         rotmats = self.rotations[batch_start : batch_start + chunk_size]
