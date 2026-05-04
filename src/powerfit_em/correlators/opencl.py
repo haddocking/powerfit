@@ -280,9 +280,9 @@ class OpenCLBatchedCorrelator(BatchedCorrelator[cl_array.Array]):
 
         self.max_batch_size = max_batch_size(queue, self.target.shape)
         if batch_size > self.max_batch_size:
-            raise ValueError(
-                f"batch_size={batch_size} exceeds the device memory upper bound {self.max_batch_size}. Reduce batch_size."
-            )
+            msg = f"batch_size={batch_size} exceeds the device memory upper bound {self.max_batch_size}. "
+            msg += "Reduce batch_size."
+            raise ValueError(msg)
         self.batch_size = batch_size
 
         self.init_vars()
