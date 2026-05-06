@@ -388,7 +388,7 @@ class CUDABatchedCorrelator(BatchedCorrelator[cp.ndarray]):
         self.cuda_kernels.rotate_image3d_batch(self.vars.template, rotmats, self.vars.rot_template, chunk_size)
         self.cuda_kernels.rotate_image3d_batch(self.vars.mask, rotmats, self.vars.rot_mask, chunk_size, nearest=True)
 
-    def batch_conj_multiply(self, a, b, out, chunk_size: int):
+    def conj_multiply(self, a, b, out):
         # self.vars_ft.target has shape (Z, Y, X//2+1); the ElementwiseKernel
         # broadcasts it over the leading batch axis automatically.
         self.conj_multiply_kernel(a, b, out)

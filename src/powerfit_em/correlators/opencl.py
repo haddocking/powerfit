@@ -333,8 +333,8 @@ class OpenCLBatchedCorrelator(BatchedCorrelator[cl_array.Array]):
             nearest=True,
         )
 
-    def batch_conj_multiply(self, a, b, out, chunk_size: int):
-        self.cl_kernels.batch_conj_multiply(self.queue, a, b, out, chunk_size, self.ft_vol_size)
+    def conj_multiply(self, a, b, out):
+        self.cl_kernels.batch_conj_multiply(self.queue, a, b, out, self.batch_size, self.ft_vol_size)
 
     def compute_batch_lcc_score_and_take_best(self, batch_start: int, chunk_size: int):
         self.cl_kernels.batch_lcc_and_take_best(
