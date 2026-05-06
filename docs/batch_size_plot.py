@@ -51,9 +51,7 @@ def transform_rows(reader: csv.DictReader):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Create batch-size vs search-time CSV from docs/times.csv"
-    )
+    parser = argparse.ArgumentParser(description="Create batch-size vs search-time CSV from docs/times.csv")
     parser.add_argument("input_csv", type=Path, help="Input times.csv path")
     parser.add_argument("output_csv", type=Path, help="Output batchsize_vs_search.csv path")
     args = parser.parse_args()
