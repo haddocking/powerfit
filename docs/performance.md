@@ -77,9 +77,6 @@ done
 mkdir -p runs
 for run in 1 2 3 4 5; do
 	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 -d runs/m3-cuda-autobs-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 4000 -d runs/m3-cuda-bs4000-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 3000 -d runs/m3-cuda-bs3000-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 2000 -d runs/m3-cuda-bs2000-r${run}
 	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 1000 -d runs/m3-cuda-bs1000-r${run}
 	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 500 -d runs/m3-cuda-bs500-r${run}
 	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 250 -d runs/m3-cuda-bs250-r${run}
@@ -129,6 +126,7 @@ done
 
 ```shell
 python3 docs/parse_times.py "runs/*/*.log" > docs/times.csv
+python3 docs/batch_size_plot.py docs/times.csv docs/batchsize_vs_search.csv
 ```
 
 Group by and markdown table with duckdb
@@ -168,15 +166,17 @@ ORDER BY run_group;
 
 The [times.csv](times.csv) contains the parsed measurements taken
 around 30 April 2026 on commit 0e60abd4f69d3d438ddaee0651519a79d99fa0f3 of code.
+The [batchsize_vs_search.csv](batchsize_vs_search.csv) file is a chart-ready view
+with normalized run labels and preserved `run_number` values for replicate spread.
 
 ## Batch size impact
 
 ```vegalite
 {
     "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
-    "title": "m3 CUDA: Batch Size vs Search Seconds",
+    "title": "Batch Size vs Search Seconds",
     "data": {
-        "url": "../times.csv",
+        "url": "../batchsize_vs_search.csv",
         "format": {
             "type": "csv"
         }
@@ -184,18 +184,26 @@ around 30 April 2026 on commit 0e60abd4f69d3d438ddaee0651519a79d99fa0f3 of code.
     "transform": [
         {
             "filter": {
-                "and": ["slice(datum.run, 0, 10) == 'm3-cuda-bs'", {
-                    "field": "batch_size",
-                    "lt": 1000
-                }]
+                "field": "batch_size",
+                "lt": 1000
             }
         }
     ],
-    "params": [{
-        "name": "grid",
-        "select":"interval",
-        "bind":"scales"
-    }],
+    "params": [
+        {
+            "name": "series",
+            "select": {
+                "type": "point",
+                "fields": ["run"]
+            },
+            "bind": "legend"
+        },
+        {
+            "name": "grid",
+            "select":"interval",
+            "bind":"scales"
+        }
+    ],
     "mark": {"type": "point", "tooltip": true},
     "encoding": {
         "x": {
@@ -207,133 +215,49 @@ around 30 April 2026 on commit 0e60abd4f69d3d438ddaee0651519a79d99fa0f3 of code.
             "field": "search_seconds",
             "type": "quantitative",
             "title": "Search (s)"
-        }
+        },
+        "color": {
+            "field": "run",
+            "type": "nominal",
+            "title": "Run",
+            "scale": {
+                "scheme": "category10"
+            }
+        },
+        "opacity": {
+            "condition": {
+                "param": "series",
+                "value": 1
+            },
+            "value": 0.15
+        },
+        "tooltip": [
+            {
+                "field": "run",
+                "type": "nominal",
+                "title": "Run"
+            },
+            {
+                "field": "run_number",
+                "type": "ordinal",
+                "title": "Run Number"
+            },
+            {
+                "field": "batch_size",
+                "type": "quantitative",
+                "title": "Batch Size"
+            },
+            {
+                "field": "search_seconds",
+                "type": "quantitative",
+                "title": "Search (s)"
+            }
+        ]
     }
 }
 ```
 
-```vegalite
-{
-    "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
-    "title": "m1 CUDA: Batch Size vs Search Seconds",
-    "data": {
-        "url": "../times.csv",
-        "format": {
-            "type": "csv"
-        }
-    },
-    "transform": [
-        {
-            "filter": {
-                "and": ["slice(datum.run, 0, 10) == 'm1-cuda-bs'", {
-                    "field": "batch_size",
-                    "lt": 1000
-                }]
-            }
-        }
-    ],
-    "params": [{
-        "name": "grid",
-        "select":"interval",
-        "bind":"scales"
-    }],
-    "mark": {"type": "point", "tooltip": true},
-    "encoding": {
-        "x": {
-            "field": "batch_size",
-            "type": "quantitative",
-            "title": "Batch Size"
-        },
-        "y": {
-            "field": "search_seconds",
-            "type": "quantitative",
-            "title": "Search (s)"
-        }
-    }
-}
-```
-
-```vegalite
-{
-    "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
-    "title": "m3 OpenCL: Batch Size vs Search Seconds",
-    "data": {
-        "url": "../times.csv",
-        "format": {
-            "type": "csv"
-        }
-    },
-    "transform": [
-        {
-            "filter": {
-                "and": ["slice(datum.run, 0, 12) == 'm3-opencl-bs'", {
-                    "field": "batch_size",
-                    "lt": 1000
-                }]
-            }
-        }
-    ],
-    "params": [{
-        "name": "grid",
-        "select":"interval",
-        "bind":"scales"
-    }],
-    "mark": {"type": "point", "tooltip": true},
-    "encoding": {
-        "x": {
-            "field": "batch_size",
-            "type": "quantitative",
-            "title": "Batch Size"
-        },
-        "y": {
-            "field": "search_seconds",
-            "type": "quantitative",
-            "title": "Search (s)"
-        }
-    }
-}
-```
-
-```vegalite
-{
-    "$schema": "https://vega.github.io/schema/vega-lite/v6.json",
-    "title": "m4 CUDA: Batch Size vs Search Seconds",
-    "data": {
-        "url": "../times.csv",
-        "format": {
-            "type": "csv"
-        }
-    },
-    "transform": [
-        {
-            "filter": {
-                "and": ["slice(datum.run, 0, 10) == 'm4-cuda-bs'", {
-                    "field": "batch_size",
-                    "lt": 1000
-                }]
-            }
-        }
-    ],
-    "params": [{
-        "name": "grid",
-        "select":"interval",
-        "bind":"scales"
-    }],
-    "mark": {"type": "point", "tooltip": true},
-    "encoding": {
-        "x": {
-            "field": "batch_size",
-            "type": "quantitative",
-            "title": "Batch Size"
-        },
-        "y": {
-            "field": "search_seconds",
-            "type": "quantitative",
-            "title": "Search (s)"
-        }
-    }
-}
-```
+Based on plots, the default batch size is set to 100.
 
 ## Legend
 
