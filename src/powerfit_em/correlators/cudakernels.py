@@ -30,7 +30,7 @@ class CUDAKernels:
         self._rotate_image3d_nearest = self._module.get_function("rotate_image3d_nearest")
         self._rotate_image3d_linear_batch = self._module.get_function("rotate_image3d_linear_batch")
         self._rotate_image3d_nearest_batch = self._module.get_function("rotate_image3d_nearest_batch")
-        self._batch_lcc_kernel = self._module.get_function("powerfit_batch_lcc_and_take_best")
+        self.batch_lcc_kernel = self._module.get_function("powerfit_batch_lcc_and_take_best")
 
         self._shape = shape
         # Cover the full output grid; kernels zero-out voxels outside the
@@ -85,7 +85,3 @@ class CUDAKernels:
             self._rotate_image3d_nearest_batch(grid, self._block, (tex_ptr, rot_flat, out, n_batch))
         else:
             self._rotate_image3d_linear_batch(grid, self._block, (tex_ptr, rot_flat, out, n_batch))
-
-    @property
-    def batch_lcc_kernel(self):
-        return self._batch_lcc_kernel
