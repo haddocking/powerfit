@@ -615,16 +615,7 @@ impl CpuRustCorrelator {
                 .reduce(
                     || (Array3::<f32>::zeros(shape), Array3::<i32>::zeros(shape)),
                     |(mut acc_lcc, mut acc_rot), (lcc_w, rot_w)| {
-                        Zip::from(&mut acc_lcc)
-                            .and(&mut acc_rot)
-                            .and(&lcc_w)
-                            .and(&rot_w)
-                            .for_each(|best_lcc, best_rot, &lcc_val, &rot_val| {
-                                if lcc_val > *best_lcc {
-                                    *best_lcc = lcc_val;
-                                    *best_rot = rot_val;
-                                }
-                            });
+                        merge_best_lcc_rot(&mut acc_lcc, &mut acc_rot, &lcc_w, &rot_w);
                         (acc_lcc, acc_rot)
                     },
                 );
@@ -753,30 +744,92 @@ fn scan_one_rotation(
         &mut work.ave2,
     );
 
-    // Normalize AVE2
-    work.ave2.mapv_inplace(|v| v * norm_factor);
-
-    // LCC = gcc / sqrt(ave2 - ave^2), where lcc_mask != 0, else 0
-    Zip::from(lcc)
-        .and(rot)
-        .and(&work.gcc)
-        .and(&work.ave)
-        .and(&work.ave2)
-        .and(lcc_mask_arr)
-        .for_each(|best_lcc, best_rot, &gcc_v, &ave_v, &ave2_v, &mask_v| {
-            if mask_v {
-                let var = ave2_v - ave_v * ave_v;
+    // LCC = gcc / sqrt(norm_factor*ave2 - ave^2), where lcc_mask != 0, else 0.
+    // Fuse AVE2 normalization into this update to avoid an extra full-array pass.
+    if let (
+        Some(lcc_s),
+        Some(rot_s),
+        Some(gcc_s),
+        Some(ave_s),
+        Some(ave2_s),
+        Some(mask_s),
+    ) = (
+        lcc.as_slice_memory_order_mut(),
+        rot.as_slice_memory_order_mut(),
+        work.gcc.as_slice_memory_order(),
+        work.ave.as_slice_memory_order(),
+        work.ave2.as_slice_memory_order(),
+        lcc_mask_arr.as_slice_memory_order(),
+    ) {
+        for i in 0..lcc_s.len() {
+            if mask_s[i] {
+                let ave2_v = ave2_s[i] * norm_factor;
+                let var = ave2_v - ave_s[i] * ave_s[i];
                 let lcc_val = if var > 0.0 {
-                    gcc_v / var.sqrt()
+                    gcc_s[i] / var.sqrt()
                 } else {
                     0.0
                 };
-                if lcc_val > *best_lcc {
-                    *best_lcc = lcc_val;
-                    *best_rot = n as i32;
+                if lcc_val > lcc_s[i] {
+                    lcc_s[i] = lcc_val;
+                    rot_s[i] = n as i32;
                 }
             }
-        });
+        }
+    } else {
+        Zip::from(lcc)
+            .and(rot)
+            .and(&work.gcc)
+            .and(&work.ave)
+            .and(&work.ave2)
+            .and(lcc_mask_arr)
+            .for_each(|best_lcc, best_rot, &gcc_v, &ave_v, &ave2_v, &mask_v| {
+                if mask_v {
+                    let var = ave2_v * norm_factor - ave_v * ave_v;
+                    let lcc_val = if var > 0.0 {
+                        gcc_v / var.sqrt()
+                    } else {
+                        0.0
+                    };
+                    if lcc_val > *best_lcc {
+                        *best_lcc = lcc_val;
+                        *best_rot = n as i32;
+                    }
+                }
+            });
+    }
+}
+
+fn merge_best_lcc_rot(
+    acc_lcc: &mut Array3<f32>,
+    acc_rot: &mut Array3<i32>,
+    lcc_w: &Array3<f32>,
+    rot_w: &Array3<i32>,
+) {
+    if let (Some(acc_lcc_s), Some(acc_rot_s), Some(lcc_w_s), Some(rot_w_s)) = (
+        acc_lcc.as_slice_memory_order_mut(),
+        acc_rot.as_slice_memory_order_mut(),
+        lcc_w.as_slice_memory_order(),
+        rot_w.as_slice_memory_order(),
+    ) {
+        for i in 0..acc_lcc_s.len() {
+            if lcc_w_s[i] > acc_lcc_s[i] {
+                acc_lcc_s[i] = lcc_w_s[i];
+                acc_rot_s[i] = rot_w_s[i];
+            }
+        }
+    } else {
+        Zip::from(acc_lcc)
+            .and(acc_rot)
+            .and(lcc_w)
+            .and(rot_w)
+            .for_each(|best_lcc, best_rot, &lcc_val, &rot_val| {
+                if lcc_val > *best_lcc {
+                    *best_lcc = lcc_val;
+                    *best_rot = rot_val;
+                }
+            });
+    }
 }
 
 // ---------------------------------------------------------------------------
