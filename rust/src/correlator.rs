@@ -249,6 +249,22 @@ pub fn lcc_mask(target: &Array3<f32>) -> Array3<bool> {
     target.mapv(|v| v > threshold)
 }
 
+/// Flattened memory-order indices for true voxels in a boolean mask.
+pub fn mask_true_indices(mask: &Array3<bool>) -> Vec<usize> {
+    match mask.as_slice_memory_order() {
+        Some(s) => s
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &v)| if v { Some(i) } else { None })
+            .collect(),
+        None => mask
+            .iter()
+            .enumerate()
+            .filter_map(|(i, &v)| if v { Some(i) } else { None })
+            .collect(),
+    }
+}
+
 /// Apply discrete Laplacian (finite-difference, wrap-around) to a 3D array.
 pub fn laplace3d(input: &Array3<f32>) -> Array3<f32> {
     let (nz, ny, nx) = (input.shape()[0], input.shape()[1], input.shape()[2]);
@@ -465,6 +481,7 @@ pub struct CpuRustCorrelator {
     target_ft: Array3<Complex<f32>>,
     target2_ft: Array3<Complex<f32>>,
     lcc_mask_arr: Array3<bool>,
+    lcc_mask_indices: Vec<usize>,
 
     // Outputs
     lcc: Array3<f32>,
@@ -507,6 +524,7 @@ impl CpuRustCorrelator {
 
         // LCC mask
         let lcc_mask_arr = lcc_mask(&target_norm);
+        let lcc_mask_indices = mask_true_indices(&lcc_mask_arr);
 
         // Precompute FFTs of target
         let (mut hx, mut hy, mut hz) = make_fft_handlers(shape.0, shape.1, shape.2);
@@ -542,6 +560,7 @@ impl CpuRustCorrelator {
             target_ft,
             target2_ft,
             lcc_mask_arr,
+            lcc_mask_indices,
             lcc,
             rot,
         })
@@ -605,6 +624,7 @@ impl CpuRustCorrelator {
                     &self.target_ft,
                     &self.target2_ft,
                     &self.lcc_mask_arr,
+                    &self.lcc_mask_indices,
                     self.norm_factor,
                     radius,
                     &mut hx,
@@ -628,6 +648,7 @@ impl CpuRustCorrelator {
             let target_ft = &self.target_ft;
             let target2_ft = &self.target2_ft;
             let lcc_mask_arr = &self.lcc_mask_arr;
+            let lcc_mask_indices = &self.lcc_mask_indices;
             let norm_factor = self.norm_factor;
             let rotations = &self.rotations;
 
@@ -658,6 +679,7 @@ impl CpuRustCorrelator {
                             target_ft,
                             target2_ft,
                             lcc_mask_arr,
+                            lcc_mask_indices,
                             norm_factor,
                             radius,
                             &mut hx,
@@ -708,6 +730,7 @@ fn scan_one_rotation(
     target_ft: &Array3<Complex<f32>>,
     target2_ft: &Array3<Complex<f32>>,
     lcc_mask_arr: &Array3<bool>,
+    lcc_mask_indices: &[usize],
     norm_factor: f32,
     radius: i32,
     hx: &mut R2cFftHandler<f32>,
@@ -843,19 +866,18 @@ fn scan_one_rotation(
         work.ave2.as_slice_memory_order(),
         lcc_mask_arr.as_slice_memory_order(),
     ) {
-        for i in 0..lcc_s.len() {
-            if mask_s[i] {
-                let ave2_v = ave2_s[i] * norm_factor;
-                let var = ave2_v - ave_s[i] * ave_s[i];
-                let lcc_val = if var > 0.0 {
-                    gcc_s[i] / var.sqrt()
-                } else {
-                    0.0
-                };
-                if lcc_val > lcc_s[i] {
-                    lcc_s[i] = lcc_val;
-                    rot_s[i] = n as i32;
-                }
+        for &i in lcc_mask_indices {
+            debug_assert!(mask_s[i]);
+            let ave2_v = ave2_s[i] * norm_factor;
+            let var = ave2_v - ave_s[i] * ave_s[i];
+            let lcc_val = if var > 0.0 {
+                gcc_s[i] / var.sqrt()
+            } else {
+                0.0
+            };
+            if lcc_val > lcc_s[i] {
+                lcc_s[i] = lcc_val;
+                rot_s[i] = n as i32;
             }
         }
     } else {
@@ -1095,6 +1117,7 @@ mod tests {
             &target_ft,
             &target2_ft,
             &lcc_mask_arr,
+            &mask_true_indices(&lcc_mask_arr),
             norm_factor,
             radius,
             &mut hx,
@@ -1147,6 +1170,7 @@ mod tests {
             let target2_ft = rfftn3(&target2, &mut hx, &mut hy, &mut hz);
             let norm_template = normalize_template(&template, &mask);
             let norm_factor = normalization_factor(&mask);
+            let lcc_mask_indices = mask_true_indices(&lcc_mask_arr);
 
             let lcc = Array3::<f32>::zeros(shape);
             let rot = Array3::<i32>::zeros(shape);
@@ -1164,6 +1188,7 @@ mod tests {
                 target_ft,
                 target2_ft,
                 lcc_mask_arr,
+                lcc_mask_indices,
                 lcc,
                 rot,
             };
