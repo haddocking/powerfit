@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools", "numpy>=1.8", "cython"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.13,<2.0"]
+build-backend = "maturin"
 
 [project]
 name = "powerfit-em"
@@ -42,6 +42,7 @@ dev = [
     "cython-lint",
     "pandas>=2.3.3",
     "pooch",
+    "maturin>=1.13.1",
 ]
 docs = [
     "mkdocs>=1.6.1",
@@ -74,6 +75,11 @@ powerfit_em = ["data/*.npy", "correlators/kernels.cl", "correlators/kernels.cu",
 [tool.setuptools.dynamic]
 readme = {file = "README.md", content-type = "text/markdown"}
 version = {attr = "powerfit_em.__version__"}
+
+[tool.maturin]
+manifest-path = "rust/Cargo.toml"
+python-source = "src"
+module-name = "powerfit_em.powerfitrs"
 
 [tool.cibuildwheel]
 # Skip build that do not work or are not needed
