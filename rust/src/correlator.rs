@@ -73,47 +73,106 @@ pub fn irfftn3(
     out
 }
 
-/// In-place 3D real-to-complex FFT using caller-provided buffers.
+/// In-place 3D real-to-complex FFT using caller-provided workspace buffers.
+///
+/// Result is left in `ft_trans_z_out` in **zy-last** form `[ny, nx_ft, nz]`
+/// (z occupies axis 2, contiguous), so that the caller can apply the spectral
+/// multiply and feed directly into `irfftn3_into` without an extra transpose.
+///
+/// Performs 2 bulk transposes (vs. 3 in the old back-to-canonical version):
+///   r2c  on axis 2 → ft_out [nz, ny, nx_ft]
+///   assign ft_out →[2,0,1]→ ft_trans_y [nx_ft, nz, ny]; FFT-y on axis 2
+///   assign         →[2,0,1]→ ft_trans_z [ny, nx_ft, nz]; FFT-z on axis 2 → ft_trans_z_out
 fn rfftn3_into(
     input: &Array3<f32>,
     h_x: &mut R2cFftHandler<f32>,
     h_y: &mut FftHandler<f32>,
     h_z: &mut FftHandler<f32>,
-    ft_x: &mut Array3<Complex<f32>>,
-    ft_xy: &mut Array3<Complex<f32>>,
-    out: &mut Array3<Complex<f32>>,
+    ft_out:         &mut Array3<Complex<f32>>,  // [nz, ny, nx_ft]
+    ft_trans_y:     &mut Array3<Complex<f32>>,  // [nx_ft, nz, ny]
+    ft_trans_y_out: &mut Array3<Complex<f32>>,  // [nx_ft, nz, ny]
+    ft_trans_z:     &mut Array3<Complex<f32>>,  // [ny, nx_ft, nz]
+    ft_trans_z_out: &mut Array3<Complex<f32>>,  // [ny, nx_ft, nz]
 ) {
-    ndfft_r2c(input, ft_x, h_x, 2);
-    ndfft(ft_x, ft_xy, h_y, 1);
-    ndfft(ft_xy, out, h_z, 0);
+    // Step 1: r2c along x (axis 2, already contiguous) → ft_out: [nz, ny, nx_ft]
+    ndfft_r2c(input, ft_out, h_x, 2);
+
+    // Step 2: y FFT — transpose to put y (length ny) at axis 2 (contiguous)
+    // [nz, ny, nx_ft] -[2,0,1]-> [nx_ft, nz, ny]
+    ft_trans_y.assign(&ft_out.view().permuted_axes([2, 0, 1]));
+    ndfft(ft_trans_y, ft_trans_y_out, h_y, 2);
+
+    // Step 3: z FFT — transpose to put z (length nz) at axis 2 (contiguous)
+    // [nx_ft, nz, ny] -[2,0,1]-> [ny, nx_ft, nz]
+    ft_trans_z.assign(&ft_trans_y_out.view().permuted_axes([2, 0, 1]));
+    ndfft(ft_trans_z, ft_trans_z_out, h_z, 2);
+
+    // Step 4: transpose back to canonical layout [nz, ny, nx_ft]
+    // [ny, nx_ft, nz] -[2,0,1]-> [nz, ny, nx_ft]
+    ft_out.assign(&ft_trans_z_out.view().permuted_axes([2, 0, 1]));
 }
 
-/// In-place 3D complex-to-real inverse FFT using caller-provided buffers.
+/// In-place 3D complex-to-real inverse FFT using caller-provided workspace buffers.
+///
+/// Mirrors rfftn3_into using inverse permutation [1,2,0]:
+///   [nz, ny, nx_ft] -[1,2,0]-> [ny, nx_ft, nz]; IFFT on axis 2 (z)
+///   [ny, nx_ft, nz] -[1,2,0]-> [nx_ft, nz, ny]; IFFT on axis 2 (y)
+///   [nx_ft, nz, ny] -[1,2,0]-> [nz, ny, nx_ft]; c2r on axis 2 (x)
 fn irfftn3_into(
-    input: &Array3<Complex<f32>>,
+    input:          &Array3<Complex<f32>>,      // [nz, ny, nx_ft]
     h_x: &mut R2cFftHandler<f32>,
     h_y: &mut FftHandler<f32>,
     h_z: &mut FftHandler<f32>,
-    tmp_z: &mut Array3<Complex<f32>>,
-    tmp_zy: &mut Array3<Complex<f32>>,
-    out: &mut Array3<f32>,
+    ft_trans_z:     &mut Array3<Complex<f32>>,  // [ny, nx_ft, nz]
+    ft_trans_z_out: &mut Array3<Complex<f32>>,  // [ny, nx_ft, nz]
+    ft_trans_y:     &mut Array3<Complex<f32>>,  // [nx_ft, nz, ny]
+    ft_trans_y_out: &mut Array3<Complex<f32>>,  // [nx_ft, nz, ny]
+    ft_back:        &mut Array3<Complex<f32>>,  // [nz, ny, nx_ft]
+    out:            &mut Array3<f32>,
 ) {
-    ndifft(input, tmp_z, h_z, 0);
-    ndifft(tmp_z, tmp_zy, h_y, 1);
-    ndifft_r2c(tmp_zy, out, h_x, 2);
+    // Step 1: z IFFT — [nz, ny, nx_ft] -[1,2,0]-> [ny, nx_ft, nz]; IFFT on axis 2
+    ft_trans_z.assign(&input.view().permuted_axes([1, 2, 0]));
+    ndifft(ft_trans_z, ft_trans_z_out, h_z, 2);
+
+    // Step 2: y IFFT — [ny, nx_ft, nz] -[1,2,0]-> [nx_ft, nz, ny]; IFFT on axis 2
+    ft_trans_y.assign(&ft_trans_z_out.view().permuted_axes([1, 2, 0]));
+    ndifft(ft_trans_y, ft_trans_y_out, h_y, 2);
+
+    // Step 3: transpose back — [nx_ft, nz, ny] -[1,2,0]-> [nz, ny, nx_ft]
+    ft_back.assign(&ft_trans_y_out.view().permuted_axes([1, 2, 0]));
+
+    // Step 4: c2r along x (axis 2, contiguous)
+    ndifft_r2c(ft_back, out, h_x, 2);
 }
 
 /// Reusable worker-local buffers for scan hot path.
+///
+/// FFT layout uses the "transpose-then-axis-2" trick to keep all ndrustfft
+/// lane accesses contiguous:
+///   [nz, ny, nx_ft] -permute[2,0,1]-> [nx_ft, nz, ny]  (y at axis 2)
+///   [nx_ft, nz, ny] -permute[2,0,1]-> [ny, nx_ft, nz]  (z at axis 2)
+///   [ny, nx_ft, nz] -permute[2,0,1]-> [nz, ny, nx_ft]  (back to canonical)
+/// This replaces ~1440 small to_vec allocations per 3D FFT with a single
+/// bulk ndarray::assign (strided copy), drastically reducing allocator load.
 struct ScanWorkspace {
-    rot_template: Array3<f32>,
-    rot_mask: Array3<f32>,
-    rot_mask2: Array3<f32>,
-    ft_x: Array3<Complex<f32>>,
-    ft_xy: Array3<Complex<f32>>,
-    ft_work: Array3<Complex<f32>>,
-    spec_mul: Array3<Complex<f32>>,
-    tmp_z: Array3<Complex<f32>>,
-    tmp_zy: Array3<Complex<f32>>,
+    rot_template: Array3<f32>,           // [nz, ny, nx]
+    rot_mask: Array3<f32>,               // [nz, ny, nx]
+    rot_mask2: Array3<f32>,              // [nz, ny, nx]
+
+    // r2c output: [nz, ny, nx_ft]
+    ft_out: Array3<Complex<f32>>,
+
+    // Transposed buffers for y-axis FFT (y = axis 2, contiguous): [nx_ft, nz, ny]
+    ft_trans_y:     Array3<Complex<f32>>,
+    ft_trans_y_out: Array3<Complex<f32>>,
+
+    // Transposed buffers for z-axis FFT (z = axis 2, contiguous): [ny, nx_ft, nz]
+    ft_trans_z:     Array3<Complex<f32>>,
+    ft_trans_z_out: Array3<Complex<f32>>,
+
+    // Back-transposed intermediate before c2r step: [nz, ny, nx_ft]
+    ft_back: Array3<Complex<f32>>,
+
     gcc: Array3<f32>,
     ave: Array3<f32>,
     ave2: Array3<f32>,
@@ -123,19 +182,18 @@ impl ScanWorkspace {
     fn new(shape: (usize, usize, usize)) -> Self {
         let (nz, ny, nx) = shape;
         let nx_ft = nx / 2 + 1;
-        let ft_shape = (nz, ny, nx_ft);
         Self {
             rot_template: Array3::<f32>::zeros(shape),
-            rot_mask: Array3::<f32>::zeros(shape),
-            rot_mask2: Array3::<f32>::zeros(shape),
-            ft_x: Array3::<Complex<f32>>::zeros(ft_shape),
-            ft_xy: Array3::<Complex<f32>>::zeros(ft_shape),
-            ft_work: Array3::<Complex<f32>>::zeros(ft_shape),
-            spec_mul: Array3::<Complex<f32>>::zeros(ft_shape),
-            tmp_z: Array3::<Complex<f32>>::zeros(ft_shape),
-            tmp_zy: Array3::<Complex<f32>>::zeros(ft_shape),
-            gcc: Array3::<f32>::zeros(shape),
-            ave: Array3::<f32>::zeros(shape),
+            rot_mask:     Array3::<f32>::zeros(shape),
+            rot_mask2:    Array3::<f32>::zeros(shape),
+            ft_out:       Array3::<Complex<f32>>::zeros((nz, ny, nx_ft)),
+            ft_trans_y:       Array3::<Complex<f32>>::zeros((nx_ft, nz, ny)),
+            ft_trans_y_out:   Array3::<Complex<f32>>::zeros((nx_ft, nz, ny)),
+            ft_trans_z:       Array3::<Complex<f32>>::zeros((ny, nx_ft, nz)),
+            ft_trans_z_out:   Array3::<Complex<f32>>::zeros((ny, nx_ft, nz)),
+            ft_back:      Array3::<Complex<f32>>::zeros((nz, ny, nx_ft)),
+            gcc:  Array3::<f32>::zeros(shape),
+            ave:  Array3::<f32>::zeros(shape),
             ave2: Array3::<f32>::zeros(shape),
         }
     }
@@ -675,21 +733,29 @@ fn scan_one_rotation(
         hx,
         hy,
         hz,
-        &mut work.ft_x,
-        &mut work.ft_xy,
-        &mut work.ft_work,
+        &mut work.ft_out,
+        &mut work.ft_trans_y,
+        &mut work.ft_trans_y_out,
+        &mut work.ft_trans_z,
+        &mut work.ft_trans_z_out,
     );
-    Zip::from(&mut work.spec_mul)
-        .and(&work.ft_work)
-        .and(target_ft)
-        .for_each(|out, &a, &b| *out = a.conj() * b);
+    {
+        let fo = work.ft_out.as_slice_memory_order_mut().unwrap();
+        let tft = target_ft.as_slice_memory_order().unwrap();
+        for i in 0..fo.len() {
+            fo[i] = fo[i].conj() * tft[i];
+        }
+    }
     irfftn3_into(
-        &work.spec_mul,
+        &work.ft_out,
         hx,
         hy,
         hz,
-        &mut work.tmp_z,
-        &mut work.tmp_zy,
+        &mut work.ft_trans_z,
+        &mut work.ft_trans_z_out,
+        &mut work.ft_trans_y,
+        &mut work.ft_trans_y_out,
+        &mut work.ft_back,
         &mut work.gcc,
     );
 
@@ -699,21 +765,29 @@ fn scan_one_rotation(
         hx,
         hy,
         hz,
-        &mut work.ft_x,
-        &mut work.ft_xy,
-        &mut work.ft_work,
+        &mut work.ft_out,
+        &mut work.ft_trans_y,
+        &mut work.ft_trans_y_out,
+        &mut work.ft_trans_z,
+        &mut work.ft_trans_z_out,
     );
-    Zip::from(&mut work.spec_mul)
-        .and(&work.ft_work)
-        .and(target_ft)
-        .for_each(|out, &a, &b| *out = a.conj() * b);
+    {
+        let fo = work.ft_out.as_slice_memory_order_mut().unwrap();
+        let tft = target_ft.as_slice_memory_order().unwrap();
+        for i in 0..fo.len() {
+            fo[i] = fo[i].conj() * tft[i];
+        }
+    }
     irfftn3_into(
-        &work.spec_mul,
+        &work.ft_out,
         hx,
         hy,
         hz,
-        &mut work.tmp_z,
-        &mut work.tmp_zy,
+        &mut work.ft_trans_z,
+        &mut work.ft_trans_z_out,
+        &mut work.ft_trans_y,
+        &mut work.ft_trans_y_out,
+        &mut work.ft_back,
         &mut work.ave,
     );
 
@@ -726,21 +800,29 @@ fn scan_one_rotation(
         hx,
         hy,
         hz,
-        &mut work.ft_x,
-        &mut work.ft_xy,
-        &mut work.ft_work,
+        &mut work.ft_out,
+        &mut work.ft_trans_y,
+        &mut work.ft_trans_y_out,
+        &mut work.ft_trans_z,
+        &mut work.ft_trans_z_out,
     );
-    Zip::from(&mut work.spec_mul)
-        .and(&work.ft_work)
-        .and(target2_ft)
-        .for_each(|out, &a, &b| *out = a.conj() * b);
+    {
+        let fo = work.ft_out.as_slice_memory_order_mut().unwrap();
+        let tft2 = target2_ft.as_slice_memory_order().unwrap();
+        for i in 0..fo.len() {
+            fo[i] = fo[i].conj() * tft2[i];
+        }
+    }
     irfftn3_into(
-        &work.spec_mul,
+        &work.ft_out,
         hx,
         hy,
         hz,
-        &mut work.tmp_z,
-        &mut work.tmp_zy,
+        &mut work.ft_trans_z,
+        &mut work.ft_trans_z_out,
+        &mut work.ft_trans_y,
+        &mut work.ft_trans_y_out,
+        &mut work.ft_back,
         &mut work.ave2,
     );
 
