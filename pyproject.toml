@@ -74,11 +74,6 @@ include = [
     "powerfit_em/correlators/kernels.cu",
 ]
 
-[tool.maturin]
-manifest-path = "rust/Cargo.toml"
-python-source = "src"
-module-name = "powerfit_em.powerfitrs"
-
 [tool.cibuildwheel]
 # Skip build that do not work or are not needed
 skip = "cp314-manylinux* cp314-musllinux* cp314-macosx* cp314-win* cp310-musllinux* cp311-musllinux* cp312-musllinux* *universal2"
