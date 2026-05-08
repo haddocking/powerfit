@@ -62,15 +62,11 @@ tutorial = "https://www.bonvinlab.org/education/Others/"
 [project.scripts]
 powerfit = "powerfit_em.powerfit:main"
 
-[tool.setuptools]
-# ext_modules is still in setup.py as numpy.get_include() 
-# and cythonize() can not be used here
-
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-powerfit_em = ["data/*.npy", "correlators/kernels.cl", "correlators/kernels.cu", "_powerfit.pyx"]
+powerfit_em = ["data/*.npy", "correlators/kernels.cl", "correlators/kernels.cu"]
 
 [tool.setuptools.dynamic]
 readme = {file = "README.md", content-type = "text/markdown"}

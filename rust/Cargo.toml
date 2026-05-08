@@ -9,4 +9,15 @@ name = "powerfitrs"
 crate-type = ["cdylib"]
 
 [dependencies]
-pyo3 = "0.28.2"
+pyo3 = "0.28.3"
+numpy = "0.28.0"
+
+[profile.dev]
+# `maturin develop` uses Cargo's dev profile by default.
+# Keep debug symbols for iteration, but compile hot loops with optimization
+# so runtime performance is representative for CPU benchmarks.
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
+lto = "thin"

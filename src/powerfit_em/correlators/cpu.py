@@ -3,7 +3,6 @@ import warnings
 import numpy as np
 from numpy import typing as npt
 
-from powerfit_em._extensions import rotate_grid3d
 from powerfit_em.correlators.shared import (
     ProgressFactory,
     SerialCorrelator,
@@ -14,6 +13,7 @@ from powerfit_em.correlators.shared import (
     init_correlator_vars,
 )
 from powerfit_em.helpers import pyfftw_available
+from powerfit_em.powerfitrs import rotate_grid3d
 
 
 def build_ffts(target: np.ndarray, gcc: np.ndarray, ft_gcc: np.ndarray, fftw: bool):
@@ -94,7 +94,8 @@ class CPUCorrelator(SerialCorrelator):
         """
         self.target: np.ndarray = target / target.max()
         self.laplace = laplace
-        self.rotations = rotations
+        # Keep rotations in float32 to avoid repeated astype allocations per scan step.
+        self.rotations = rotations.astype(f32, copy=False)
 
         self.vars, self.vars_ft = init_cpu_vars(self.target, self.laplace, fftw)
 
@@ -121,8 +122,8 @@ class CPUCorrelator(SerialCorrelator):
 
     def rotate_grids(self, rotmat: np.ndarray):
         """Rotate the template and mask using the rotational matrix."""
-        rotate_grid3d(self.vars.template, rotmat.astype(f32), rmax(self.target), self.vars.rot_template, False)
-        rotate_grid3d(self.vars.mask, rotmat.astype(f32), rmax(self.target), self.vars.rot_mask, True)
+        rotate_grid3d(self.vars.template, rotmat, rmax(self.target), self.vars.rot_template, False)
+        rotate_grid3d(self.vars.mask, rotmat, rmax(self.target), self.vars.rot_mask, True)
 
     def compute_lcc_score_and_take_best(self, n: int):
         """Compute the LCC score and store best result.
