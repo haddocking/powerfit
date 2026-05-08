@@ -148,22 +148,25 @@ impl ScanWorkspace {
 /// Normalize template: subtract mean within mask, divide by std, multiply by mask.
 pub fn normalize_template(template: &Array3<f32>, mask: &Array3<f32>) -> Array3<f32> {
     let mut norm = template * mask;
-    // collect values inside mask
-    let vals: Vec<f32> = Zip::from(&norm)
-        .and(mask)
-        .map_collect(|&v, &m| if m != 0.0 { v } else { f32::NAN })
-        .iter()
-        .filter(|v| !v.is_nan())
-        .cloned()
-        .collect();
+    // Compute mean/std over masked voxels without building temporary vectors.
+    let mut sum = 0.0_f32;
+    let mut sumsq = 0.0_f32;
+    let mut count = 0_usize;
+    Zip::from(&norm).and(mask).for_each(|&v, &m| {
+        if m != 0.0 {
+            sum += v;
+            sumsq += v * v;
+            count += 1;
+        }
+    });
 
-    if vals.is_empty() {
+    if count == 0 {
         return norm;
     }
 
-    let n = vals.len() as f32;
-    let mean = vals.iter().sum::<f32>() / n;
-    let variance = vals.iter().map(|v| (v - mean).powi(2)).sum::<f32>() / n;
+    let n = count as f32;
+    let mean = sum / n;
+    let variance = ((sumsq / n) - mean * mean).max(0.0);
     let std = variance.sqrt();
 
     Zip::from(&mut norm).and(mask).for_each(|v, &m| {
@@ -570,7 +573,7 @@ impl CpuRustCorrelator {
             let norm_factor = self.norm_factor;
             let rotations = &self.rotations;
 
-            let results: Vec<(Array3<f32>, Array3<i32>)> = (0..nproc)
+            let (final_lcc, final_rot) = (0..nproc)
                 .into_par_iter()
                 .map(|worker| {
                     let start = worker * chunk_size;
@@ -609,23 +612,22 @@ impl CpuRustCorrelator {
                     }
                     (lcc, rot)
                 })
-                .collect();
-
-            // Reduce: keep best LCC across workers
-            let mut final_lcc = Array3::<f32>::zeros(shape);
-            let mut final_rot = Array3::<i32>::zeros(shape);
-            for (lcc_w, rot_w) in results {
-                Zip::from(&mut final_lcc)
-                    .and(&mut final_rot)
-                    .and(&lcc_w)
-                    .and(&rot_w)
-                    .for_each(|best_lcc, best_rot, &lcc_val, &rot_val| {
-                        if lcc_val > *best_lcc {
-                            *best_lcc = lcc_val;
-                            *best_rot = rot_val;
-                        }
-                    });
-            }
+                .reduce(
+                    || (Array3::<f32>::zeros(shape), Array3::<i32>::zeros(shape)),
+                    |(mut acc_lcc, mut acc_rot), (lcc_w, rot_w)| {
+                        Zip::from(&mut acc_lcc)
+                            .and(&mut acc_rot)
+                            .and(&lcc_w)
+                            .and(&rot_w)
+                            .for_each(|best_lcc, best_rot, &lcc_val, &rot_val| {
+                                if lcc_val > *best_lcc {
+                                    *best_lcc = lcc_val;
+                                    *best_rot = rot_val;
+                                }
+                            });
+                        (acc_lcc, acc_rot)
+                    },
+                );
             self.lcc = final_lcc;
             self.rot = final_rot;
         }
