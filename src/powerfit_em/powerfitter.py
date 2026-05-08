@@ -70,6 +70,7 @@ class PowerFitter:
         laplace: bool = False,
         cuda_stream: object | None = None,
         batch_size: int = DEFAULT_BATCH_SIZE,
+        rust: bool = False,
     ):
         self._target = target
         self._rotations = rotations
@@ -80,6 +81,7 @@ class PowerFitter:
         self._laplace = laplace
         self._cuda_stream = cuda_stream
         self._batch_size = batch_size
+        self._rust = rust
         self._corr = None
         self._lcc = np.zeros(0, dtype=np.float32)
         self._rot = np.zeros(0, dtype=np.float32)
@@ -97,6 +99,8 @@ class PowerFitter:
             self._opencl_scan()
         elif self._cuda_stream is not None:
             self._cuda_scan()
+        elif self._rust:
+            self._rust_cpu_scan()
         else:
             if self._nproc == 1:
                 self._single_cpu_scan(progress)
@@ -214,6 +218,26 @@ class PowerFitter:
         for id in range(self._njobs):
             processes[id].join()
         self._combine(ids, results)
+
+    def _rust_cpu_scan(self):
+        from powerfit_em.powerfitrs import CpuRustCorrelator
+
+        target = np.asarray(self._target.array, dtype=np.float32, order="C")
+        template = np.asarray(self._template.array, dtype=np.float32, order="C")
+        rotations = np.asarray(self._rotations, dtype=np.float32, order="C")
+        mask = np.asarray(self._mask.array, dtype=np.float32, order="C")
+
+        self._corr = CpuRustCorrelator(
+            target,
+            template,
+            rotations,
+            mask,
+            self._laplace,
+            self._nproc,
+        )
+        self._corr.scan()
+        self._lcc = self._corr.lcc
+        self._rot = self._corr.rot
 
     def _single_cpu_scan(self, progress: ProgressFactory | None):
         self._corr = CPUCorrelator(

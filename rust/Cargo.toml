@@ -11,6 +11,10 @@ crate-type = ["cdylib"]
 [dependencies]
 pyo3 = "0.28.3"
 numpy = "0.28.0"
+ndarray = { version = "0.17", features = ["rayon"] }
+ndrustfft = "0.6"
+num-complex = "0.4"
+rayon = "1"
 
 [profile.dev]
 # `maturin develop` uses Cargo's dev profile by default.
