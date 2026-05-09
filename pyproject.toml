@@ -8,7 +8,8 @@ description = "Rigid body fitting of high-resolution structures in low-resolutio
 authors = [{ name = "Gydo C.P. van Zundert", email = "g.c.p.vanzundert@uu.nl" }]
 maintainers = [{ name = "BonvinLab" }, { email = "bonvinlab.support@uu.nl" }]
 requires-python = ">=3.10"
-dynamic = ["readme", "version"]
+readme = {file = "README.md", content-type = "text/markdown"}
+dynamic = ["version"]
 license = "Apache-2.0"
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -62,20 +63,16 @@ tutorial = "https://www.bonvinlab.org/education/Others/"
 [project.scripts]
 powerfit = "powerfit_em.powerfit:main"
 
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-data]
-powerfit_em = ["data/*.npy", "correlators/kernels.cl", "correlators/kernels.cu"]
-
-[tool.setuptools.dynamic]
-readme = {file = "README.md", content-type = "text/markdown"}
-version = {attr = "powerfit_em.__version__"}
-
 [tool.maturin]
 manifest-path = "rust/Cargo.toml"
 python-source = "src"
 module-name = "powerfit_em.powerfitrs"
+include = [
+    { path = "README.md", format = "sdist" },
+    "powerfit_em/data/*.npy",
+    "powerfit_em/correlators/kernels.cl",
+    "powerfit_em/correlators/kernels.cu",
+]
 
 [tool.cibuildwheel]
 # Skip build that do not work or are not needed

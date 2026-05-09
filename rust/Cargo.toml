@@ -1,7 +1,13 @@
 [package]
 name = "powerfitrs"
-version = "0.1.0"
+version = "5.0.0"
 edition = "2024"
+description = "Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps"
+license = "Apache-2.0"
+homepage = "https://github.com/haddocking/powerfit"
+repository = "https://github.com/haddocking/powerfit"
+documentation = "https://bonvinlab.org/powerfit"
+readme = "../README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]

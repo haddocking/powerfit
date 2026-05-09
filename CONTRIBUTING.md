@@ -45,7 +45,7 @@ In case you feel like you've made a valuable contribution, but you don't know ho
 To create a release you need write permission on the repository.
 
 1. Check the author list in [`CITATION.cff`](https://github.com/haddocking/powerfit/blob/master/CITATION.cff)
-1. Bump the version in [src/powerfit_em/__init__.py](https://github.com/haddocking/powerfit/blob/master/src/powerfit_em/__init__.py)
+1. Bump the version in [rust/Cargo.toml](https://github.com/haddocking/powerfit/blob/master/rust/Cargo.toml) under `[package].version`.
 1. In [installation.md](docs/installation.md) adjust docker command to use new version.
 1. Merge the changes into the main branch.
 1. Run regression tests to verify baseline stability across execution profiles:
@@ -58,7 +58,7 @@ To create a release you need write permission on the repository.
    All tests must pass with numerically matching results (within rounding tolerance). If the baseline fixture requires updates, see [Baseline fixture maintenance](#baseline-fixture-maintenance) section under Development.
 1. Go to the [GitHub release page](https://github.com/haddocking/powerfit/releases)
 1. Press draft a new release button
-1. Fill tag, title and description field. For tag use version from pyproject.toml and prepend with "v" character. For description use "Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps." line plus press "Generate release notes" button.
+1. Fill tag, title and description field. For tag use version from `rust/Cargo.toml` (`[package].version`) and prepend with "v" character. The Python package version in `pyproject.toml` is dynamic and follows Cargo. For description use "Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps." line plus press "Generate release notes" button.
 1. Press the Publish Release button
 1. Wait until [Build and upload to PyPI](https://github.com/haddocking/powerfit/actions/workflows/pypi-publish.yml) has completed
 1. Verify new release is on [PyPi](https://pypi.org/project/powerfit-em/#history)
