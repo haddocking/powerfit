@@ -740,6 +740,8 @@ fn scan_one_rotation(
     lcc: &mut Array3<f32>,
     rot: &mut Array3<i32>,
 ) {
+    // Ref doi:10.3934/biophy.2015.2.73.
+    // Equation 3: global cross-correlation (GCC).
     // Rotate template (trilinear) and mask (nearest-neighbor)
     rotate_pair_internal_into(
         template,
@@ -782,6 +784,8 @@ fn scan_one_rotation(
         &mut work.gcc,
     );
 
+    // Ref doi:10.3934/biophy.2015.2.73.
+    // Equation 4: square of average core-weighted density.
     // AVE = irfftn( conj(rfftn(rot_mask)) * target_ft )
     rfftn3_into(
         &work.rot_mask,
@@ -814,6 +818,8 @@ fn scan_one_rotation(
         &mut work.ave,
     );
 
+    // Ref doi:10.3934/biophy.2015.2.73.
+    // Equation 5: average of squared core-weighted density.
     // AVE2 = irfftn( conj(rfftn(rot_mask^2)) * target2_ft )
     Zip::from(&mut work.rot_mask2)
         .and(&work.rot_mask)
@@ -849,6 +855,8 @@ fn scan_one_rotation(
         &mut work.ave2,
     );
 
+    // Ref doi:10.3934/biophy.2015.2.73.
+    // Equation 6: local cross-correlation (LCC) score.
     // LCC = gcc / sqrt(norm_factor*ave2 - ave^2), where lcc_mask != 0, else 0.
     // Fuse AVE2 normalization into this update to avoid an extra full-array pass.
     if let (
