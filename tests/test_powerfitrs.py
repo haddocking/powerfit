@@ -23,7 +23,9 @@ class TestExtensions(TestCase):
         # 90 degree rotation around Z-axis
         out.fill(0)
         rotmat = np.asarray([[0, -1, 0], [1, 0, 0], [0, 0, 1]], dtype=np.float32)
+
         rotate_grid3d(grid, rotmat, 2, out, False)
+
         # Build answer
         answer = np.zeros_like(out)
         answer[0, 0, 0] = 1
