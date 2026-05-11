@@ -154,6 +154,8 @@ To format the Python code, run
 ruff format
 ```
 
+Cargo commands do not work when uv venv is active, so make sure to deactivate it before running the commands below.
+
 To format the Rust code in rust/ directory, run
 
 ```shell
