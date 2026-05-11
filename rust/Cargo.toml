@@ -31,3 +31,4 @@ opt-level = 3
 [profile.release]
 codegen-units = 1
 lto = "thin"
+strip = true
