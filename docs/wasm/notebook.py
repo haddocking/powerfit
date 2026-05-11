@@ -21,7 +21,6 @@ Wheel was built with Emscripten vpyemscripten.2026.0 but Pyodide was built with 
 Must wait for marimo to ship with "pyodide": "314.0.0-alpha.1".
 """
 
-
 @app.cell
 async def _():
     try:
