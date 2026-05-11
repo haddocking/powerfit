@@ -130,6 +130,15 @@ The binary wheels can be build for all supported platforms by running the
 https://github.com/haddocking/powerfit/actions/workflows/pypi-publish.yml GitHub action and downloading the artifacts.
 The workflow is triggered by a push to the main branch, a release or can be manually triggered.
 
+### Rust extension
+
+The CPU version of rotate grid function and `--rust` variant are handled by a Rust extension.
+To build the Rust extension, you need to have [Rust](https://rustup.rs/) installed and run:
+
+```shell
+uv run maturin develop --release
+```
+
 ### Linting & formatting
 
 To lint the Python code, run
