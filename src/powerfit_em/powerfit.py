@@ -72,7 +72,7 @@ def add_computational_resources2parser(p: ArgumentParser):
         action="store_true",
         default=False,
         help="Use the Rust CPU correlator backend (CPU only, incompatible with --gpu). "
-             "In this mode --nproc sets the number of Rust worker threads.",
+        "In this mode --nproc sets the number of Rust worker threads.",
     )
     p.add_argument(
         "--batch-size",

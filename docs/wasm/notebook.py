@@ -21,13 +21,15 @@ Wheel was built with Emscripten vpyemscripten.2026.0 but Pyodide was built with 
 Must wait for marimo to ship with "pyodide": "314.0.0-alpha.1".
 """
 
+
 @app.cell
 async def _():
     try:
         import micropip
-        await micropip.install('http://0.0.0.0:8000/powerfit_em-5.0.0-cp314-cp314-pyemscripten_2026_0_wasm32.whl')
+
+        await micropip.install("http://0.0.0.0:8000/powerfit_em-5.0.0-cp314-cp314-pyemscripten_2026_0_wasm32.whl")
     except ModuleNotFoundError:
-        pass # We are not running in the browser, so we assume the package is already installed
+        pass  # We are not running in the browser, so we assume the package is already installed
 
     from powerfit_em.powerfit import powerfit
 
@@ -36,7 +38,7 @@ async def _():
 
 @app.cell
 def _():
-    # ribosome-KsgA.map 13 KsgA.pdb -a 20 -p 2 -l -d 
+    # ribosome-KsgA.map 13 KsgA.pdb -a 20 -p 2 -l -d
     target_volume_fn = "ribosome-KsgA.map"
     template_structure_fn = "KsgA.pdb"
     output_dir = "r"
@@ -66,7 +68,7 @@ def _():
 
 @app.cell
 def _(Path, output_dir):
-    list(Path(output_dir).glob('*'))
+    list(Path(output_dir).glob("*"))
     return
 
 
