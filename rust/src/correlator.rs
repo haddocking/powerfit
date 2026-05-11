@@ -1,5 +1,5 @@
-use ndarray::{s, Array3, Zip};
-use ndrustfft::{ndfft, ndfft_r2c, ndifft, ndifft_r2c, FftHandler, R2cFftHandler};
+use ndarray::{Array3, Zip, s};
+use ndrustfft::{FftHandler, R2cFftHandler, ndfft, ndfft_r2c, ndifft, ndifft_r2c};
 use num_complex::Complex;
 use numpy::{PyArray3, PyReadonlyArray3};
 use pyo3::exceptions::PyValueError;
@@ -83,16 +83,17 @@ pub fn irfftn3(
 ///   r2c  on axis 2 → ft_out [nz, ny, nx_ft]
 ///   assign ft_out →[2,0,1]→ ft_trans_y [nx_ft, nz, ny]; FFT-y on axis 2
 ///   assign         →[2,0,1]→ ft_trans_z [ny, nx_ft, nz]; FFT-z on axis 2 → ft_trans_z_out
+#[allow(clippy::too_many_arguments)]
 fn rfftn3_into(
     input: &Array3<f32>,
     h_x: &mut R2cFftHandler<f32>,
     h_y: &mut FftHandler<f32>,
     h_z: &mut FftHandler<f32>,
-    ft_out:         &mut Array3<Complex<f32>>,  // [nz, ny, nx_ft]
-    ft_trans_y:     &mut Array3<Complex<f32>>,  // [nx_ft, nz, ny]
-    ft_trans_y_out: &mut Array3<Complex<f32>>,  // [nx_ft, nz, ny]
-    ft_trans_z:     &mut Array3<Complex<f32>>,  // [ny, nx_ft, nz]
-    ft_trans_z_out: &mut Array3<Complex<f32>>,  // [ny, nx_ft, nz]
+    ft_out: &mut Array3<Complex<f32>>,         // [nz, ny, nx_ft]
+    ft_trans_y: &mut Array3<Complex<f32>>,     // [nx_ft, nz, ny]
+    ft_trans_y_out: &mut Array3<Complex<f32>>, // [nx_ft, nz, ny]
+    ft_trans_z: &mut Array3<Complex<f32>>,     // [ny, nx_ft, nz]
+    ft_trans_z_out: &mut Array3<Complex<f32>>, // [ny, nx_ft, nz]
 ) {
     // Step 1: r2c along x (axis 2, already contiguous) → ft_out: [nz, ny, nx_ft]
     ndfft_r2c(input, ft_out, h_x, 2);
@@ -118,17 +119,18 @@ fn rfftn3_into(
 ///   [nz, ny, nx_ft] -[1,2,0]-> [ny, nx_ft, nz]; IFFT on axis 2 (z)
 ///   [ny, nx_ft, nz] -[1,2,0]-> [nx_ft, nz, ny]; IFFT on axis 2 (y)
 ///   [nx_ft, nz, ny] -[1,2,0]-> [nz, ny, nx_ft]; c2r on axis 2 (x)
+#[allow(clippy::too_many_arguments)]
 fn irfftn3_into(
-    input:          &Array3<Complex<f32>>,      // [nz, ny, nx_ft]
+    input: &Array3<Complex<f32>>, // [nz, ny, nx_ft]
     h_x: &mut R2cFftHandler<f32>,
     h_y: &mut FftHandler<f32>,
     h_z: &mut FftHandler<f32>,
-    ft_trans_z:     &mut Array3<Complex<f32>>,  // [ny, nx_ft, nz]
-    ft_trans_z_out: &mut Array3<Complex<f32>>,  // [ny, nx_ft, nz]
-    ft_trans_y:     &mut Array3<Complex<f32>>,  // [nx_ft, nz, ny]
-    ft_trans_y_out: &mut Array3<Complex<f32>>,  // [nx_ft, nz, ny]
-    ft_back:        &mut Array3<Complex<f32>>,  // [nz, ny, nx_ft]
-    out:            &mut Array3<f32>,
+    ft_trans_z: &mut Array3<Complex<f32>>, // [ny, nx_ft, nz]
+    ft_trans_z_out: &mut Array3<Complex<f32>>, // [ny, nx_ft, nz]
+    ft_trans_y: &mut Array3<Complex<f32>>, // [nx_ft, nz, ny]
+    ft_trans_y_out: &mut Array3<Complex<f32>>, // [nx_ft, nz, ny]
+    ft_back: &mut Array3<Complex<f32>>,    // [nz, ny, nx_ft]
+    out: &mut Array3<f32>,
 ) {
     // Step 1: z IFFT — [nz, ny, nx_ft] -[1,2,0]-> [ny, nx_ft, nz]; IFFT on axis 2
     ft_trans_z.assign(&input.view().permuted_axes([1, 2, 0]));
@@ -155,19 +157,19 @@ fn irfftn3_into(
 /// This replaces ~1440 small to_vec allocations per 3D FFT with a single
 /// bulk ndarray::assign (strided copy), drastically reducing allocator load.
 struct ScanWorkspace {
-    rot_template: Array3<f32>,           // [nz, ny, nx]
-    rot_mask: Array3<f32>,               // [nz, ny, nx]
-    rot_mask2: Array3<f32>,              // [nz, ny, nx]
+    rot_template: Array3<f32>, // [nz, ny, nx]
+    rot_mask: Array3<f32>,     // [nz, ny, nx]
+    rot_mask2: Array3<f32>,    // [nz, ny, nx]
 
     // r2c output: [nz, ny, nx_ft]
     ft_out: Array3<Complex<f32>>,
 
     // Transposed buffers for y-axis FFT (y = axis 2, contiguous): [nx_ft, nz, ny]
-    ft_trans_y:     Array3<Complex<f32>>,
+    ft_trans_y: Array3<Complex<f32>>,
     ft_trans_y_out: Array3<Complex<f32>>,
 
     // Transposed buffers for z-axis FFT (z = axis 2, contiguous): [ny, nx_ft, nz]
-    ft_trans_z:     Array3<Complex<f32>>,
+    ft_trans_z: Array3<Complex<f32>>,
     ft_trans_z_out: Array3<Complex<f32>>,
 
     // Back-transposed intermediate before c2r step: [nz, ny, nx_ft]
@@ -184,16 +186,16 @@ impl ScanWorkspace {
         let nx_ft = nx / 2 + 1;
         Self {
             rot_template: Array3::<f32>::zeros(shape),
-            rot_mask:     Array3::<f32>::zeros(shape),
-            rot_mask2:    Array3::<f32>::zeros(shape),
-            ft_out:       Array3::<Complex<f32>>::zeros((nz, ny, nx_ft)),
-            ft_trans_y:       Array3::<Complex<f32>>::zeros((nx_ft, nz, ny)),
-            ft_trans_y_out:   Array3::<Complex<f32>>::zeros((nx_ft, nz, ny)),
-            ft_trans_z:       Array3::<Complex<f32>>::zeros((ny, nx_ft, nz)),
-            ft_trans_z_out:   Array3::<Complex<f32>>::zeros((ny, nx_ft, nz)),
-            ft_back:      Array3::<Complex<f32>>::zeros((nz, ny, nx_ft)),
-            gcc:  Array3::<f32>::zeros(shape),
-            ave:  Array3::<f32>::zeros(shape),
+            rot_mask: Array3::<f32>::zeros(shape),
+            rot_mask2: Array3::<f32>::zeros(shape),
+            ft_out: Array3::<Complex<f32>>::zeros((nz, ny, nx_ft)),
+            ft_trans_y: Array3::<Complex<f32>>::zeros((nx_ft, nz, ny)),
+            ft_trans_y_out: Array3::<Complex<f32>>::zeros((nx_ft, nz, ny)),
+            ft_trans_z: Array3::<Complex<f32>>::zeros((ny, nx_ft, nz)),
+            ft_trans_z_out: Array3::<Complex<f32>>::zeros((ny, nx_ft, nz)),
+            ft_back: Array3::<Complex<f32>>::zeros((nz, ny, nx_ft)),
+            gcc: Array3::<f32>::zeros(shape),
+            ave: Array3::<f32>::zeros(shape),
             ave2: Array3::<f32>::zeros(shape),
         }
     }
@@ -409,13 +411,21 @@ fn rotate_pair_internal_into(
                     *template_raw.offset(grid_zyx + off0y) * dx1
                         + *template_raw.offset(grid_zyx + off1y) * dx
                 };
-                let off0z: isize = if z1 == 0 { grid_slice - grid_size } else { grid_slice };
+                let off0z: isize = if z1 == 0 {
+                    grid_slice - grid_size
+                } else {
+                    grid_slice
+                };
                 let off1z = off0z + if x1 == 0 { 1 - gs2 } else { 1 };
                 let c01 = unsafe {
                     *template_raw.offset(grid_zyx + off0z) * dx1
                         + *template_raw.offset(grid_zyx + off1z) * dx
                 };
-                let mut off0zy = if z1 == 0 { grid_slice - grid_size } else { grid_slice };
+                let mut off0zy = if z1 == 0 {
+                    grid_slice - grid_size
+                } else {
+                    grid_slice
+                };
                 off0zy += if y1 == 0 { gs2 - grid_slice } else { gs2 };
                 let off1zy = off0zy + if x1 == 0 { 1 - gs2 } else { 1 };
                 let c11 = unsafe {
@@ -447,7 +457,6 @@ fn rotate_pair_internal_into(
             }
         }
     }
-
 }
 
 /// Convert a flat (3,3) rotation matrix slice to [[f32;3];3].
@@ -640,7 +649,7 @@ impl CpuRustCorrelator {
         } else {
             // Parallel path: chunk rotations across nproc workers
             let nproc = self.nproc;
-            let chunk_size = (n_rot + nproc - 1) / nproc;
+            let chunk_size = n_rot.div_ceil(nproc);
 
             // Build owned copies of shared inputs for each worker
             let template = &self.template;
@@ -657,14 +666,10 @@ impl CpuRustCorrelator {
                 .map(|worker| {
                     let start = worker * chunk_size;
                     if start >= n_rot {
-                        return (
-                            Array3::<f32>::zeros(shape),
-                            Array3::<i32>::zeros(shape),
-                        );
+                        return (Array3::<f32>::zeros(shape), Array3::<i32>::zeros(shape));
                     }
                     let end = (start + chunk_size).min(n_rot);
-                    let (mut hx, mut hy, mut hz) =
-                        make_fft_handlers(shape.0, shape.1, shape.2);
+                    let (mut hx, mut hy, mut hz) = make_fft_handlers(shape.0, shape.1, shape.2);
                     let mut lcc = Array3::<f32>::zeros(shape);
                     let mut rot = Array3::<i32>::zeros(shape);
                     let mut work = ScanWorkspace::new(shape);
@@ -859,14 +864,7 @@ fn scan_one_rotation(
     // Equation 6: local cross-correlation (LCC) score.
     // LCC = gcc / sqrt(norm_factor*ave2 - ave^2), where lcc_mask != 0, else 0.
     // Fuse AVE2 normalization into this update to avoid an extra full-array pass.
-    if let (
-        Some(lcc_s),
-        Some(rot_s),
-        Some(gcc_s),
-        Some(ave_s),
-        Some(ave2_s),
-        Some(mask_s),
-    ) = (
+    if let (Some(lcc_s), Some(rot_s), Some(gcc_s), Some(ave_s), Some(ave2_s), Some(mask_s)) = (
         lcc.as_slice_memory_order_mut(),
         rot.as_slice_memory_order_mut(),
         work.gcc.as_slice_memory_order(),
@@ -898,11 +896,7 @@ fn scan_one_rotation(
             .for_each(|best_lcc, best_rot, &gcc_v, &ave_v, &ave2_v, &mask_v| {
                 if mask_v {
                     let var = ave2_v * norm_factor - ave_v * ave_v;
-                    let lcc_val = if var > 0.0 {
-                        gcc_v / var.sqrt()
-                    } else {
-                        0.0
-                    };
+                    let lcc_val = if var > 0.0 { gcc_v / var.sqrt() } else { 0.0 };
                     if lcc_val > *best_lcc {
                         *best_lcc = lcc_val;
                         *best_rot = n as i32;
@@ -1063,9 +1057,17 @@ mod tests {
         input[[2, 2, 2]] = 1.0;
         let lap = laplace3d(&input);
         // center voxel surrounded by 6 zeros: lap = 0 + ... + 0 - 6*1 = -6
-        assert!((lap[[2, 2, 2]] + 6.0).abs() < ATOL, "center: {}", lap[[2, 2, 2]]);
+        assert!(
+            (lap[[2, 2, 2]] + 6.0).abs() < ATOL,
+            "center: {}",
+            lap[[2, 2, 2]]
+        );
         // each immediate neighbour: 0 + 1 - 0 - 0 - 0 - 0 - 0 = +1
-        assert!((lap[[1, 2, 2]] - 1.0).abs() < ATOL, "neighbour: {}", lap[[1, 2, 2]]);
+        assert!(
+            (lap[[1, 2, 2]] - 1.0).abs() < ATOL,
+            "neighbour: {}",
+            lap[[1, 2, 2]]
+        );
     }
 
     // -----------------------------------------------------------------------
@@ -1151,7 +1153,7 @@ mod tests {
                 for x in 2..6usize {
                     target[[z, y, x]] = 1.0;
                 }
-        }
+            }
         }
         let template = target.clone();
         // full-volume mask so template has non-zero std
@@ -1216,6 +1218,9 @@ mod tests {
             .cloned()
             .max()
             .unwrap_or(0);
-        assert_eq!(max_diff_rot, 0, "rot arrays differ between nproc=1 and nproc=2");
+        assert_eq!(
+            max_diff_rot, 0,
+            "rot arrays differ between nproc=1 and nproc=2"
+        );
     }
 }

@@ -132,7 +132,7 @@ The workflow is triggered by a push to the main branch, a release or can be manu
 
 ### Rust extension
 
-The CPU version of rotate grid function and `--rust` variant are handled by a Rust extension.
+The CPU version of rotate grid function and `--rust` variant are handled by a Rust extension in the `rust/` directory.
 To build the Rust extension, you need to have [Rust](https://rustup.rs/) installed and run:
 
 ```shell
@@ -154,24 +154,22 @@ To format the Python code, run
 ruff format
 ```
 
-To check Cython code, run
+To format the Rust code in rust/ directory, run
 
 ```shell
-cython-lint src/powerfit_em/_powerfit.pyx
+cargo fmt --manifest-path rust/Cargo.toml --all
 ```
 
-To format the C code, run
+To lint the Rust code, run
 
 ```shell
-clang-format -i src/powerfit_em/_extensions.c
+cargo clippy --manifest-path rust/Cargo.toml --all-targets
 ```
 
-To lint the C code, run
+Use `--fix` to automatically apply clippy suggestions when possible:
 
 ```shell
-clang-tidy src/powerfit_em/_extensions.c -- \
-    -I"$(python -c 'from sysconfig import get_paths; print(get_paths()["include"])')" \
-    -I"$(python -c 'import numpy; print(numpy.get_include())')"
+cargo clippy --manifest-path rust/Cargo.toml --all-targets --fix --allow-dirty --allow-staged
 ```
 
 ### Baseline fixture maintenance

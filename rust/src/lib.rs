@@ -21,13 +21,13 @@ mod powerfitrs {
     }
 
     #[pymodule_export]
-    use super::rotate::rotate_grid3d;
-    #[pymodule_export]
-    use super::rotate::rotate_grid3d_pair;
+    use super::correlator::CpuRustCorrelator;
     #[pymodule_export]
     use super::helpers::blur_points;
     #[pymodule_export]
     use super::helpers::dilate_points;
     #[pymodule_export]
-    use super::correlator::CpuRustCorrelator;
+    use super::rotate::rotate_grid3d;
+    #[pymodule_export]
+    use super::rotate::rotate_grid3d_pair;
 }

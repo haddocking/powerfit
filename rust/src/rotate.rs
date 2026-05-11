@@ -189,15 +189,22 @@ fn rotate_grid3d_core(
                             + *grid_raw.offset(grid_zyx + off1y) * dx
                     };
 
-                    let off0z: isize = if z1 == 0 { grid_slice - grid_size } else { grid_slice };
+                    let off0z: isize = if z1 == 0 {
+                        grid_slice - grid_size
+                    } else {
+                        grid_slice
+                    };
                     let off1z: isize = off0z + if x1 == 0 { 1 - gs2 } else { 1 };
                     let c01 = unsafe {
                         *grid_raw.offset(grid_zyx + off0z) * dx1
                             + *grid_raw.offset(grid_zyx + off1z) * dx
                     };
 
-                    let mut off0zy: isize =
-                        if z1 == 0 { grid_slice - grid_size } else { grid_slice };
+                    let mut off0zy: isize = if z1 == 0 {
+                        grid_slice - grid_size
+                    } else {
+                        grid_slice
+                    };
                     off0zy += if y1 == 0 { gs2 - grid_slice } else { gs2 };
                     let off1zy: isize = off0zy + if x1 == 0 { 1 - gs2 } else { 1 };
                     let c11 = unsafe {
@@ -376,15 +383,22 @@ pub fn rotate_grid3d_pair<'py>(
                         + *template_raw.offset(grid_zyx + off1y) * dx
                 };
 
-                let off0z: isize = if z1 == 0 { grid_slice - grid_size } else { grid_slice };
+                let off0z: isize = if z1 == 0 {
+                    grid_slice - grid_size
+                } else {
+                    grid_slice
+                };
                 let off1z: isize = off0z + if x1 == 0 { 1 - gs2 } else { 1 };
                 let c01 = unsafe {
                     *template_raw.offset(grid_zyx + off0z) * dx1
                         + *template_raw.offset(grid_zyx + off1z) * dx
                 };
 
-                let mut off0zy: isize =
-                    if z1 == 0 { grid_slice - grid_size } else { grid_slice };
+                let mut off0zy: isize = if z1 == 0 {
+                    grid_slice - grid_size
+                } else {
+                    grid_slice
+                };
                 off0zy += if y1 == 0 { gs2 - grid_slice } else { gs2 };
                 let off1zy: isize = off0zy + if x1 == 0 { 1 - gs2 } else { 1 };
                 let c11 = unsafe {
