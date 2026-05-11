@@ -1,23 +1,15 @@
+use ndarray::{ArrayView2, ArrayView3, ArrayViewMut3};
 use numpy::{PyArray3, PyArrayMethods, PyReadonlyArray2, PyReadonlyArray3};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
-/// Rotate a 3D float32 grid by the inverse of rotmat, sampling within a sphere of given radius.
-/// nearest=false: trilinear interpolation. nearest=true: nearest-neighbor.
-/// out is modified in-place.
-#[pyfunction]
-pub fn rotate_grid3d<'py>(
-    py: Python<'py>,
-    grid: PyReadonlyArray3<'py, f32>,
-    rotmat: PyReadonlyArray2<'py, f32>,
+fn rotate_grid3d_core(
+    grid: ArrayView3<'_, f32>,
+    rotmat: ArrayView2<'_, f32>,
     radius: i32,
-    out: &Bound<'py, PyArray3<f32>>,
+    mut out: ArrayViewMut3<'_, f32>,
     nearest: bool,
-) -> PyResult<()> {
-    let grid = grid.as_array();
-    let rotmat = rotmat.as_array();
-    let mut out = unsafe { out.as_array_mut() };
-
+) {
     let gs = grid.shape();
     let gs0 = gs[0] as isize;
     let gs1 = gs[1] as isize;
@@ -222,6 +214,24 @@ pub fn rotate_grid3d<'py>(
             }
         }
     }
+}
+
+/// Rotate a 3D float32 grid by the inverse of rotmat, sampling within a sphere of given radius.
+/// nearest=false: trilinear interpolation. nearest=true: nearest-neighbor.
+/// out is modified in-place.
+#[pyfunction]
+pub fn rotate_grid3d<'py>(
+    py: Python<'py>,
+    grid: PyReadonlyArray3<'py, f32>,
+    rotmat: PyReadonlyArray2<'py, f32>,
+    radius: i32,
+    out: &Bound<'py, PyArray3<f32>>,
+    nearest: bool,
+) -> PyResult<()> {
+    let grid = grid.as_array();
+    let rotmat = rotmat.as_array();
+    let out = unsafe { out.as_array_mut() };
+    rotate_grid3d_core(grid, rotmat, radius, out, nearest);
     let _ = py;
     Ok(())
 }
@@ -409,4 +419,64 @@ pub fn rotate_grid3d_pair<'py>(
     }
     let _ = py;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::rotate_grid3d_core;
+    use ndarray::{Array2, Array3};
+
+    fn make_grid() -> Array3<f32> {
+        let mut grid = Array3::<f32>::zeros((4, 5, 6));
+        grid[[0, 0, 0]] = 1.0;
+        grid[[0, 0, 1]] = 1.0;
+        grid[[0, 1, 1]] = 1.0;
+        grid[[0, 0, 2]] = 1.0;
+        grid[[0, 0, 5]] = 1.0;
+        grid[[3, 0, 0]] = 1.0;
+        grid
+    }
+
+    fn assert_allclose_3d(a: &Array3<f32>, b: &Array3<f32>) {
+        assert_eq!(a.shape(), b.shape());
+        for (lhs, rhs) in a.iter().zip(b.iter()) {
+            assert!((lhs - rhs).abs() < 1e-6);
+        }
+    }
+
+    #[test]
+    fn test_rotate_grid3d_core_identity_matches_python() {
+        let grid = make_grid();
+        let rotmat = Array2::from_shape_vec(
+            (3, 3),
+            vec![1.0_f32, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        )
+        .unwrap();
+        let mut out = Array3::<f32>::zeros((4, 5, 6));
+
+        rotate_grid3d_core(grid.view(), rotmat.view(), 2, out.view_mut(), true);
+        assert_allclose_3d(&out, &grid);
+    }
+
+    #[test]
+    fn test_rotate_grid3d_core_90deg_z_matches_python() {
+        let grid = make_grid();
+        let rotmat = Array2::from_shape_vec(
+            (3, 3),
+            vec![0.0_f32, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+        )
+        .unwrap();
+        let mut out = Array3::<f32>::zeros((4, 5, 6));
+        rotate_grid3d_core(grid.view(), rotmat.view(), 2, out.view_mut(), false);
+
+        let mut answer = Array3::<f32>::zeros((4, 5, 6));
+        answer[[0, 0, 0]] = 1.0;
+        answer[[0, 1, 0]] = 1.0;
+        answer[[0, 1, 5]] = 1.0;
+        answer[[0, 2, 0]] = 1.0;
+        answer[[0, 4, 0]] = 1.0;
+        answer[[3, 0, 0]] = 1.0;
+
+        assert_allclose_3d(&answer, &out);
+    }
 }
