@@ -394,7 +394,9 @@ class CUDABatchedCorrelator(BatchedCorrelator[cp.ndarray]):
         self.conj_multiply_kernel(a, b, out)
 
     def compute_batch_lcc_score_and_take_best(self, batch_start: int, chunk_size: int):
-        block = 256
+        # Picked as 256 as it multiple of 32 cuda warp,
+        # tested 64, 128, 256 and 512 blocksizes with no significant difference in runtime.
+        block = 512
         grid = (self.volume_size + block - 1) // block
         self.batch_lcc_kernel(
             (grid,),

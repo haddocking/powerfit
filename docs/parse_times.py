@@ -47,7 +47,7 @@ def parse_log(log_path: Path):
             batch_match = BATCH_SIZE_RE.search(line)
             if batch_match is not None:
                 pending_batch_size = int(batch_match.group(1))
-            if '-bs0-' in run:
+            if "-bs0-" in run:
                 pending_batch_size = 0
 
             search_seconds = parse_duration_from_line(line, "Time for search:")
