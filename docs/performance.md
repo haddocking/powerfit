@@ -173,7 +173,7 @@ with normalized run labels and preserved `run_number` values for replicate sprea
                 "param": "series",
                 "value": 1
             },
-            "value": 0.15
+            "value": 0.01
         },
         "tooltip": [
             {
@@ -204,6 +204,8 @@ with normalized run labels and preserved `run_number` values for replicate sprea
 Based on plots, the default batch size is set to 100.
 
 When batch size is set 0 then the rotations are processed one by one instead of in batches.
+
+When you have very few rotations (`--angle 20`) setting batch size to 0 can be faster.
 
 ## Legend
 
