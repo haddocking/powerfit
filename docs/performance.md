@@ -26,96 +26,40 @@ Runs on machines with the following specifications:
 # On machine 1
 mkdir -p runs
 for run in 1 2 3 4 5; do
-	# powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --nproc 1 -d runs/m1-cpu1-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --nproc 6 -d runs/m1-cpu6-r${run}
-	# powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --nproc 1 --progressbar -d runs/m1-cpu1-pb-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --nproc 6 --progressbar -d runs/m1-cpu6-pb-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 -d runs/m1-cuda-autobs-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 1000 -d runs/m1-cuda-bs1000-r${run}
-    powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 500 -d runs/m1-cuda-bs500-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 250 -d runs/m1-cuda-bs250-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 200 -d runs/m1-cuda-bs200-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 150 -d runs/m1-cuda-bs150-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 100 -d runs/m1-cuda-bs100-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 75 -d runs/m1-cuda-bs75-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 50 -d runs/m1-cuda-bs50-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 10 -d runs/m1-cuda-bs10-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 0 -d runs/m1-cuda-nobs-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 -d runs/m1-opencl-autobs-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 1000 -d runs/m1-opencl-bs1000-r${run}
-    powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 500 -d runs/m3-opencl-bs500-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 250 -d runs/m3-opencl-bs250-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 200 -d runs/m3-opencl-bs200-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 150 -d runs/m3-opencl-bs150-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 100 -d runs/m3-opencl-bs100-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 75 -d runs/m3-opencl-bs75-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 50 -d runs/m3-opencl-bs50-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 10 -d runs/m3-opencl-bs10-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 0 -d runs/m1-opencl-nobs-r${run}
+    for batch_size in 1000 500 250 200 150 100 75 50 10 0; do
+        powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size $batch_size -d runs/m1-cuda-bs${batch_size}-r${run}
+    done
+    for batch_size in 1000 500 250 200 150 100 75 50 10 0; do
+        powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size $batch_size -d runs/m1-opencl-bs${batch_size}-r${run}
+    done
 done
 # On machine 2
 mkdir -p runs
 for run in 1 2 3 4 5; do
-	# powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --nproc 1 -d runs/m2-cpu1-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --nproc 6 -d runs/m2-cpu6-r${run}
-	# powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --nproc 1 --progressbar -d runs/m2-cpu1-pb-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --nproc 6 --progressbar -d runs/m2-cpu6-pb-r${run}
-	# CUDA not supported on AMD GPU
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 -d runs/m2-opencl-autobs-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 1000 -d runs/m2-opencl-bs1000-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 3500 -d runs/m2-opencl-bs3500-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 250 -d runs/m2-opencl-bs250-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 200 -d runs/m2-opencl-bs200-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 150 -d runs/m2-opencl-bs150-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 100 -d runs/m2-opencl-bs100-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 75 -d runs/m2-opencl-bs75-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 50 -d runs/m2-opencl-bs50-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 10 -d runs/m2-opencl-bs10-r${run}    
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 0 -d runs/m2-opencl-nobs-r${run}
+    powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --nproc 6 -d runs/m2-cpu6-r${run}
+    powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --nproc 6 --progressbar -d runs/m2-cpu6-pb-r${run}
+    for batch_size in 3500 1000 250 200 150 100 75 50 10 0; do
+        powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size $batch_size -d runs/m2-opencl-bs${batch_size}-r${run}
+    done
 done
+
 # On machine 3
 mkdir -p runs
 for run in 1 2 3 4 5; do
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 -d runs/m3-cuda-autobs-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 1000 -d runs/m3-cuda-bs1000-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 500 -d runs/m3-cuda-bs500-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 250 -d runs/m3-cuda-bs250-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 200 -d runs/m3-cuda-bs200-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 150 -d runs/m3-cuda-bs150-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 100 -d runs/m3-cuda-bs100-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 75 -d runs/m3-cuda-bs75-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 50 -d runs/m3-cuda-bs50-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 10 -d runs/m3-cuda-bs10-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 0 -d runs/m3-cuda-nobs-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 -d runs/m3-opencl-autobs-r${run}
-    powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 4000 -d runs/m3-opencl-bs4000-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 3000 -d runs/m3-opencl-bs3000-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 2000 -d runs/m3-opencl-bs2000-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 1000 -d runs/m3-opencl-bs1000-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 500 -d runs/m3-opencl-bs500-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 250 -d runs/m3-opencl-bs250-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 200 -d runs/m3-opencl-bs200-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 150 -d runs/m3-opencl-bs150-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 100 -d runs/m3-opencl-bs100-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 75 -d runs/m3-opencl-bs75-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 50 -d runs/m3-opencl-bs50-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 10 -d runs/m3-opencl-bs10-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size 0 -d runs/m3-opencl-nobs-r${run}
+    for batch_size in 1000 500 250 200 150 100 75 50 10 0; do
+        powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size $batch_size -d runs/m3-cuda-bs${batch_size}-r${run}
+    done
+    for batch_size in 4000 3000 2000 1000 500 250 200 150 100 75 50 10 0; do
+        powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu 0:0 --batch-size $batch_size -d runs/m3-opencl-bs${batch_size}-r${run}
+    done
 done
+
 # On machine 4
 mkdir runs
 for run in 1 2 3 4 5; do
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 -d runs/m4-cuda-autobs-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 1000 -d runs/m4-cuda-bs1000-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 500 -d runs/m4-cuda-bs500-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 250 -d runs/m4-cuda-bs250-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 200 -d runs/m4-cuda-bs200-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 150 -d runs/m4-cuda-bs150-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 100 -d runs/m4-cuda-bs100-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 75 -d runs/m4-cuda-bs75-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 50 -d runs/m4-cuda-bs50-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 10 -d runs/m4-cuda-bs10-r${run}
-	powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size 0 -d runs/m4-cuda-nobs-r${run}
+    for batch_size in 1000 500 250 200 150 100 75 50 10 0; do
+        powerfit emd_1046.map.gz 20 9A2G.cif.gz -a 4.71 --delimiter , -n 0 --gpu cuda:0 --batch-size $batch_size -d runs/m4-cuda-bs${batch_size}-r${run}
+    done
 done
 ```
 
@@ -258,6 +202,8 @@ with normalized run labels and preserved `run_number` values for replicate sprea
 ```
 
 Based on plots, the default batch size is set to 100.
+
+When batch size is set 0 then the rotations are processed one by one instead of in batches.
 
 ## Legend
 
