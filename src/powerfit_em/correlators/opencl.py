@@ -123,7 +123,40 @@ def transform_rotations(rotations: np.ndarray) -> np.ndarray:
     return rot_trans
 
 
-class OpenCLSerialCorrelator(SerialCorrelator):
+class OpenCLCorrelator:
+    """Shared OpenCL state and helpers for serial and batched correlators."""
+
+    def _init_opencl_common(self, target: np.ndarray, queue: cl.CommandQueue, laplace: bool = False):
+        self.target: np.ndarray = target / target.max()
+        self.laplace = laplace
+        self.queue = queue
+        self.norm_factor = 0.0  # to be set by set_template
+
+        self.lcc = np.zeros(self.target.shape, dtype=np.float32)
+        self.rot = np.zeros(self.target.shape, dtype=np.int32)
+
+        self.cl_kernels = generate_kernels(queue, self.target)
+        self.square = lambda a, b: self.cl_kernels.multiply(a, a, b)
+
+    def _init_vars_common(self, batch_size: int | None = None, empty_lcc_ft: bool = False):
+        self.vars, self.vars_ft = init_correlator_vars(
+            self.target,
+            self.laplace,
+            array_from_host=lambda arr: cl_array.to_device(self.queue, arr),
+            zeros_array=lambda shape, dtype: cl_array.zeros(self.queue, shape, dtype=dtype),
+            make_image=lambda arr: cl.image_from_array(self.queue.context, arr),
+            batch_size=batch_size,
+            empty_lcc_ft=empty_lcc_ft,
+        )
+
+    def _set_template_var(self, template: np.ndarray):
+        self.vars.template = cl.image_from_array(self.vars.template.context, template.astype(f32))
+
+    def _set_mask_var(self, mask: np.ndarray):
+        self.vars.mask = cl.image_from_array(self.vars.mask.context, mask.astype(f32))
+
+
+class OpenCLSerialCorrelator(OpenCLCorrelator, SerialCorrelator):
     """Compute LCC scores for each rotation one-by-one using OpenCL.
 
     No batch buffers are allocated; each rotation is processed individually.
@@ -151,40 +184,19 @@ class OpenCLSerialCorrelator(SerialCorrelator):
             laplace: if true, a Laplace pre-filter is applied to the target density and
                 template to enhance the sensitivity of the scoring function.
         """
-        self.target: np.ndarray = target / target.max()
-        self.laplace = laplace
-        self.queue = queue
-        self.norm_factor = 0.0  # to be set by set_template
+        self._init_opencl_common(target, queue, laplace)
 
         self.rotations = transform_rotations(rotations)
 
         self.init_vars()
-
-        self.lcc = np.zeros(self.target.shape, dtype=np.float32)
-        self.rot = np.zeros(self.target.shape, dtype=np.int32)
-
-        self.cl_kernels = generate_kernels(queue, self.target)
         self.conj_multiply = self.cl_kernels.conj_multiply
-        self.square = lambda a, b: self.cl_kernels.multiply(a, a, b)
         self.rfftn, self.irfftn = build_opencl_ffts(self.target.shape, queue)
 
         self.set_template(template, mask)
         precompute_squared_targets(self.vars, self.vars_ft, self.cl_kernels, self.rfftn)
 
     def init_vars(self):
-        self.vars, self.vars_ft = init_correlator_vars(
-            self.target,
-            self.laplace,
-            array_from_host=lambda arr: cl_array.to_device(self.queue, arr),
-            zeros_array=lambda shape, dtype: cl_array.zeros(self.queue, shape, dtype=dtype),
-            make_image=lambda arr: cl.image_from_array(self.queue.context, arr),
-        )
-
-    def _set_template_var(self, template: np.ndarray):
-        self.vars.template = cl.image_from_array(self.vars.template.context, template.astype(f32))
-
-    def _set_mask_var(self, mask: np.ndarray):
-        self.vars.mask = cl.image_from_array(self.vars.mask.context, mask.astype(f32))
+        self._init_vars_common()
 
     def rotate_grids(self, rotmat: np.ndarray):
         """Rotate the template and mask using the rotational matrix."""
@@ -226,7 +238,7 @@ class OpenCLSerialCorrelator(SerialCorrelator):
         self.retrieve_results()
 
 
-class OpenCLBatchedCorrelator(BatchedCorrelator[cl_array.Array]):
+class OpenCLBatchedCorrelator(OpenCLCorrelator, BatchedCorrelator[cl_array.Array]):
     """Compute LCC scores in batches of rotations using OpenCL.
 
     Batch buffers are allocated upfront and rotations are processed in groups
@@ -262,21 +274,12 @@ class OpenCLBatchedCorrelator(BatchedCorrelator[cl_array.Array]):
                 "batch_size must be > 0 for OpenCLBatchedCorrelator. Use OpenCLSerialCorrelator for serial processing."
             )
 
-        self.target: np.ndarray = target / target.max()
-        self.laplace = laplace
-        self.queue = queue
-        self.norm_factor = 0.0  # to be set by set_template
+        self._init_opencl_common(target, queue, laplace)
 
         transformed_rotations = transform_rotations(rotations)
         self.rotations = cl_array.to_device(self.queue, transformed_rotations)
         self.volume_size = int(np.prod(self.target.shape))
         self.ft_vol_size = int(np.prod(get_ft_shape(self.target)))
-
-        self.lcc = np.zeros(self.target.shape, dtype=np.float32)
-        self.rot = np.zeros(self.target.shape, dtype=np.int32)
-
-        self.cl_kernels = generate_kernels(queue, self.target)
-        self.square = lambda a, b: self.cl_kernels.multiply(a, a, b)
 
         self.max_batch_size = max_batch_size(queue, self.target.shape)
         if batch_size > self.max_batch_size:
@@ -288,31 +291,16 @@ class OpenCLBatchedCorrelator(BatchedCorrelator[cl_array.Array]):
         self.init_vars()
         self.rfftn, self.irfftn = build_opencl_ffts_batched(self.target.shape, self.batch_size, queue)
 
-        self.set_template(template, mask)
-
         serial_rfftn, _ = build_opencl_ffts(self.target.shape, queue)
+        self.set_template(template, mask)
         precompute_squared_targets(self.vars, self.vars_ft, self.cl_kernels, serial_rfftn)
 
     def init_vars(self):
         """Allocate all GPU arrays needed by the batched path; raises on allocation failure."""
         try:
-            self.vars, self.vars_ft = init_correlator_vars(
-                self.target,
-                self.laplace,
-                array_from_host=lambda arr: cl_array.to_device(self.queue, arr),
-                zeros_array=lambda shape, dtype: cl_array.zeros(self.queue, shape, dtype=dtype),
-                make_image=lambda arr: cl.image_from_array(self.queue.context, arr),
-                batch_size=self.batch_size,
-                empty_lcc_ft=True,
-            )
+            self._init_vars_common(batch_size=self.batch_size, empty_lcc_ft=True)
         except cl.MemoryError as exc:
             raise RuntimeError(f"Failed to allocate OpenCL batch buffers for batch_size={self.batch_size}.") from exc
-
-    def _set_template_var(self, template: np.ndarray):
-        self.vars.template = cl.image_from_array(self.vars.template.context, template.astype(f32))
-
-    def _set_mask_var(self, mask: np.ndarray):
-        self.vars.mask = cl.image_from_array(self.vars.mask.context, mask.astype(f32))
 
     def rotate_grids_batch(self, batch_start: int, chunk_size: int):
         self.cl_kernels.rotate_image3d_batch(

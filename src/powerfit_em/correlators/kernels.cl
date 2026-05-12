@@ -12,28 +12,22 @@
 #define SIZE ((SHAPE_Z * SLICE))
 
 
-kernel
-void rotate_image3d(
-        read_only image3d_t image, sampler_t sampler, float16 rotmat, 
+// Helper function: rotates all voxels within LLENGTH using the provided rotation matrix
+// Encapsulates the triple-nested loop logic shared by rotate_image3d and rotate_image3d_batch
+void rotate_voxel_loop(
+        read_only image3d_t image,
+        sampler_t sampler,
+        float16 rotmat,
+        float4 fshape,
+        int out_base,
+        int zid, int yid, int xid,
+        int zstride, int ystride, int xstride,
         global float *out
         )
 {
-    // Rotate grid around the origin. Only grid points within LLENGTH of the
-    // origin are rotated.
-
-    int zid = get_global_id(0);
-    int yid = get_global_id(1);
-    int xid = get_global_id(2);
-    int zstride = get_global_size(0);
-    int ystride = get_global_size(1);
-    int xstride = get_global_size(2);
-
     int z, y, x;
-    float4 dist2, coor_z, coor_zy, coor_zyx, fshape;
+    float4 dist2, coor_z, coor_zy, coor_zyx;
     int4 out_ind;
-    fshape.s2 = (float) SHAPE_X;
-    fshape.s1 = (float) SHAPE_Y;
-    fshape.s0 = (float) SHAPE_Z;
 
     for (z = zid - LLENGTH; z <= LLENGTH; z += zstride) {
         dist2.s2 = SQUARE(z);
@@ -42,7 +36,7 @@ void rotate_image3d(
         coor_z.s1 = rotmat.s7 * z + IMAGE_OFFSET;
         coor_z.s2 = rotmat.s8 * z + IMAGE_OFFSET;
 
-        out_ind.s0 = z * SLICE;
+        out_ind.s0 = out_base + z * SLICE;
         if (z < 0)
             out_ind.s0 += SIZE;
 
@@ -76,6 +70,31 @@ void rotate_image3d(
             }
         }
     }
+}
+
+
+kernel
+void rotate_image3d(
+        read_only image3d_t image, sampler_t sampler, float16 rotmat, 
+        global float *out
+        )
+{
+    // Rotate grid around the origin. Only grid points within LLENGTH of the
+    // origin are rotated.
+
+    int zid = get_global_id(0);
+    int yid = get_global_id(1);
+    int xid = get_global_id(2);
+    int zstride = get_global_size(0);
+    int ystride = get_global_size(1);
+    int xstride = get_global_size(2);
+
+    float4 fshape;
+    fshape.s2 = (float) SHAPE_X;
+    fshape.s1 = (float) SHAPE_Y;
+    fshape.s0 = (float) SHAPE_Z;
+
+    rotate_voxel_loop(image, sampler, rotmat, fshape, 0, zid, yid, xid, zstride, ystride, xstride, out);
 }
 
 
@@ -117,55 +136,13 @@ void rotate_image3d_batch(
         rotmats[rbase + 12], rotmats[rbase + 13], rotmats[rbase + 14], rotmats[rbase + 15]
     );
     
-    float4 dist2, coor_z, coor_zy, coor_zyx, fshape;
-    int4 out_ind;
+    float4 fshape;
     int out_base = b * SIZE;  // Batch slot offset in output buffer
     fshape.s2 = (float) SHAPE_X;
     fshape.s1 = (float) SHAPE_Y;
     fshape.s0 = (float) SHAPE_Z;
     
-    int x, y, z;
-    for (z = zid - LLENGTH; z <= LLENGTH; z += zstride) {
-        dist2.s2 = SQUARE(z);
-        
-        coor_z.s0 = rotmat.s6 * z + IMAGE_OFFSET;
-        coor_z.s1 = rotmat.s7 * z + IMAGE_OFFSET;
-        coor_z.s2 = rotmat.s8 * z + IMAGE_OFFSET;
-        
-        out_ind.s0 = out_base + z * SLICE;
-        if (z < 0)
-            out_ind.s0 += SIZE;
-        
-        for (y = yid - LLENGTH; y <= LLENGTH; y += ystride) {
-            dist2.s1 = SQUARE(y) + dist2.s2;
-            if (dist2.s1 > LLENGTH2)
-                continue;
-            
-            coor_zy.s0 = rotmat.s3 * y + coor_z.s0;
-            coor_zy.s1 = rotmat.s4 * y + coor_z.s1;
-            coor_zy.s2 = rotmat.s5 * y + coor_z.s2;
-            
-            out_ind.s1 = out_ind.s0 + y * SHAPE_X;
-            if (y < 0)
-                out_ind.s1 += SLICE;
-            
-            for (x = xid - LLENGTH; x <= LLENGTH; x += xstride) {
-                dist2.s0 = SQUARE(x) + dist2.s1;
-                if (dist2.s0 > LLENGTH2)
-                    continue;
-                // Normalize coordinates
-                coor_zyx.s0 = (rotmat.s0 * x + coor_zy.s0) / fshape.s2;
-                coor_zyx.s1 = (rotmat.s1 * x + coor_zy.s1) / fshape.s1;
-                coor_zyx.s2 = (rotmat.s2 * x + coor_zy.s2) / fshape.s0;
-                
-                out_ind.s2 = out_ind.s1 + x;
-                if (x < 0)
-                    out_ind.s2 += SHAPE_X;
-                
-                out[out_ind.s2] = read_imagef(image, sampler, coor_zyx).s0;
-            }
-        }
-    }
+    rotate_voxel_loop(image, sampler, rotmat, fshape, out_base, zid, yid, xid, zstride, ystride, xstride, out);
 }
 
 

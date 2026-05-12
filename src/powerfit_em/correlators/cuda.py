@@ -192,7 +192,51 @@ def build_cuda_lcc_kernel():
     )
 
 
-class CUDASerialCorrelator(SerialCorrelator):
+class CUDACorrelator:
+    """Shared CUDA state and helpers for serial and batched correlators."""
+
+    def _init_cuda_common(
+        self,
+        target: np.ndarray,
+        rotations: np.ndarray,
+        cuda_stream: cp.cuda.Stream,
+        laplace: bool = False,
+    ):
+        self.target: np.ndarray = target / target.max()
+        self.laplace = laplace
+        self.rotations = cp.asarray(rotations.reshape(rotations.shape[0], -1), dtype=f32)
+        self.cuda_stream = cuda_stream
+        self.norm_factor = 0.0  # to be set by set_template
+
+        self.lcc = np.zeros(self.target.shape, dtype=f32)
+        self.rot = np.zeros(self.target.shape, dtype=i32)
+        self.volume_size = int(np.prod(self.target.shape))
+        self.cuda_kernels = CUDAKernels(self.target.shape)
+        self.conj_multiply_kernel = build_cuda_conj_multiply_kernel()
+        self.square = _square
+
+    def _init_vars_common(self, batch_size: int | None = None, empty_lcc_ft: bool = False):
+        self.vars, self.vars_ft = init_correlator_vars(
+            self.target,
+            self.laplace,
+            array_from_host=cp.asarray,
+            zeros_array=lambda shape, dtype: cp.zeros(shape, dtype=dtype),
+            make_image=make_cuda_texture_linear,
+            batch_size=batch_size,
+            empty_lcc_ft=empty_lcc_ft,
+        )
+
+    def _synchronize(self):
+        self.cuda_stream.synchronize()
+
+    def _set_template_var(self, template: np.ndarray):
+        self.vars.template = make_cuda_texture_linear(template)
+
+    def _set_mask_var(self, mask: np.ndarray):
+        self.vars.mask = make_cuda_texture_nearerst(mask)
+
+
+class CUDASerialCorrelator(CUDACorrelator, SerialCorrelator):
     """GPU-accelerated correlator that processes rotations one-by-one.
 
     No batch buffers are allocated; each rotation is processed individually.
@@ -208,21 +252,10 @@ class CUDASerialCorrelator(SerialCorrelator):
         cuda_stream: cp.cuda.Stream,
         laplace: bool = False,
     ):
-        self.target: np.ndarray = target / target.max()
-        self.laplace = laplace
-        self.rotations = cp.asarray(rotations.reshape(rotations.shape[0], -1), dtype=f32)
-        self.cuda_stream = cuda_stream
+        self._init_cuda_common(target, rotations, cuda_stream, laplace)
 
         self.init_vars()
-
-        self.lcc = np.zeros(self.target.shape, dtype=f32)
-        self.rot = np.zeros(self.target.shape, dtype=i32)
-        self.volume_size = int(np.prod(self.target.shape))
-        self.cuda_kernels = CUDAKernels(self.target.shape)
         self.lcc_kernel = build_cuda_lcc_kernel()
-        self.conj_multiply_kernel = build_cuda_conj_multiply_kernel()
-
-        self.square = _square
         self.rfftn, self.irfftn = build_cuda_ffts(self.target.shape, self.cuda_stream)
 
         with self.cuda_stream:
@@ -232,23 +265,8 @@ class CUDASerialCorrelator(SerialCorrelator):
             self.rfftn(self.vars.target2, self.vars_ft.target2)
         self._synchronize()
 
-    def _synchronize(self):
-        self.cuda_stream.synchronize()
-
     def init_vars(self):
-        self.vars, self.vars_ft = init_correlator_vars(
-            self.target,
-            self.laplace,
-            array_from_host=cp.asarray,
-            zeros_array=lambda shape, dtype: cp.zeros(shape, dtype=dtype),
-            make_image=make_cuda_texture_linear,
-        )
-
-    def _set_template_var(self, template: np.ndarray):
-        self.vars.template = make_cuda_texture_linear(template)
-
-    def _set_mask_var(self, mask: np.ndarray):
-        self.vars.mask = make_cuda_texture_nearerst(mask)
+        self._init_vars_common()
 
     def conj_multiply(self, a: cp.ndarray, b: cp.ndarray, out: cp.ndarray):
         self.conj_multiply_kernel(a, b, out)
@@ -288,7 +306,7 @@ class CUDASerialCorrelator(SerialCorrelator):
         self.retrieve_results()
 
 
-class CUDABatchedCorrelator(BatchedCorrelator[cp.ndarray]):
+class CUDABatchedCorrelator(CUDACorrelator, BatchedCorrelator[cp.ndarray]):
     """GPU-accelerated correlator that processes rotations in batches.
 
     Batch buffers are allocated upfront and rotations are processed in groups
@@ -323,19 +341,8 @@ class CUDABatchedCorrelator(BatchedCorrelator[cp.ndarray]):
                 "batch_size must be > 0 for CUDABatchedCorrelator. Use CUDASerialCorrelator for serial processing."
             )
 
-        self.target: np.ndarray = target / target.max()
-        self.laplace = laplace
-        self.rotations = cp.asarray(rotations.reshape(rotations.shape[0], -1), dtype=f32)
-        self.cuda_stream = cuda_stream
-
-        self.lcc = np.zeros(self.target.shape, dtype=f32)
-        self.rot = np.zeros(self.target.shape, dtype=i32)
-        self.volume_size = int(np.prod(self.target.shape))
-        self.cuda_kernels = CUDAKernels(self.target.shape)
+        self._init_cuda_common(target, rotations, cuda_stream, laplace)
         self.batch_lcc_kernel = self.cuda_kernels.batch_lcc_kernel
-        self.conj_multiply_kernel = build_cuda_conj_multiply_kernel()
-
-        self.square = _square
 
         self.max_batch_size = max_batch_size(self.target.shape)
         if batch_size > self.max_batch_size:
@@ -359,29 +366,12 @@ class CUDABatchedCorrelator(BatchedCorrelator[cp.ndarray]):
     def init_vars(self):
         """Allocate GPU arrays needed by the batched path; raises on OOM."""
         try:
-            self.vars, self.vars_ft = init_correlator_vars(
-                self.target,
-                self.laplace,
-                array_from_host=cp.asarray,
-                zeros_array=lambda shape, dtype: cp.zeros(shape, dtype=dtype),
-                make_image=make_cuda_texture_linear,
-                batch_size=self.batch_size,
-                empty_lcc_ft=True,
-            )
+            self._init_vars_common(batch_size=self.batch_size, empty_lcc_ft=True)
         except cp.cuda.memory.OutOfMemoryError as exc:
             raise RuntimeError(
                 f"Failed to allocate CUDA batch buffers for batch_size={self.batch_size}. "
                 "Reduce --batch-size or disable batching with --batch-size 0."
             ) from exc
-
-    def _synchronize(self):
-        self.cuda_stream.synchronize()
-
-    def _set_template_var(self, template: np.ndarray):
-        self.vars.template = make_cuda_texture_linear(template)
-
-    def _set_mask_var(self, mask: np.ndarray):
-        self.vars.mask = make_cuda_texture_nearerst(mask)
 
     def rotate_grids_batch(self, batch_start: int, chunk_size: int):
         rotmats = self.rotations[batch_start : batch_start + chunk_size]
