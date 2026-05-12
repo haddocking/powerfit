@@ -53,6 +53,7 @@ plugins:
           options:
             docstring_style: google
             show_source: false
+  - charts
 
 markdown_extensions:
     # Use to render part of README as home
@@ -60,10 +61,21 @@ markdown_extensions:
         base_path: [!relative $config_dir]
         check_paths: true
     - pymdownx.highlight
+    - pymdownx.superfences:
+        custom_fences:
+          - name: vegalite
+            class: vegalite
+            format: !!python/name:mkdocs_charts_plugin.fences.fence_vegalite
+
+extra_javascript:
+  - https://cdn.jsdelivr.net/npm/vega@6.2.0
+  - https://cdn.jsdelivr.net/npm/vega-lite@6.4.1
+  - https://cdn.jsdelivr.net/npm/vega-embed@7.1.0
 
 nav:
   - Home: README.md
   - Installation: installation.md
   - Manual: manual.md
+  - Performance: performance.md
   - Contributing guidelines: CONTRIBUTING.md
   - CLI Reference: cli.md

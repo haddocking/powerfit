@@ -1,16 +1,15 @@
+import logging
 from importlib.util import find_spec
 from math import sqrt
 
 import numpy as np
 from scipy.ndimage import binary_erosion
 
+logger = logging.getLogger(__name__)
+
 
 def pyfftw_available() -> bool:
     return find_spec("pyfftw") is not None
-
-
-def opencl_available() -> bool:
-    return find_spec("pyopencl") is not None
 
 
 def determine_core_indices(mask):

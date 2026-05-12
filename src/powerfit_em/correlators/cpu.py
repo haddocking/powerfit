@@ -1,13 +1,18 @@
 import warnings
-from functools import partial
 
 import numpy as np
 from numpy import typing as npt
-from scipy.ndimage import laplace as laplace_filter
-from tqdm import tqdm
 
 from powerfit_em._extensions import rotate_grid3d
-from powerfit_em.correlators.shared import Correlator, Vars, VarsFT, f32, get_ft_shape, get_lcc_mask, i32
+from powerfit_em.correlators.shared import (
+    ProgressFactory,
+    SerialCorrelator,
+    Vars,
+    VarsFT,
+    f32,
+    i32,
+    init_correlator_vars,
+)
 from powerfit_em.helpers import pyfftw_available
 
 
@@ -35,7 +40,7 @@ def rmax(target: np.ndarray) -> int:
     return min(target.shape) // 2
 
 
-def zeros_array(shape: tuple[int], dtype: npt.DTypeLike, fftw: bool) -> np.ndarray:
+def zeros_array(shape: tuple[int, ...], dtype: npt.DTypeLike, fftw: bool) -> np.ndarray:
     """Returns optimally SIMD aligned array if PyFFTW is used, for faster computation."""
     if fftw and pyfftw_available():
         from pyfftw import simd_alignment, zeros_aligned
@@ -51,41 +56,17 @@ def init_cpu_vars(
     fftw: bool,
 ) -> tuple[Vars[np.ndarray, np.ndarray], VarsFT[np.ndarray]]:
     """Initialize all CPU variables on the specified queue."""
-
-    lcc_mask = get_lcc_mask(target)
-    _t = laplace_filter(target, mode="wrap") if laplace else target
-
-    vars = Vars(
-        target=_t.astype(f32),
-        template=zeros_array(target.shape, f32, fftw),
-        mask=zeros_array(target.shape, f32, fftw),
-        lcc_mask=lcc_mask.astype(np.uint8),
-        target2=zeros_array(target.shape, f32, fftw),
-        rot_template=zeros_array(target.shape, f32, fftw),
-        rot_mask=zeros_array(target.shape, f32, fftw),
-        rot_mask2=zeros_array(target.shape, f32, fftw),
-        gcc=zeros_array(target.shape, f32, fftw),
-        ave=zeros_array(target.shape, f32, fftw),
-        ave2=zeros_array(target.shape, f32, fftw),
-        lcc=zeros_array(target.shape, f32, fftw),
-        rot=zeros_array(target.shape, i32, fftw),
+    return init_correlator_vars(
+        target,
+        laplace,
+        array_from_host=lambda arr: arr,
+        zeros_array=lambda shape, dtype: zeros_array(shape, dtype, fftw),
+        make_image=lambda arr: arr,
+        lcc_mask_dtype=np.uint8,
     )
 
-    vars_ft = VarsFT(
-        target=zeros_array(get_ft_shape(target), np.complex64, fftw),
-        target2=zeros_array(get_ft_shape(target), np.complex64, fftw),
-        template=zeros_array(get_ft_shape(target), np.complex64, fftw),
-        mask=zeros_array(get_ft_shape(target), np.complex64, fftw),
-        mask2=zeros_array(get_ft_shape(target), np.complex64, fftw),
-        ave=zeros_array(get_ft_shape(target), np.complex64, fftw),
-        ave2=zeros_array(get_ft_shape(target), np.complex64, fftw),
-        lcc=zeros_array(get_ft_shape(target), np.complex64, fftw),
-        gcc=zeros_array(get_ft_shape(target), np.complex64, fftw),
-    )
-    return vars, vars_ft
 
-
-class CPUCorrelator(Correlator):
+class CPUCorrelator(SerialCorrelator):
     """Compute the LCC score for a target and template combination."""
 
     def __init__(
@@ -123,7 +104,7 @@ class CPUCorrelator(Correlator):
 
         self.set_template(template, mask)
 
-        # set methods in the same was as GPUCorrelator implementation;
+        # set methods in the same way as the OpenCL correlator implementation;
         self.conj_multiply = lambda a, b, c: np.multiply(np.conjugate(a), b, out=c)
         self.square = lambda a, b: np.square(a, out=b)
         self.rfftn, self.irfftn = build_ffts(self.target, self.vars.gcc, self.vars_ft.gcc, fftw)
@@ -161,7 +142,7 @@ class CPUCorrelator(Correlator):
         self.lcc[ind] = self.lcc_scan[ind]
         self.rot[ind] = n
 
-    def scan(self, progress: partial[tqdm] | None = None):
+    def scan(self, progress: ProgressFactory | None = None):
         """Scan all provided rotations to find the best fit."""
         self.vars.lcc.fill(0)
         self.vars.rot.fill(0)

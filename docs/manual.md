@@ -101,6 +101,7 @@ powerfit <map> <resolution> <pdb> --gpu
 Using GPU-accelerated search.
 ...
 ```
+(See `--help` if you have multiple GPUs and want to specify which one to use)
 
 ## Output
 

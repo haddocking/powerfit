@@ -1,6 +1,7 @@
 import importlib.resources
 from string import Template
 
+import numpy as np
 import pyopencl as cl
 from pyopencl.elementwise import ElementwiseKernel
 
@@ -35,7 +36,11 @@ class CLKernels:
 
         self._program = cl.Program(ctx, t).build()
         self._rotate_image3d = self._program.rotate_image3d
+        self._rotate_image3d_batch = self._program.rotate_image3d_batch
+        self._batch_lcc_and_take_best = self._program.powerfit_batch_lcc_and_take_best
+        self._batch_conj_multiply = self._program.powerfit_batch_conj_multiply
         self._gws_rotate_grid3d = (96, 64, 1)
+        self._gws_rotate_grid3d_batch = None
 
     def rotate_image3d(self, queue: cl.CommandQueue, image, rotmat, out, nearest=False):
         if nearest:
@@ -43,3 +48,96 @@ class CLKernels:
         else:
             args = (image, self.sampler_linear, rotmat, out.data)
         self._rotate_image3d(queue, self._gws_rotate_grid3d, None, *args)
+
+    def rotate_image3d_batch(
+        self,
+        queue: cl.CommandQueue,
+        image,
+        rotmats,
+        rot_offset: int,
+        batch_size: int,
+        out,
+        nearest: bool = False,
+    ):
+        """Rotate image for a batch of rotation matrices using 3D parallelism.
+
+        Packs batch index into dimension 0 (Z iteration) to enable full spatial
+        parallelization. Work-item layout: (z*batch, y, x) where
+        z_id = tid_z % gws_z_single, b = tid_z / gws_z_single.
+        This matches the CUDA batch kernel strategy.
+        """
+        rot_offset_i32 = np.int32(rot_offset)
+        batch_size_i32 = np.int32(batch_size)
+        if nearest:
+            args = (image, self.sampler_nearest, rotmats.data, rot_offset_i32, batch_size_i32, out.data)
+        else:
+            args = (image, self.sampler_linear, rotmats.data, rot_offset_i32, batch_size_i32, out.data)
+
+        # Compute 3D grid: (Z*batch_size, Y, X) to pack batch into dimension 0 (Z)
+        # while maintaining spatial parallelism. The kernel unpacks:
+        # z_id = tid_z % gws_z_single, b = tid_z / gws_z_single
+        gws_z_single = self._gws_rotate_grid3d[0]  # 96 - Z iteration count
+        gws_z_batch = gws_z_single * batch_size
+        gws = (gws_z_batch, self._gws_rotate_grid3d[1], self._gws_rotate_grid3d[2])
+
+        self._rotate_image3d_batch(queue, gws, None, *args)
+
+    def batch_lcc_and_take_best(
+        self,
+        queue: cl.CommandQueue,
+        gcc,
+        ave,
+        ave2,
+        mask,
+        lcc,
+        rot,
+        norm_factor,
+        batch_start: int,
+        batch_size: int,
+        volume_size: int,
+    ):
+        # Picked as 256 as it multiple of 64 opencl wavefront,
+        # tested 64, 128, 256 and 512 blocksizes with no significant difference in runtime.
+        block = 256
+        gws = ((volume_size + block - 1) // block * block,)
+        self._batch_lcc_and_take_best(
+            queue,
+            gws,
+            None,
+            gcc.data,
+            ave.data,
+            ave2.data,
+            mask.data,
+            lcc.data,
+            rot.data,
+            norm_factor,
+            np.int32(batch_start),
+            np.int32(batch_size),
+            np.int32(volume_size),
+        )
+
+    def batch_conj_multiply(
+        self,
+        queue: cl.CommandQueue,
+        batch_a,
+        broadcast_b,
+        out,
+        batch_size: int,
+        ft_vol_size: int,
+    ):
+        """Compute out[b][i] = conj(batch_a[b][i]) * broadcast_b[i] for all b, i."""
+        total_size = batch_size * ft_vol_size
+        # Picked as 256 as it multiple of 64 opencl wavefront,
+        # tested 64, 128, 256 and 512 blocksizes with no significant difference in runtime.
+        block = 256
+        gws = ((total_size + block - 1) // block * block,)
+        self._batch_conj_multiply(
+            queue,
+            gws,
+            None,
+            batch_a.data,
+            broadcast_b.data,
+            out.data,
+            np.int32(ft_vol_size),
+            np.int32(total_size),
+        )

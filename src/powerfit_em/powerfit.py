@@ -3,17 +3,16 @@
 
 import logging
 import warnings
-from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, BooleanOptionalAction, FileType
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser, FileType
 from functools import partial
 from os.path import abspath, join, splitext
 from pathlib import Path
 from time import time
-from typing import TYPE_CHECKING, BinaryIO
+from typing import BinaryIO
 
 import numpy as np
 from rich.logging import RichHandler
 from tqdm import TqdmExperimentalWarning
-from tqdm.auto import tqdm
 from tqdm.rich import tqdm as rich_tqdm
 
 from powerfit_em import (
@@ -26,18 +25,60 @@ from powerfit_em import (
     structure_to_shape_like,
 )
 from powerfit_em.analyzer import Analyzer
-from powerfit_em.helpers import fisher_sigma, opencl_available, write_fits_to_pdb
+from powerfit_em.correlators.shared import DEFAULT_BATCH_SIZE, ProgressFactory
+from powerfit_em.gpu import setup_gpu_backend
+from powerfit_em.helpers import fisher_sigma, write_fits_to_pdb
 from powerfit_em.powerfitter import PowerFitter
 from powerfit_em.report import generate_report
 from powerfit_em.volume import extend, nearest_multiple2357, resample, trim
 
-if TYPE_CHECKING:
-    import pyopencl as cl  # noqa: I001
-
-
 logger = logging.getLogger(__name__)
 
 warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
+
+
+def add_computational_resources2parser(p: ArgumentParser):
+    p.add_argument(
+        "-g",
+        "--gpu",
+        dest="gpu",
+        nargs="?",
+        const="auto",
+        default=None,
+        metavar="[cuda:<device>|<platform>:<device>]",
+        help="Off-load the intensive calculations to the GPU. Use --gpu for automatic backend selection, --gpu cuda:N for CUDA device N, or --gpu P:D for OpenCL platform P and device D. If omitted, does not use GPU.",  # noqa: E501
+    )
+    p.add_argument(
+        "-p",
+        "--nproc",
+        dest="nproc",
+        type=int,
+        default=1,
+        metavar="<int>",
+        help="Number of processors used during search. "
+        "The number will be capped at the total number "
+        "of available processors on your machine.",
+    )
+    p.add_argument(
+        "--progressbar",
+        dest="progressbar",
+        action="store_true",
+        default=False,
+        help="Show a progress bar during the search (CPU only). Enabling the progressbar may reduce performance.",
+    )
+    p.add_argument(
+        "--batch-size",
+        dest="batch_size",
+        type=int,
+        default=DEFAULT_BATCH_SIZE,
+        metavar="<int>",
+        help=(
+            "GPU batch size to use. "
+            "Use 0 to disable batching entirely, or a positive integer to force a specific batch size. "
+            "Applies to GPU backends (CUDA/OpenCL). "
+            "If set too high will cause out-of-memory errors."
+        ),
+    )
 
 
 def make_parser():
@@ -157,27 +198,7 @@ def make_parser():
         help="Number of models written to file. This number will be capped if less solutions are found as requested.",
     )
     # Computational resources parameters
-    p.add_argument(
-        "-g",
-        "--gpu",
-        dest="gpu",
-        nargs="?",
-        const="0:0",
-        default=None,
-        metavar="[<platform>:<device>]",
-        help="Off-load the intensive calculations to the GPU. Optionally specify platform and device as <platform>:<device> (e.g., --gpu 0:3). If not specified, uses first device in first platform. If omitted, does not use GPU.",  # noqa: E501
-    )
-    p.add_argument(
-        "-p",
-        "--nproc",
-        dest="nproc",
-        type=int,
-        default=1,
-        metavar="<int>",
-        help="Number of processors used during search. "
-        "The number will be capped at the total number "
-        "of available processors on your machine.",
-    )
+    add_computational_resources2parser(p)
     p.add_argument(
         "--log-level",
         dest="log_level",
@@ -193,13 +214,6 @@ def make_parser():
         default=None,
         metavar="<str>",
         help="Delimiter used in the 'solutions.out' file. For example use ',' or '\\t'. Defaults to fixed width.",
-    )
-    p.add_argument(
-        "--progressbar",
-        dest="progressbar",
-        action=BooleanOptionalAction,
-        default=True,
-        help="Show a progress bar during the search. Disabling the progressbar will improve performance.",
     )
     p.add_argument(
         "--report",
@@ -236,6 +250,8 @@ def configure_logging(log_file, log_level="INFO"):
     for handler in logging.root.handlers:
         logging.root.removeHandler(handler)
 
+    logging.root.setLevel(log_level)
+
     # Write log messages to a file
     if log_file:
         file_handler = logging.FileHandler(log_file)
@@ -256,6 +272,9 @@ def main():
     Path(args.directory).mkdir(exist_ok=True)
     configure_logging(join(args.directory, "powerfit.log"), args.log_level)
 
+    if args.progressbar and args.gpu is not None:
+        raise SystemExit("--progressbar cannot be used with --gpu. Progress bars are only supported for CPU backends.")
+
     progress = partial(rich_tqdm, desc="Processing rotations", unit="rot") if args.progressbar else None
 
     powerfit(
@@ -274,6 +293,7 @@ def main():
         num=args.num,
         gpu=args.gpu,
         nproc=args.nproc,
+        batch_size=args.batch_size,
         delimiter=args.delimiter,
         progress=progress,
     )
@@ -290,29 +310,6 @@ def main():
             "trimming cutoff": args.trimming_cutoff,
         }
         generate_report(args.directory, args.target.name, args.num, args.delimiter, options=options)
-
-
-def get_gpu_queue(gpu: str) -> "cl.CommandQueue":
-    """Request an OpenCL Queue."""
-    if not opencl_available():
-        msg = "Running on GPU requires the pyopencl package, however importing pyopencl failed."
-        raise ValueError(msg)
-    else:
-        import pyopencl as cl
-    # TODO allow to omit platform, so gpu='4' runs 5th device on first platform
-    if ":" in gpu:
-        platform_idx, device_idx = map(int, gpu.split(":"))
-    else:
-        platform_idx, device_idx = 0, 0
-    platforms = cl.get_platforms()
-    if platform_idx >= len(platforms):
-        raise RuntimeError(f"Requested OpenCL platform {platform_idx} not found.")
-    platform = platforms[platform_idx]
-    devices = platform.get_devices()
-    if device_idx >= len(devices):
-        raise RuntimeError(f"Requested OpenCL device {device_idx} not found on platform {platform_idx}.")
-    context = cl.Context(devices=[devices[device_idx]])
-    return cl.CommandQueue(context, device=devices[device_idx])
 
 
 def setup_target(
@@ -419,16 +416,19 @@ def powerfit(
     num: int = 10,
     gpu: str | None = None,
     nproc: int = 1,
+    batch_size: int = DEFAULT_BATCH_SIZE,
     delimiter: str | None = None,
-    progress: partial[tqdm] | None = tqdm,
+    progress: ProgressFactory | None = None,
 ):
     time0 = time()
     Path(directory).mkdir(exist_ok=True)
 
-    # Get GPU queue if requested
-    queue = None
-    if gpu:
-        queue = get_gpu_queue(gpu)
+    opencl_queue, cuda_stream = setup_gpu_backend(gpu)
+
+    if batch_size != DEFAULT_BATCH_SIZE and opencl_queue is None and cuda_stream is None:
+        raise ValueError("--batch-size only applies to GPU backends. Set --gpu to use CUDA or OpenCL.")
+    if batch_size < 0:
+        raise ValueError("--batch-size must be a non-negative integer. Use 0 to disable batching.")
 
     target = setup_target(target_volume, resolution, no_resampling, resampling_rate, no_trimming, trimming_cutoff)
     structure, template, mask, z_sigma = setup_template_structure(
@@ -436,9 +436,21 @@ def powerfit(
     )
     rotmat = setup_rotational_matrix(angle)
 
-    pf = PowerFitter(target, rotmat, template, mask, queue, nproc, laplace=laplace)
-    if gpu:
-        logger.info("Using GPU-accelerated search.")
+    pf = PowerFitter(
+        target,
+        rotmat,
+        template,
+        mask,
+        nproc=nproc,
+        laplace=laplace,
+        queue=opencl_queue,
+        cuda_stream=cuda_stream,
+        batch_size=batch_size,
+    )
+    if opencl_queue is not None:
+        logger.info("Using OpenCL-accelerated search.")
+    elif cuda_stream is not None:
+        logger.info("Using CUDA-accelerated search.")
     else:
         logger.info(f"Requested number of processors: {nproc:d}")
 
@@ -485,21 +497,44 @@ def powerfit_many(
     no_trimming: bool = False,
     trimming_cutoff: float | None = None,
     gpu: str | None = None,
-    reuse: bool = True,
     nproc: int = 1,
+    batch_size: int = DEFAULT_BATCH_SIZE,
 ) -> list[list[list[float]]]:
     """Run powerfit on multiple templates, returning the solution table for each.
 
-    For a slight efficiency boost, and to avoid continuously creating many new OpenCL
-    queues, the queues are reused. This can be disabled by setting reuse=False
-    Outer list is same order as template_structures. Middle list is ordered on cc score. Inner list is the data for a solution.  Each solution has the following columns: cc Fish-z rel-z x y z a11 a12 a13 a21 a22 a23 a31 a32 a33.
-    """  # noqa: E501
+    The target volume and GPU resources are reused across multiple template structures for efficiency.
+
+    Args:
+        target_volume: Path to the target density map.
+        resolution: Resolution of the target map in angstrom.
+        template_structures: List of paths to the template structures to be fitted.
+        angle: Rotational sampling density in degree.
+        laplace: Whether to use the Laplace pre-filter density data for scoring.
+        core_weighted: Whether to use core-weighted local cross-correlation score.
+        no_resampling: Whether to skip resampling of the target density map.
+        resampling_rate: Resampling rate compared to Nyquist. Only applies if no_resampling is False.
+        no_trimming: Whether to skip trimming of the target density map.
+        trimming_cutoff: Intensity cutoff to which the map will be trimmed. Only applies if
+            no_trimming is False. Default is 10 percent of maximum intensity.
+        gpu: GPU backend to use. Use "auto" for automatic backend selection,
+            "cuda:N" for CUDA device N, or "P:D" for OpenCL platform P and device D. If None, does not use GPU.
+        nproc: Number of processors used during search.
+        batch_size: GPU batch size to use. Use 0 to disable batching entirely,
+            or a positive integer to force a specific batch size.
+
+    Returns:
+        Solutions for each template structure.
+        Outer list is same order as template_structures.
+        Middle list is ordered on cc score.
+        Inner list is the data for a solution.
+        Each solution has the following columns: cc Fish-z rel-z x y z a11 a12 a13 a21 a22 a23 a31 a32 a33.
+    """
     time0 = time()
 
-    # Get GPU queue if requested
-    queue = None
-    if gpu:
-        queue = get_gpu_queue(gpu)
+    opencl_queue, cuda_stream = setup_gpu_backend(gpu)
+
+    if batch_size != DEFAULT_BATCH_SIZE and opencl_queue is None and cuda_stream is None:
+        raise ValueError("--batch-size only applies to GPU backends.")
 
     with target_volume.open("rb") as f:
         target = setup_target(
@@ -513,12 +548,14 @@ def powerfit_many(
 
     template_vars: list[tuple[Structure, Volume, Volume, float]] = []
     for template_structure in template_structures:
-        with template_structure.open("r") as f:
+        with template_structure.open("rb") as f:
             template_vars.append(setup_template_structure(f, None, target, resolution, core_weighted))
     rotmat = setup_rotational_matrix(angle)
 
-    if gpu:
-        logger.info("Using GPU-accelerated search.")
+    if opencl_queue is not None:
+        logger.info("Using OpenCL-accelerated search.")
+    elif cuda_stream is not None:
+        logger.info("Using CUDA-accelerated search.")
     else:
         logger.info(f"Requested number of processors: {nproc}.")
 
@@ -529,8 +566,18 @@ def powerfit_many(
     pf: PowerFitter | None = None
     for i in range(len(template_vars)):
         _, template, mask, z_sigma = template_vars[i]
-        if pf is None or not reuse or not gpu and nproc > 1:
-            pf = PowerFitter(target, rotmat, template, mask, queue, nproc, laplace=laplace)
+        if pf is None:
+            pf = PowerFitter(
+                target,
+                rotmat,
+                template,
+                mask,
+                nproc=nproc,
+                laplace=laplace,
+                queue=opencl_queue,
+                cuda_stream=cuda_stream,
+                batch_size=batch_size,
+            )
         else:
             pf.set_template(template, mask)
 

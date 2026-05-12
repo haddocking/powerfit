@@ -17,7 +17,7 @@ PowerFit uses the local cross-correlation function as its base score. The
 score is enhanced by a Laplace pre-filter and a core-weighted score to 
 minimize overlapping densities from neighboring subunits. It can be
 hardware-accelerated by leveraging multi-core CPU machines out of the box
-or by GPU via the OpenCL framework. PowerFit is Free Software and has
+or by GPU via the OpenCL framework or CUDA. PowerFit is Free Software and has
 been succesfully installed and used on Linux and MacOSX machines.
 
 ![Powerfit Report](http://bonvinlab.org/powerfit/Powerfit_result_page.png)
@@ -30,12 +30,12 @@ Minimal requirements for the CPU version:
 
 To offload computations to a discrete or integrated\* GPU the following is also required
 
-* OpenCL1.1+
+* OpenCL1.1+ (for OpenCL backend)
+* [CUDA toolkit/runtime](https://developer.nvidia.com/cuda/toolkit) (for CUDA backend)
 * GCC (or another C-compiler which is need to compile the pyvkfft package)
 
 Recommended for installation
 
-* git
 * pip
 
 \* _Integrated graphics on CPUs are able to signficantly outperform the native CPU implementation in some cases. This is mostly applicable to Intel devices, see the section [tested platfoms](installation.md#tested-platforms)_.

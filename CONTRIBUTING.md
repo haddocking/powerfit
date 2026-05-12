@@ -48,6 +48,14 @@ To create a release you need write permission on the repository.
 1. Bump the version in [src/powerfit_em/__init__.py](https://github.com/haddocking/powerfit/blob/master/src/powerfit_em/__init__.py)
 1. In [installation.md](docs/installation.md) adjust docker command to use new version.
 1. Merge the changes into the main branch.
+1. Run regression tests to verify baseline stability across execution profiles:
+   ```shell
+   pytest -k powerfit_regression -vv --powerfit="--help"
+   pytest -k powerfit_regression -vv # Default on 1 CPU
+   pytest -k powerfit_regression -vv --powerfit="--nproc 6 --progressbar" # With 6 CPUs
+   pytest -k powerfit_regression -vv --powerfit="--gpu" # With auto detected GPU
+   ```
+   All tests must pass with numerically matching results (within rounding tolerance). If the baseline fixture requires updates, see [Baseline fixture maintenance](#baseline-fixture-maintenance) section under Development.
 1. Go to the [GitHub release page](https://github.com/haddocking/powerfit/releases)
 1. Press draft a new release button
 1. Fill tag, title and description field. For tag use version from pyproject.toml and prepend with "v" character. For description use "Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps." line plus press "Generate release notes" button.
@@ -96,17 +104,26 @@ Tests can be run using
 pytest
 ```
 
+GPU integration tests (marked `requires_cuda` or `requires_opencl`) are automatically skipped when the required hardware or packages are absent. CI runs with `--extra opencl --extra dev` (POCL only) so CUDA tests and OpenCL tests that need a real GPU device are skipped. On a local machine with a GPU, all tests run.
+
 To run OpenCL on **C**PU install use `pip install -e .[pocl]` and make sure no other OpenCL platforms, like 'AMD Accelerated Parallel Processing' or 'NVIDIA CUDA', are installed .
 
-The Docker container, that works for cpu and NVIDIA gpus, can be build with
+The Docker container, that works for CPU and OpenCL backends, can be build with
 
 ```shell
-docker build -t ghcr.io/haddocking/powerfit:v3.1.0 .
+docker build -t ghcr.io/haddocking/powerfit:v5.0.0 .
 ```
+
+The Docker container, that works for NVIDIA GPUs via CUDA, can be build with
+
+```shell
+docker build -t ghcr.io/haddocking/powerfit-cuda:v5.0.0 -f Dockerfile.cuda .
+```
+
 The Docker container, that works for AMD gpus, can be build with
 
 ```shell
-docker build -t ghcr.io/haddocking/powerfit-rocm:v3.1.0 -f Dockerfile.rocm .
+docker build -t ghcr.io/haddocking/powerfit-rocm:v5.0.0 -f Dockerfile.rocm .
 ```
 
 The binary wheels can be build for all supported platforms by running the
@@ -147,3 +164,19 @@ clang-tidy src/powerfit_em/_extensions.c -- \
     -I"$(python -c 'from sysconfig import get_paths; print(get_paths()["include"])')" \
     -I"$(python -c 'import numpy; print(numpy.get_include())')"
 ```
+
+### Baseline fixture maintenance
+
+The regression test in `test_powerfit_regression.py` compares `solutions.out` against a cached baseline at `tests/fixtures/solutions.out`. The baseline should remain stable across different execution profiles (CPU nproc 1/N and GPU backends).
+
+**If the baseline fixture needs updating:**
+
+1. Run the regression test to generate new output:
+   ```shell
+   pytest -k powerfit_regression -vv
+   ```
+
+2. Inspect the test failure output to understand what changed and verify it is expected.
+3. Manually copy the generated `solutions.out` from the test's temporary directory into `tests/fixtures/solutions.out`.
+4. Run the test again, see [step 5 of "You want to make a new release of the code base" section](#you-want-to-make-a-new-release-of-the-code-base) for example commands.
+5. Commit the updated baseline fixture file as part of your change.

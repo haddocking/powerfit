@@ -57,6 +57,22 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: Dockerfile.rocm
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.metarocm.outputs.tags }}
           labels: ${{ steps.metarocm.outputs.labels }}
+
+      - name: Extract metadata (tags, labels) for Docker cuda image
+        id: metacuda
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-cuda
+
+      - name: Build and push for cuda image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.cuda
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.metacuda.outputs.tags }}
+          labels: ${{ steps.metacuda.outputs.labels }}

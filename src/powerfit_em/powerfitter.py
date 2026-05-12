@@ -1,14 +1,12 @@
 import multiprocessing
-from functools import partial
 from multiprocessing import Lock, Process, RawValue
 from multiprocessing.managers import DictProxy
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
-from tqdm.auto import tqdm
 
 from powerfit_em.correlators.cpu import CPUCorrelator
-from powerfit_em.helpers import opencl_available
+from powerfit_em.correlators.shared import DEFAULT_BATCH_SIZE, ProgressFactory
 from powerfit_em.volume import Volume
 
 if TYPE_CHECKING:
@@ -70,6 +68,8 @@ class PowerFitter:
         queue: "cl.CommandQueue | None",
         nproc: int = 1,
         laplace: bool = False,
+        cuda_stream: object | None = None,
+        batch_size: int = DEFAULT_BATCH_SIZE,
     ):
         self._target = target
         self._rotations = rotations
@@ -78,6 +78,8 @@ class PowerFitter:
         self._queue = queue
         self._nproc = nproc
         self._laplace = laplace
+        self._cuda_stream = cuda_stream
+        self._batch_size = batch_size
         self._corr = None
         self._lcc = np.zeros(0, dtype=np.float32)
         self._rot = np.zeros(0, dtype=np.float32)
@@ -90,14 +92,16 @@ class PowerFitter:
     def rot(self):
         return self._rot.copy()
 
-    def scan(self, progress: partial[tqdm] | None):
-        if self._queue is None:
+    def scan(self, progress: ProgressFactory | None = None):
+        if self._queue is not None:
+            self._opencl_scan()
+        elif self._cuda_stream is not None:
+            self._cuda_scan()
+        else:
             if self._nproc == 1:
                 self._single_cpu_scan(progress)
             else:
                 self._multi_cpu_scan(progress)
-        else:
-            self._gpu_scan(progress)
 
     def set_template(self, template: Volume, mask: Volume):
         if not self._corr:
@@ -105,12 +109,15 @@ class PowerFitter:
             raise ValueError(msg)
         self._corr.set_template(template.array, mask.array)
 
-    def _gpu_scan(self, progress: partial[tqdm] | None):
-        if opencl_available():
-            from powerfit_em.correlators.gpu import GPUCorrelator
+    def _opencl_scan(self):
+        from powerfit_em.correlators.opencl import OpenCLBatchedCorrelator, OpenCLSerialCorrelator
 
-            if self._corr is None:
-                self._corr = GPUCorrelator(
+        if self._queue is None:
+            msg = "OpenCL queue is required for OpenCL scan."
+            raise ValueError(msg)
+        if self._corr is None:
+            if self._batch_size == 0:
+                self._corr = OpenCLSerialCorrelator(
                     self._target.array,
                     self._template.array,
                     self._rotations,
@@ -118,20 +125,56 @@ class PowerFitter:
                     self._queue,
                     self._laplace,
                 )
-            self._corr.scan(progress)
-            self._lcc = self._corr.lcc
-            self._rot = self._corr.rot
-        else:
-            raise ValueError("No OpenCL available")
+            else:
+                self._corr = OpenCLBatchedCorrelator(
+                    self._target.array,
+                    self._template.array,
+                    self._rotations,
+                    self._mask.array,
+                    self._queue,
+                    self._laplace,
+                    batch_size=self._batch_size,
+                )
+        self._corr.scan()
+        self._lcc = self._corr.lcc
+        self._rot = self._corr.rot
 
-    def _multi_cpu_scan(self, progress: partial[tqdm] | None):
+    def _cuda_scan(self):
+        from powerfit_em.correlators.cuda import CUDABatchedCorrelator, CUDASerialCorrelator
+
+        if self._cuda_stream is None:
+            msg = "CUDA stream is required for CUDA scan."
+            raise ValueError(msg)
+        if self._corr is None:
+            if self._batch_size == 0:
+                self._corr = CUDASerialCorrelator(
+                    self._target.array,
+                    self._template.array,
+                    self._rotations,
+                    self._mask.array,
+                    self._cuda_stream,
+                    self._laplace,
+                )
+            else:
+                self._corr = CUDABatchedCorrelator(
+                    self._target.array,
+                    self._template.array,
+                    self._rotations,
+                    self._mask.array,
+                    self._cuda_stream,
+                    self._laplace,
+                    batch_size=self._batch_size,
+                )
+        self._corr.scan()
+        self._lcc = self._corr.lcc
+        self._rot = self._corr.rot
+
+    def _multi_cpu_scan(self, progress: ProgressFactory | None):
         nrot = self._rotations.shape[0]
         self._nrot_per_job = nrot // self._nproc
         processes: list[Process] = []
-        self._counter = None if processes is None else _Counter()
+        self._counter = _Counter()
         self._njobs = self._nproc
-        if self._queue is not None:
-            self._njobs = len(self._queue)
 
         ids = tuple(range(self._njobs))
         manager = multiprocessing.Manager()
@@ -172,7 +215,7 @@ class PowerFitter:
             processes[id].join()
         self._combine(ids, results)
 
-    def _single_cpu_scan(self, progress: partial[tqdm] | None):
+    def _single_cpu_scan(self, progress: ProgressFactory | None):
         self._corr = CPUCorrelator(
             self._target.array,
             self._template.array,
