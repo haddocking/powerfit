@@ -96,6 +96,8 @@ class CLKernels:
         batch_size: int,
         volume_size: int,
     ):
+        # Picked as 256 as it multiple of 64 opencl wavefront,
+        # tested 64, 128, 256 and 512 blocksizes with no significant difference in runtime.
         block = 256
         gws = ((volume_size + block - 1) // block * block,)
         self._batch_lcc_and_take_best(
@@ -125,6 +127,8 @@ class CLKernels:
     ):
         """Compute out[b][i] = conj(batch_a[b][i]) * broadcast_b[i] for all b, i."""
         total_size = batch_size * ft_vol_size
+        # Picked as 256 as it multiple of 64 opencl wavefront,
+        # tested 64, 128, 256 and 512 blocksizes with no significant difference in runtime.
         block = 256
         gws = ((total_size + block - 1) // block * block,)
         self._batch_conj_multiply(
