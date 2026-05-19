@@ -21,9 +21,9 @@ from typing import Any, cast
 import numpy as np
 from molviewspec import MVSJ, GlobalMetadata, Snapshot, States, create_builder
 
+from powerfit_em._extensions import rotate_grid3d
 from powerfit_em.correlators.cpu import CPUCorrelator
 from powerfit_em.gpu import get_cuda_stream, get_opencl_queue
-from powerfit_em._extensions import rotate_grid3d
 from powerfit_em.report import _add_density_to_builder, _calc_rel_isovalue, generate_html
 from powerfit_em.volume import Volume
 

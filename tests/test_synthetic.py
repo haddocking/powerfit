@@ -1,9 +1,10 @@
 import numpy as np
 import pytest
 
+from powerfit_em._extensions import rotate_grid3d
 from powerfit_em.correlators.cpu import CPUCorrelator
 from powerfit_em.gpu import cuda_available, get_cuda_stream, get_opencl_queue, opencl_available
-from powerfit_em._extensions import rotate_grid3d
+
 
 def _rot_z_90() -> np.ndarray:
     return np.asarray(
