@@ -15,3 +15,4 @@ src/powerfit_em/_powerfit.*.so
 
 .coverage
 coverage.xml
+/synthetic_visualization/
