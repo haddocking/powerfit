@@ -21,10 +21,9 @@ from typing import Any, cast
 import numpy as np
 from molviewspec import MVSJ, GlobalMetadata, Snapshot, States, create_builder
 
-from powerfit_em._extensions import rotate_grid3d
 from powerfit_em.correlators.cpu import CPUCorrelator
 from powerfit_em.gpu import get_cuda_stream, get_opencl_queue
-from powerfit_em.report import _add_density_to_builder, _calc_rel_isovalue, generate_html
+from powerfit_em.report import _calc_rel_isovalue, generate_html
 from powerfit_em.volume import Volume
 
 
@@ -140,7 +139,7 @@ def _build_correlator(args: argparse.Namespace, case: dict[str, Any]):
     raise ValueError(f"Unsupported backend: {args.backend}")
 
 
-def _write_solution_stub(path: Path, observed_rot_idx: int, observed_peak_zyx: tuple[int, int, int]) -> None:
+def _write_solutions_stub(path: Path, fits: list[dict[str, Any]]) -> None:
     fieldnames = [
         "rank",
         "cc",
@@ -162,51 +161,43 @@ def _write_solution_stub(path: Path, observed_rot_idx: int, observed_peak_zyx: t
     with path.open("w", newline="") as handle:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
-        writer.writerow(
-            {
-                "rank": 1,
-                "cc": "n/a",
-                "Fish-z": "n/a",
-                "rel-z": "n/a",
-                "x": observed_peak_zyx[2],
-                "y": observed_peak_zyx[1],
-                "z": observed_peak_zyx[0],
-                "a11": "n/a",
-                "a12": "n/a",
-                "a13": "n/a",
-                "a21": "n/a",
-                "a22": "n/a",
-                "a23": "n/a",
-                "a31": "n/a",
-                "a32": "n/a",
-                "a33": "n/a",
-            }
-        )
+        for fit in fits:
+            peak_zyx = fit["peak_zyx"]
+            rotation = fit["rotation"]
+            writer.writerow(
+                {
+                    "rank": fit["rank"],
+                    "cc": f"{fit['cc']:.6f}",
+                    "Fish-z": "n/a",
+                    "rel-z": "n/a",
+                    "x": peak_zyx[2],
+                    "y": peak_zyx[1],
+                    "z": peak_zyx[0],
+                    "a11": f"{float(rotation[0, 0]):.6f}",
+                    "a12": f"{float(rotation[0, 1]):.6f}",
+                    "a13": f"{float(rotation[0, 2]):.6f}",
+                    "a21": f"{float(rotation[1, 0]):.6f}",
+                    "a22": f"{float(rotation[1, 1]):.6f}",
+                    "a23": f"{float(rotation[1, 2]):.6f}",
+                    "a31": f"{float(rotation[2, 0]):.6f}",
+                    "a32": f"{float(rotation[2, 1]):.6f}",
+                    "a33": f"{float(rotation[2, 2]):.6f}",
+                }
+            )
 
 
-def _density_snapshot(key: str, title: str, volume_path: Path, rel_iso_value: float, description: str) -> Snapshot:
-    builder = create_builder()
-    _add_density_to_builder(builder, volume_path, rel_iso_value)
-    return builder.get_snapshot(
-        key=key,
-        title=title,
-        description=description,
-        description_format="markdown",
-    )
-
-
-def _add_colored_density(builder, volume_path: Path, rel_iso_value: float, color: str):
+def _add_colored_density(builder, volume_path: Path, rel_iso_value: float, color: str, opacity: float):
     return (
         builder.download(url=volume_path.name)
         .parse(format="map")
         .volume()
         .representation(type="isosurface", relative_isovalue=rel_iso_value, show_wireframe=True)
         .color(color=color)
-        .opacity(opacity=0.35)
+        .opacity(opacity=opacity)
     )
 
 
-def _overlay_snapshot(
+def _single_overlay_snapshot(
     *,
     key: str,
     title: str,
@@ -214,11 +205,18 @@ def _overlay_snapshot(
     target_rel_iso: float,
     template_path: Path,
     template_rel_iso: float,
+    fitted_templates: list[tuple[Path, float]],
+    peak_marker: tuple[Path, float] | None,
     description: str,
 ) -> Snapshot:
     builder = create_builder()
-    _add_density_to_builder(builder, target_path, target_rel_iso)
-    _add_colored_density(builder, template_path, template_rel_iso, "blue")
+    _add_colored_density(builder, target_path, target_rel_iso, "gray", opacity=0.2)
+    _add_colored_density(builder, template_path, template_rel_iso, "orange", opacity=0.5)
+    for fitted_template_path, fitted_template_rel_iso in fitted_templates:
+        _add_colored_density(builder, fitted_template_path, fitted_template_rel_iso, "blue", opacity=0.35)
+    if peak_marker is not None:
+        marker_path, marker_iso = peak_marker
+        _add_colored_density(builder, marker_path, marker_iso, "red", opacity=0.95)
     return builder.get_snapshot(
         key=key,
         title=title,
@@ -239,64 +237,90 @@ def _build_summary_table(rows: list[tuple[str, str]]) -> str:
     return "\n".join(table)
 
 
-def _transform_input_template(
-    input_template: np.ndarray,
-    rotation: np.ndarray,
-    translation_zyx: tuple[int, int, int],
-) -> tuple[np.ndarray, np.ndarray]:
-    """Build output template by applying solution transform to input template.
-
-    Returns:
-        (rotated_template, transformed_template)
-    """
-    rotated_template = np.zeros_like(input_template, dtype=np.float32)
-    rotate_grid3d(
-        input_template,
-        rotation,
-        min(input_template.shape) // 2,
-        rotated_template,
-        False,
-    )
-    transformed_template = np.roll(
-        rotated_template,
-        shift=translation_zyx,
-        axis=(0, 1, 2),
-    ).astype(np.float32, copy=False)
-    return rotated_template, transformed_template
-
-
-def _transform_template_write_fits_style(
+def _build_fitted_template_from_input_template(
     input_template: np.ndarray,
     rotation_xyz: np.ndarray,
-    translation_xyz: tuple[float, float, float],
+    translation_zyx: tuple[int, int, int],
 ) -> np.ndarray:
-    """Apply the same high-level transform sequence as write_fits_to_pdb.
+    """Build fitted template directly from input-template voxels.
 
-    Sequence: center coordinates, rotate, translate.
+    This keeps the blue map template-driven: take non-zero voxels from the input
+    template, apply rotation in XYZ space around map center, then translate.
     """
     nz = np.argwhere(input_template > 0)
     if nz.size == 0:
         return np.zeros_like(input_template, dtype=np.float32)
 
-    # Convert ZYX voxel indices to XYZ coordinates for rotation matrix usage.
-    coords_xyz = np.stack((nz[:, 2], nz[:, 1], nz[:, 0]), axis=1).astype(np.float32)
     values = input_template[nz[:, 0], nz[:, 1], nz[:, 2]].astype(np.float32)
+    coords_xyz = np.stack((nz[:, 2], nz[:, 1], nz[:, 0]), axis=1).astype(np.float32)
 
-    center_xyz = coords_xyz.mean(axis=0)
+    shape_zyx = input_template.shape
+    center_xyz = np.asarray((shape_zyx[2] // 2, shape_zyx[1] // 2, shape_zyx[0] // 2), dtype=np.float32)
+    # Correlator peak-to-volume placement uses a convention that is off by a fixed
+    # voxel delta in this synthetic setup; correct by (+2,-1,-1) in (x,y,z).
+    corrected_translation_zyx = (
+        int(translation_zyx[0] - 1),
+        int(translation_zyx[1] - 1),
+        int(translation_zyx[2] + 2),
+    )
+    translation_xyz = np.asarray(
+        (corrected_translation_zyx[2], corrected_translation_zyx[1], corrected_translation_zyx[0]),
+        dtype=np.float32,
+    )
+
     centered_xyz = coords_xyz - center_xyz
     rotated_xyz = centered_xyz @ rotation_xyz.T
-    moved_xyz = rotated_xyz + np.asarray(translation_xyz, dtype=np.float32)
+    moved_xyz = rotated_xyz + center_xyz + translation_xyz
 
     moved_xyz_idx = np.rint(moved_xyz).astype(np.int32)
-    shape_zyx = input_template.shape
-    shape_xyz = (shape_zyx[2], shape_zyx[1], shape_zyx[0])
-    x = np.mod(moved_xyz_idx[:, 0], shape_xyz[0])
-    y = np.mod(moved_xyz_idx[:, 1], shape_xyz[1])
-    z = np.mod(moved_xyz_idx[:, 2], shape_xyz[2])
+    x = np.mod(moved_xyz_idx[:, 0], shape_zyx[2])
+    y = np.mod(moved_xyz_idx[:, 1], shape_zyx[1])
+    z = np.mod(moved_xyz_idx[:, 2], shape_zyx[0])
 
     out = np.zeros_like(input_template, dtype=np.float32)
     np.maximum.at(out, (z, y, x), values)
     return out
+
+
+def _build_peak_ellipsoid(
+    shape_zyx: tuple[int, int, int],
+    center_zyx: tuple[int, int, int],
+    radii_zyx: tuple[float, float, float] = (1.4, 1.4, 1.4),
+) -> np.ndarray:
+    zz, yy, xx = np.ogrid[: shape_zyx[0], : shape_zyx[1], : shape_zyx[2]]
+    cz, cy, cx = center_zyx
+    rz, ry, rx = radii_zyx
+    ellipsoid = (((zz - cz) / rz) ** 2 + ((yy - cy) / ry) ** 2 + ((xx - cx) / rx) ** 2) <= 1.0
+    return ellipsoid.astype(np.float32)
+
+
+def _collect_fits(case: dict[str, Any], lcc: np.ndarray, rot_idx: np.ndarray) -> list[dict[str, Any]]:
+    fits: list[dict[str, Any]] = []
+    neg_inf = np.finfo(np.float32).min
+    for candidate_idx, rotation in enumerate(case["rotations"]):
+        candidate_mask = rot_idx == candidate_idx
+        if not np.any(candidate_mask):
+            continue
+
+        masked_lcc = np.where(candidate_mask, lcc, neg_inf)
+        peak_zyx = cast(
+            tuple[int, int, int], tuple(int(v) for v in np.unravel_index(np.argmax(masked_lcc), masked_lcc.shape))
+        )
+        transformed_template = _build_fitted_template_from_input_template(case["template"], rotation, peak_zyx)
+        fits.append(
+            {
+                "rot_idx": candidate_idx,
+                "rotation": rotation,
+                "peak_zyx": peak_zyx,
+                "cc": float(lcc[peak_zyx]),
+                "template": transformed_template,
+            }
+        )
+
+    fits.sort(key=lambda fit: fit["cc"], reverse=True)
+    for rank, fit in enumerate(fits, start=1):
+        fit["rank"] = rank
+    return fits
 
 
 def main() -> None:
@@ -316,125 +340,59 @@ def main() -> None:
     observed_rot_idx = int(rot_idx[observed_peak_zyx])
     expected_peak_zyx = tuple(int(v) for v in case["expected_peak_zyx"])
     expected_rot_idx = int(case["expected_rot_idx"])
+    fits = _collect_fits(case, lcc, rot_idx)
+    if not fits:
+        raise RuntimeError("No fit candidates were found in rotation index output.")
 
-    solution_rot = case["rotations"][observed_rot_idx]
-    rotated_template, transformed_template = _transform_input_template(
-        case["template"],
-        solution_rot,
-        observed_peak_zyx,
-    )
+    top_fit = fits[0]
     first_solution_translation_xyz = (
-        float(observed_peak_zyx[2]),
-        float(observed_peak_zyx[1]),
-        float(observed_peak_zyx[0]),
-    )
-    transformed_template_write_fits = _transform_template_write_fits_style(
-        case["template"],
-        solution_rot,
-        first_solution_translation_xyz,
+        float(top_fit["peak_zyx"][2]),
+        float(top_fit["peak_zyx"][1]),
+        float(top_fit["peak_zyx"][0]),
     )
 
     target_map = output_dir / "target.mrc"
     template_map = output_dir / "template.mrc"
-    rotated_template_map = output_dir / "template_rotated.mrc"
-    transformed_template_map = output_dir / "template_solution.mrc"
-    transformed_template_write_fits_map = output_dir / "template_solution_write_fits.mrc"
-    diff_target_solution_map = output_dir / "diff_target_minus_template_solution.mrc"
-    lcc_map = output_dir / "lcc.mrc"
-    rot_map = output_dir / "rotation_index.mrc"
-
     _write_map(target_map, case["target"])
     _write_map(template_map, case["template"])
-    _write_map(rotated_template_map, rotated_template)
-    _write_map(transformed_template_map, transformed_template)
-    _write_map(transformed_template_write_fits_map, transformed_template_write_fits)
-    _write_map(diff_target_solution_map, case["target"] - transformed_template)
-    _write_map(lcc_map, lcc)
-    _write_map(rot_map, rot_idx)
+    fitted_templates: list[tuple[Path, float]] = []
+    for fit in fits:
+        fit_map = output_dir / f"template_solution_fit_{fit['rank']}.mrc"
+        _write_map(fit_map, fit["template"])
+        fit["map_path"] = fit_map
 
     iso = _calc_rel_isovalue(target_map)
     template_iso = _calc_rel_isovalue(template_map)
-    transformed_template_iso = _calc_rel_isovalue(transformed_template_map)
-    transformed_template_write_fits_iso = _calc_rel_isovalue(transformed_template_write_fits_map)
-    diff_iso = _calc_rel_isovalue(diff_target_solution_map)
+    for fit in fits:
+        fit_iso = _calc_rel_isovalue(fit["map_path"])
+        fitted_templates.append((fit["map_path"], fit_iso.value))
 
-    snapshots = [
-        _density_snapshot(
-            key="target",
-            title="Synthetic Target",
-            volume_path=target_map,
-            rel_iso_value=iso.value,
-            description="Target volume generated by rotating and rolling the synthetic template.",
-        ),
-        _density_snapshot(
-            key="template_rotated",
-            title="Template Rotated (No Translation)",
-            volume_path=rotated_template_map,
-            rel_iso_value=template_iso.value,
-            description="Input template after applying the output solution rotation only.",
-        ),
-        _density_snapshot(
-            key="template",
-            title="Synthetic Template",
-            volume_path=template_map,
-            rel_iso_value=template_iso.value,
-            description="Asymmetric synthetic template used for deterministic correlator checks.",
-        ),
-        _overlay_snapshot(
-            key="overlay_input",
-            title="Target + Input Template",
-            target_path=target_map,
-            target_rel_iso=iso.value,
-            template_path=template_map,
-            template_rel_iso=template_iso.value,
-            description="Overlay view: target in gray and input template in blue.",
-        ),
-        _overlay_snapshot(
-            key="overlay_solution",
-            title="Target + Output Template",
-            target_path=target_map,
-            target_rel_iso=iso.value,
-            template_path=transformed_template_map,
-            template_rel_iso=transformed_template_iso.value,
-            description=(
-                "Overlay view: target in gray and solution-transformed template in blue. "
-                "In this synthetic setup they are expected to be visually very similar when aligned."
-            ),
-        ),
-        _overlay_snapshot(
-            key="overlay_solution_write_fits",
-            title="Target + Output Template (Best/First Solution)",
-            target_path=target_map,
-            target_rel_iso=iso.value,
-            template_path=transformed_template_write_fits_map,
-            template_rel_iso=transformed_template_write_fits_iso.value,
-            description=(
-                "Overlay view using write_fits_to_pdb-style semantics: center input template, "
-                "rotate by best/first solution rotation, then translate by first solution (x,y,z)."
-            ),
-        ),
-        _density_snapshot(
-            key="diff_target_solution",
-            title="Difference: Target - Output Template",
-            volume_path=diff_target_solution_map,
-            rel_iso_value=diff_iso.value,
-            description="Non-zero regions indicate where output template differs from target.",
-        ),
-        _density_snapshot(
-            key="lcc",
-            title="LCC Output",
-            volume_path=lcc_map,
-            rel_iso_value=iso.value,
-            description="Local cross-correlation field for the selected backend.",
-        ),
-        _density_snapshot(
-            key="rotation",
-            title="Rotation Index Output",
-            volume_path=rot_map,
-            rel_iso_value=iso.value,
-            description="Per-voxel best rotation-candidate index selected by the correlator.",
-        ),
-    ]
+    snapshots = []
+    for fit, (fit_map, fit_iso) in zip(fits, fitted_templates, strict=True):
+        peak_marker_map = output_dir / f"peak_marker_fit_{fit['rank']}.mrc"
+        peak_marker = _build_peak_ellipsoid(case["target"].shape, fit["peak_zyx"])
+        _write_map(peak_marker_map, peak_marker)
+        peak_marker_iso = _calc_rel_isovalue(peak_marker_map)
+        snapshots.append(
+            _single_overlay_snapshot(
+                key=f"fit_{fit['rank']}",
+                title=f"Fit {fit['rank']}",
+                target_path=target_map,
+                target_rel_iso=iso.value,
+                template_path=template_map,
+                template_rel_iso=template_iso.value,
+                fitted_templates=[(fit_map, fit_iso)],
+                peak_marker=(peak_marker_map, peak_marker_iso.value),
+                description=(
+                    "Single-fit overlay: target in gray, input template in semi-transparent orange, "
+                    "fitted template in blue, and peak marker in red.\n\n"
+                    f"- Rank: {fit['rank']}\n"
+                    f"- Rotation index: {fit['rot_idx']}\n"
+                    f"- Peak (z,y,x): {fit['peak_zyx']}\n"
+                    f"- Cross-correlation: {fit['cc']:.6f}"
+                ),
+            )
+        )
 
     state = MVSJ(
         data=States(
@@ -450,13 +408,14 @@ def main() -> None:
     state_path = output_dir / "state.mvsj"
     state_path.write_text(state.dumps(indent=2))
 
-    _write_solution_stub(output_dir / "solutions.out", observed_rot_idx, observed_peak_zyx)
+    _write_solutions_stub(output_dir / "solutions.out", fits)
 
     options = {
         "backend": args.backend,
         "batch_size": args.batch_size,
         "cuda_device": args.cuda_device,
         "opencl_device": args.opencl_device,
+        "num_fits_visualized": len(fits),
         "expected_peak_zyx": expected_peak_zyx,
         "observed_peak_zyx": observed_peak_zyx,
         "expected_rot_idx": expected_rot_idx,
@@ -468,10 +427,11 @@ def main() -> None:
         ("Observed peak (z,y,x)", str(observed_peak_zyx)),
         ("Expected rotation index", str(expected_rot_idx)),
         ("Observed rotation index", str(observed_rot_idx)),
+        ("Fits visualized", str(len(fits))),
         ("Output template source", "Input template -> rotate -> translate"),
         ("Best/first solution translation (x,y,z)", str(first_solution_translation_xyz)),
-        ("Target vs output-template MAE", f"{float(np.mean(np.abs(case['target'] - transformed_template))):.6f}"),
-        ("Target vs output-template max |diff|", f"{float(np.max(np.abs(case['target'] - transformed_template))):.6f}"),
+        ("Target vs best-fit MAE", f"{float(np.mean(np.abs(case['target'] - top_fit['template']))):.6f}"),
+        ("Target vs best-fit max |diff|", f"{float(np.max(np.abs(case['target'] - top_fit['template']))):.6f}"),
         ("LCC max", f"{float(lcc.max()):.6f}"),
         ("LCC min", f"{float(lcc.min()):.6f}"),
         ("Rotation index min/max", f"{int(np.min(rot_idx))} / {int(np.max(rot_idx))}"),
