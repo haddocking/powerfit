@@ -62,17 +62,32 @@ jobs:
           tags: ${{ steps.metarocm.outputs.tags }}
           labels: ${{ steps.metarocm.outputs.labels }}
 
-      - name: Extract metadata (tags, labels) for Docker cuda image
-        id: metacuda
+      - name: Extract metadata (tags, labels) for Docker cuda13 image
+        id: metacuda13
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-cuda
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-cuda13
 
-      - name: Build and push for cuda image
+      - name: Build and push for cuda13 image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: Dockerfile.cuda
+          file: Dockerfile.cuda13
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.metacuda.outputs.tags }}
-          labels: ${{ steps.metacuda.outputs.labels }}
+          tags: ${{ steps.metacuda13.outputs.tags }}
+          labels: ${{ steps.metacuda13.outputs.labels }}
+
+      - name: Extract metadata (tags, labels) for Docker cuda12 image
+        id: metacuda12
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}-cuda12
+
+      - name: Build and push for cuda12 image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.cuda12
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.metacuda12.outputs.tags }}
+          labels: ${{ steps.metacuda12.outputs.labels }}

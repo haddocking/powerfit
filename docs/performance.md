@@ -200,6 +200,7 @@ with normalized run labels and preserved `run_number` values for replicate sprea
     }
 }
 ```
+(If you do not see plot, please reload the page.)
 
 Based on plots, the default batch size is set to 100.
 

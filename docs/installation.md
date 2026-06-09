@@ -109,10 +109,11 @@ To run on NVIDIA GPU using [NVIDIA container toolkit](https://docs.nvidia.com/da
 ```shell
 docker run --rm -ti \
     --runtime=nvidia --gpus all \
-    -v $PWD:/data ghcr.io/haddocking/powerfit-cuda:v5.0.0 \
+    -v $PWD:/data ghcr.io/haddocking/powerfit-cuda13:v5.0.0 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
     -a 20 -d /data/run-KsgA-docker-nv --gpu
 ```
+Use `ghcr.io/haddocking/powerfit-cuda12:v5.0.0` if you have CUDA version 12 (see `nvidia-smi` for version).
 
 To run on Intel integrated graphics use
 
