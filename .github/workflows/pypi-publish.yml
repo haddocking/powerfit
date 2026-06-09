@@ -88,6 +88,4 @@ jobs:
           pattern: cibw-*
           path: dist
           merge-multiple: true
-      - name: Remove cp312 wasm wheel, not supported by PyPI
-        run: rm -f dist/powerfit_em-*cp312*wasm32.whl
       - uses: pypa/gh-action-pypi-publish@release/v1.14.0
