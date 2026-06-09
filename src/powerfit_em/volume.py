@@ -202,7 +202,7 @@ def structure_to_shape_like(vol, xyz, resolution=None, weights=None, radii=None,
     if resolution is None:
         resolution = vol.resolution
 
-    if shape == " vol":
+    if shape == "vol":
         if weights is None:
             weights = np.ones(xyz.shape[1])
         elif weights.size != xyz.shape[1]:
