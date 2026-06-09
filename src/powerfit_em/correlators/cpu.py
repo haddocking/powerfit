@@ -31,7 +31,7 @@ def build_ffts(target: np.ndarray, gcc: np.ndarray, ft_gcc: np.ndarray, fftw: bo
             np.fft.rfftn(src, out=dst)
 
         def irfftn(src: np.ndarray, dst: np.ndarray):
-            np.fft.irfft(src, out=dst)
+            np.fft.irfftn(src, out=dst)
 
     return rfftn, irfftn
 
