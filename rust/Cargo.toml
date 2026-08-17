@@ -1,6 +1,6 @@
 [package]
 name = "powerfitrs"
-version = "5.0.0"
+version = "5.0.2"
 edition = "2024"
 description = "Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps"
 license = "Apache-2.0"

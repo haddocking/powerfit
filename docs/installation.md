@@ -90,7 +90,7 @@ a hypothetical `/path/to/data` on your machine can be done as follows
 
 ```shell
 docker run --rm -ti --user $(id -u):$(id -g) \
-    -v /path/to/data:/data ghcr.io/haddocking/powerfit:v5.0.0 \
+    -v /path/to/data:/data ghcr.io/haddocking/powerfit:v5.0.2 \
     /data/<map> <resolution> /data/<pdb> \
     -d /data/<results-dir>
 ```
@@ -100,7 +100,7 @@ To run tutorial example use
 ```shell
 # cd into powerfit-tutorial repo
 docker run --rm -ti --user $(id -u):$(id -g) \
-    -v $PWD:/data ghcr.io/haddocking/powerfit:v5.0.0 \
+    -v $PWD:/data ghcr.io/haddocking/powerfit:v5.0.2 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
     -a 20 -p 2 -d /data/run-KsgA-docker
 ```
@@ -109,17 +109,18 @@ To run on NVIDIA GPU using [NVIDIA container toolkit](https://docs.nvidia.com/da
 ```shell
 docker run --rm -ti \
     --runtime=nvidia --gpus all \
-    -v $PWD:/data ghcr.io/haddocking/powerfit-cuda:v5.0.0 \
+    -v $PWD:/data ghcr.io/haddocking/powerfit-cuda13:v5.0.2 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
     -a 20 -d /data/run-KsgA-docker-nv --gpu
 ```
+Use `ghcr.io/haddocking/powerfit-cuda12:v5.0.2` if you have CUDA version 12 (see `nvidia-smi` for version).
 
 To run on Intel integrated graphics use
 
 ```shell
 docker run --rm -ti \
     --device=/dev/dri \
-    -v $PWD:/data ghcr.io/haddocking/powerfit:v5.0.0 \
+    -v $PWD:/data ghcr.io/haddocking/powerfit:v5.0.2 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
     -a 20  -d /data/run-KsgA-docker-nv --gpu
 ```
@@ -131,7 +132,7 @@ sudo docker run --rm -ti \
     --device=/dev/kfd --device=/dev/dri \
     --security-opt seccomp=unconfined \
     --group-add video --ipc=host \
-    -v $PWD:/data ghcr.io/haddocking/powerfit-rocm:v5.0.0 \
+    -v $PWD:/data ghcr.io/haddocking/powerfit-rocm:v5.0.2 \
     /data/ribosome-KsgA.map 13 /data/KsgA.pdb \
     -a 20 -d /data/run-KsgA-docker-amd --gpu
 ```
