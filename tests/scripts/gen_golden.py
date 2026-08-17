@@ -10,8 +10,9 @@ uv pip install -e .
 # then copy the output .npz files into tests/fixtures/cython_baseline/
 """
 
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 
 from powerfit_em._extensions import rotate_grid3d
 from powerfit_em._powerfit import blur_points, dilate_points
