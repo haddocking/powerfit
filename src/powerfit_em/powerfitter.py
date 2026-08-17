@@ -220,7 +220,7 @@ class PowerFitter:
         self._combine(ids, results)
 
     def _rust_cpu_scan(self):
-        from powerfit_em.powerfitrs import CpuRustCorrelator
+        from powerfit_em.powerfit_rs import CpuRustCorrelator
 
         target = np.asarray(self._target.array, dtype=np.float32, order="C")
         template = np.asarray(self._template.array, dtype=np.float32, order="C")

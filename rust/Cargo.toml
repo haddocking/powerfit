@@ -1,5 +1,5 @@
 [package]
-name = "powerfitrs"
+name = "powerfit_rs"
 version = "5.0.2"
 edition = "2024"
 description = "Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps"
@@ -11,7 +11,7 @@ readme = "../README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [lib]
-name = "powerfitrs"
+name = "powerfit_rs"
 crate-type = ["cdylib"]
 
 [dependencies]

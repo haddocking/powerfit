@@ -10,7 +10,7 @@ from sys import byteorder as _BYTEORDER
 import numpy as np
 from scipy.ndimage import gaussian_filter, zoom
 
-from powerfit_em.powerfitrs import blur_points, dilate_points
+from powerfit_em.powerfit_rs import blur_points, dilate_points
 
 
 class Volume:

@@ -13,7 +13,7 @@ from powerfit_em.correlators.shared import (
     init_correlator_vars,
 )
 from powerfit_em.helpers import pyfftw_available
-from powerfit_em.powerfitrs import rotate_grid3d
+from powerfit_em.powerfit_rs import rotate_grid3d
 
 
 def build_ffts(target: np.ndarray, gcc: np.ndarray, ft_gcc: np.ndarray, fftw: bool):

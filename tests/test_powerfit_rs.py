@@ -2,7 +2,7 @@ from unittest import TestCase, main
 
 import numpy as np
 
-from powerfit_em.powerfitrs import rotate_grid3d
+from powerfit_em.powerfit_rs import rotate_grid3d
 
 
 class TestExtensions(TestCase):

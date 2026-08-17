@@ -66,7 +66,7 @@ powerfit = "powerfit_em.powerfit:main"
 [tool.maturin]
 manifest-path = "rust/Cargo.toml"
 python-source = "src"
-module-name = "powerfit_em.powerfitrs"
+module-name = "powerfit_em.powerfit_rs"
 include = [
     { path = "README.md", format = "sdist" },
     "powerfit_em/data/*.npy",

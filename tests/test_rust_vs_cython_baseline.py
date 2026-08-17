@@ -1,4 +1,4 @@
-"""Golden-fixture regression tests: rust powerfitrs vs the old C/Cython extension.
+"""Golden-fixture regression tests: rust powerfit_rs vs the old C/Cython extension.
 
 Fixtures are generated with `gen_golden.sh` and are a `.npz` (numpy zipped arrays)
 with the following structure:
@@ -20,7 +20,7 @@ from typing import NamedTuple
 import numpy as np
 import pytest
 
-from powerfit_em.powerfitrs import blur_points, dilate_points, rotate_grid3d
+from powerfit_em.powerfit_rs import blur_points, dilate_points, rotate_grid3d
 
 BASELINE_DIR = Path(__file__).parent / "fixtures" / "cython_baseline"
 

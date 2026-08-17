@@ -155,7 +155,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "powerfitrs"
+name = "powerfit_rs"
 version = "5.0.2"
 dependencies = [
  "ndarray",

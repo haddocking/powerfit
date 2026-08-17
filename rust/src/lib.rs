@@ -17,7 +17,7 @@ fn cargo_version() -> &'static str {
 /// `blur_points`/`dilate_points`/`rotate_grid3d`/`rotate_grid3d_pair`
 /// pyfunctions used to build its inputs.
 #[pymodule]
-mod powerfitrs {
+mod powerfit_rs {
     use pyo3::types::PyModuleMethods;
 
     #[pymodule_init]

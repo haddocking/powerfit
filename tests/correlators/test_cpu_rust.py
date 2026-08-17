@@ -3,8 +3,8 @@ import pytest
 
 from powerfit_em.correlators.cpu import CPUCorrelator
 
-powerfitrs = pytest.importorskip("powerfit_em.powerfitrs", reason="Rust extension is not available")
-CpuRustCorrelator = powerfitrs.CpuRustCorrelator
+powerfit_rs = pytest.importorskip("powerfit_em.powerfit_rs", reason="Rust extension is not available")
+CpuRustCorrelator = powerfit_rs.CpuRustCorrelator
 
 
 def _make_inputs() -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
