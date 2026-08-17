@@ -3,6 +3,12 @@ use numpy::{PyArray3, PyArrayMethods, PyReadonlyArray2, PyReadonlyArray3};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
+/// Shared kernel behind both `rotate_grid3d` and `rotate_grid3d_pair`'s
+/// template rotation: samples `grid` at the *inverse* of `rotmat` for every
+/// integer offset within `radius` of the origin (voxels farther than
+/// `radius` are left untouched in `out`, not zeroed), writing wrapped-around
+/// indices into `out` so the origin stays at index `[0, 0, 0]`. `nearest`
+/// selects nearest-neighbor sampling; otherwise trilinear interpolation.
 fn rotate_grid3d_core(
     grid: ArrayView3<'_, f32>,
     rotmat: ArrayView2<'_, f32>,
@@ -243,7 +249,11 @@ pub fn rotate_grid3d<'py>(
     Ok(())
 }
 
-/// Rotate both template (trilinear) and mask (nearest) in one pass.
+/// Rotate a template (trilinear) and its mask (nearest-neighbor) by the same
+/// inverse `rotmat` in one pass, writing into `out_template`/`out_mask`.
+///
+/// Errors if `template`, `mask`, `out_template`, and `out_mask` don't all
+/// share the same shape.
 #[pyfunction]
 pub fn rotate_grid3d_pair<'py>(
     py: Python<'py>,

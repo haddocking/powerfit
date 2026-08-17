@@ -4,11 +4,18 @@ mod rotate;
 
 use pyo3::prelude::*;
 
+/// The crate's `Cargo.toml` version, exposed to Python as `cargo_version()`
+/// (distinct from `__version__`, which is set from the same value below).
 #[pyfunction]
 fn cargo_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
+/// Rust extension module backing `powerfit_em`: rigid-body fitting of
+/// high-resolution structures into cryo-EM density maps. Exports
+/// `CpuRustCorrelator` (the LCC scan engine) plus the standalone
+/// `blur_points`/`dilate_points`/`rotate_grid3d`/`rotate_grid3d_pair`
+/// pyfunctions used to build its inputs.
 #[pymodule]
 mod powerfitrs {
     use pyo3::types::PyModuleMethods;

@@ -1,9 +1,13 @@
 //! Pure-math pieces of the LCC pipeline: template normalization, the LCC
-//! mask, and the Laplace pre-filter. No FFT/PyO3 dependency.
+//! mask, and the Laplace pre-filter.
 
 use ndarray::{Array3, Zip};
 
-/// Normalize template: subtract mean within mask, divide by std, multiply by mask.
+/// Normalize template: subtract mean within mask, divide by std, multiply by
+/// mask (zero outside it). If `mask` has no non-zero voxels, returns
+/// `template * mask` (all zeros) unnormalized rather than dividing by zero.
+/// Does *not* guard against a masked region with zero variance (all equal
+/// values) — that still divides by `std == 0`, producing NaN/inf.
 pub fn normalize_template(template: &Array3<f32>, mask: &Array3<f32>) -> Array3<f32> {
     let mut norm = template * mask;
     // Compute mean/std over masked voxels without building temporary vectors.
@@ -49,7 +53,10 @@ pub fn lcc_mask(target: &Array3<f32>) -> Array3<bool> {
     target.mapv(|v| v > threshold)
 }
 
-/// Flattened memory-order indices for true voxels in a boolean mask.
+/// Flattened memory-order indices for true voxels in a boolean mask. Uses
+/// the contiguous memory-order slice when available (the common case) and
+/// falls back to a generic element iterator otherwise — same indices
+/// either way, just a slower path for non-contiguous input.
 pub fn mask_true_indices(mask: &Array3<bool>) -> Vec<usize> {
     match mask.as_slice_memory_order() {
         Some(s) => s

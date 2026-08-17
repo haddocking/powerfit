@@ -2,7 +2,11 @@
 
 use ndarray::Array3;
 
-/// Rotate a single template+mask pair using the rotation matrix.
+/// Rotate a single template+mask pair by the inverse of `rotmat`, sampling
+/// `template` trilinearly and `mask` by nearest-neighbor within `radius` of
+/// the origin. Zero-fills `out_template`/`out_mask` first, then writes only
+/// the in-radius voxels (wrapped so the origin stays at index `[0, 0, 0]`) —
+/// voxels outside `radius` are left at zero, not copied from the input.
 /// Mirrors the logic of `rotate_grid3d` / `rotate_grid3d_pair` from `crate::rotate`.
 pub fn rotate_pair_internal_into(
     template: &Array3<f32>,

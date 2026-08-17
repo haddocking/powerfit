@@ -22,6 +22,12 @@ ndrustfft = "0.6"
 num-complex = "0.4"
 rayon = "1"
 
+[dev-dependencies]
+# `Python::attach` in unit tests needs an embedded interpreter; the real
+# cdylib build (loaded into an already-running Python) must not link this in,
+# so it's scoped to dev-dependencies rather than added as a feature above.
+pyo3 = { version = "0.28.3", features = ["auto-initialize"] }
+
 [profile.dev]
 # `maturin develop` uses Cargo's dev profile by default.
 # Keep debug symbols for iteration, but compile hot loops with optimization

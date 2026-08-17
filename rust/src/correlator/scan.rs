@@ -41,6 +41,9 @@ pub struct ScanWorkspace {
 }
 
 impl ScanWorkspace {
+    /// Allocate a zeroed workspace sized for volumes of shape `(nz, ny, nx)`.
+    /// One of these is created per worker (serial: one; parallel: one per
+    /// rayon chunk) and reused across every rotation that worker scans.
     pub fn new(shape: (usize, usize, usize)) -> Self {
         let (nz, ny, nx) = shape;
         let nx_ft = nx / 2 + 1;
@@ -83,6 +86,22 @@ pub struct ScanOutput<'a> {
     pub rot: &'a mut Array3<i32>,
 }
 
+/// Score one rotation against the target and fold it into the running best.
+///
+/// Computes GCC, AVE, and AVE2 (equations 3-5 of doi:10.3934/biophy.2015.2.73)
+/// by rotating `rotation.template`/`rotation.mask` into `work`'s buffers,
+/// FFT-ing each, multiplying by the conjugate of `target.target_ft`/
+/// `target2_ft`, and inverse-FFT-ing back — three FFT round trips per call,
+/// which is why this is the hot path `ScanWorkspace` exists to make
+/// allocation-free. Combines them into the LCC score (equation 6) and, for
+/// each voxel in `target.lcc_mask_indices`, updates `output.lcc`/`output.rot`
+/// in place if this rotation's score beats the current best there. Uses a
+/// fast contiguous-slice path when all arrays are memory-order-contiguous,
+/// falling back to a generic `Zip` walk otherwise — same result either way.
+///
+/// `n` is this rotation's index into the caller's `rotations` array, stored
+/// into `output.rot` wherever it wins. Called once per rotation from both
+/// the serial and rayon-parallel branches of `CpuRustCorrelator::scan`.
 pub fn scan_one_rotation(
     n: usize,
     rotation: RotationInput,
@@ -254,6 +273,11 @@ pub fn scan_one_rotation(
     }
 }
 
+/// Fold one rayon worker's best-so-far LCC/rotation into the accumulator,
+/// keeping the higher LCC score (and its matching rotation index) per voxel.
+/// Used as the `.reduce()` step that combines per-chunk results in
+/// `CpuRustCorrelator::scan`'s parallel path; same contiguous-slice-vs-`Zip`
+/// fallback as `scan_one_rotation`.
 pub fn merge_best_lcc_rot(
     acc_lcc: &mut Array3<f32>,
     acc_rot: &mut Array3<i32>,
@@ -293,7 +317,9 @@ mod tests {
 
     use super::super::fft::make_fft_handlers;
     use super::super::fft::rfftn3;
-    use super::super::pipeline::{lcc_mask, mask_true_indices, normalization_factor, normalize_template};
+    use super::super::pipeline::{
+        lcc_mask, mask_true_indices, normalization_factor, normalize_template,
+    };
 
     // -----------------------------------------------------------------------
     // Test: scan_one_rotation with identity rotation finds peak at origin

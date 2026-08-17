@@ -1,3 +1,13 @@
+//! LCC (local cross-correlation) rigid-fit scan engine, exposed to Python
+//! as `CpuRustCorrelator`.
+//!
+//! Split into submodules by concern:
+//! - `fft`: 3D real FFT primitives (allocating + zero-alloc `_into` variants).
+//! - `pipeline`: pure-math pieces (template normalization, LCC mask, Laplace filter).
+//! - `rotation`: the trilinear/nearest-neighbor rotation kernel.
+//! - `scan`: the per-rotation scan kernel shared by the serial and
+//!   rayon-parallel paths in `CpuRustCorrelator::scan`.
+
 use ndarray::{Array3, s};
 use num_complex::Complex;
 use numpy::{PyArray3, PyReadonlyArray3};
@@ -21,6 +31,15 @@ use scan::{
 // CpuRustCorrelator — PyO3 class
 // ---------------------------------------------------------------------------
 
+/// CPU-backed LCC (local cross-correlation) rigid-fit scan engine.
+///
+/// Lifecycle: `new` precomputes everything that only depends on the target
+/// (normalization, optional Laplace filter, LCC mask, target FFTs) and
+/// normalizes the initial template/mask. `set_template` re-normalizes a new
+/// template/mask pair against that same precomputed target. `scan` rotates
+/// the template/mask through every row of `rotations`, correlates each
+/// against the target, and keeps the best-scoring rotation per voxel in
+/// `lcc`/`rot`, readable via the `lcc`/`rot` getters.
 #[pyclass]
 pub struct CpuRustCorrelator {
     // Shape info
@@ -48,6 +67,15 @@ pub struct CpuRustCorrelator {
 
 #[pymethods]
 impl CpuRustCorrelator {
+    /// Build a correlator for one target volume.
+    ///
+    /// Normalizes `target` by its max value, applies the optional Laplace
+    /// pre-filter, computes the LCC mask (voxels where target > 5% of max)
+    /// and its true-index list, and precomputes the target's FFTs — all
+    /// reused unchanged across every later `scan`/`set_template` call. Also
+    /// performs the same template/mask normalization as `set_template`.
+    ///
+    /// Errors if `target` is all zeros, or if `mask` has no non-zero voxels.
     #[new]
     #[pyo3(signature = (target, template, rotations, mask, laplace, nproc))]
     pub fn new(
@@ -124,6 +152,15 @@ impl CpuRustCorrelator {
         })
     }
 
+    /// Swap in a new template/mask pair for the same target, and reset outputs.
+    ///
+    /// Re-applies the optional Laplace pre-filter and normalizes `template`
+    /// against `mask` (subtract mean, divide by std, zero outside mask).
+    /// Resets `lcc` to 0.0 and `rot` to 0 so a subsequent `scan` starts from
+    /// a clean slate.
+    ///
+    /// Errors if `template`'s shape doesn't match the target, or if `mask`
+    /// has no non-zero voxels.
     pub fn set_template(
         &mut self,
         template: PyReadonlyArray3<f32>,
@@ -156,6 +193,15 @@ impl CpuRustCorrelator {
         Ok(())
     }
 
+    /// Rotate the template/mask through every row of `rotations`, correlate
+    /// each against the target, and keep the best-scoring rotation per voxel.
+    ///
+    /// Delegates the per-rotation work to `scan::scan_one_rotation`. When
+    /// `nproc <= 1` runs serially with one FFT-handler/workspace set;
+    /// otherwise chunks `rotations` across `nproc` rayon workers, each with
+    /// its own FFT handlers and `ScanWorkspace`, and merges per-worker
+    /// best-so-far (`scan::merge_best_lcc_rot`) by taking the higher LCC
+    /// score per voxel. Overwrites `self.lcc`/`self.rot` in place.
     pub fn scan(&mut self) -> PyResult<()> {
         let n_rot = self.rotations.shape()[0];
         let shape = self.shape;
@@ -278,11 +324,14 @@ impl CpuRustCorrelator {
         Ok(())
     }
 
+    /// Best LCC score found per voxel by the most recent `scan` call.
     #[getter]
     pub fn lcc<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray3<f32>> {
         PyArray3::from_array(py, &self.lcc)
     }
 
+    /// Index into `rotations` of the rotation that produced `lcc`'s score
+    /// at each voxel, from the most recent `scan` call.
     #[getter]
     pub fn rot<'py>(&self, py: Python<'py>) -> Bound<'py, PyArray3<i32>> {
         PyArray3::from_array(py, &self.rot)
