@@ -2,18 +2,18 @@ name: Build and upload to PyPI
 
 on:
   workflow_dispatch:
-    inputs:
-      ref:
-        description: 'Reference to checkout'
-        required: true
-        default: 'master'
-  pull_request:
-  push:
-    branches:
-      - master
-  release:
-    types:
-      - published
+  #   inputs:
+  #     ref:
+  #       description: 'Reference to checkout'
+  #       required: true
+  #       default: 'master'
+  # pull_request:
+  # push:
+  #   branches:
+  #     - master
+  # release:
+  #   types:
+  #     - published
 
 jobs:
   build_wheels:
@@ -21,7 +21,7 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     strategy:
       matrix:
-        os: [ linux-intel, linux-arm, macOS-arm ]
+        os: [linux-intel, linux-arm, macOS-arm]
         include:
           - archs: auto64
             platform: auto
@@ -99,10 +99,10 @@ jobs:
     needs: [build_wheels, build_wasm, build_sdist]
     runs-on: ubuntu-latest
     environment:
-        name: pypi
-        url: https://pypi.org/p/powerfit-em
+      name: pypi
+      url: https://pypi.org/p/powerfit-em
     permissions:
-        id-token: write
+      id-token: write
     if: github.event_name == 'release' && github.event.action == 'published'
     steps:
       - uses: actions/download-artifact@v8
