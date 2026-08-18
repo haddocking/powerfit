@@ -25,6 +25,8 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v10.0.1
+        with:
+          python-version: "3.14"
 
       - name: Build docs site (wasm wheel + MkDocs + JupyterLite)
         working-directory: docs
