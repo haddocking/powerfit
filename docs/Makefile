@@ -32,12 +32,17 @@ install:
 
 wasm-wheel: install
 	cd $(ROOT)
+	# add the `wasm32` target
 	rustup target add wasm32-unknown-emscripten
 	rustup update stable
 	rustc --version
+	# install the build env
 	uv run pyodide xbuildenv install $(PYODIDE_XBUILDENV)
+	# make sure destination is clear
 	rm -rf $(WHEELHOUSE) && mkdir -p $(WHEELHOUSE)
+	# build
 	uv run pyodide build . --outdir $(WHEELHOUSE)
+	# move to a location jupyterlite needs it
 	mkdir -p $(LITE_PYPI)
 	cp $(WHEELHOUSE)/*.whl $(LITE_PYPI)/
 
