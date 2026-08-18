@@ -28,7 +28,7 @@ help:
 
 install:
 	cd $(ROOT)
-	uv pip install '.[docs]'
+	uv sync --extra docs
 
 wasm-wheel: install
 	cd $(ROOT)
