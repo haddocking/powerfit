@@ -7,7 +7,8 @@ In the `input.zip` you can find the following files:
 - `EMD-2325.map`
 - `input_parameters.txt`
 
-The command in `input_parameters.txt` is needed to generate the output in `output.zip`
+The command in `input_parameters.txt` is needed to generate the output in `output.zip`.
+Dependent on your system and the amount of CPUs used to run the example, this run might take ~30 minutes
 
 Please refer to the [manual](https://www.bonvinlab.org/powerfit/manual.html#output) for an explanation
 of all the files present in `output.zip`
