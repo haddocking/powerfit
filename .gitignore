@@ -17,3 +17,16 @@ src/powerfit_em/powerfit_rs.*
 .coverage
 coverage.xml
 /target/rust-analyzer
+
+# JupyterLite POC build artifacts
+docs/lite/pypi/*.whl
+docs/lite/.jupyterlite.doit.db
+docs/lite/.cache/
+docs/lite/_output/
+/.jupyterlite.doit.db
+wheelhouse/
+/.pyodide_build/
+/site/
+
+# marimo wasm POC
+docs/wasm/node_modules/
