@@ -34,7 +34,7 @@ theme:
       toggle:
         icon: material/brightness-4
         name: Switch to system preference
-    
+
 plugins:
   - search
   - autorefs
@@ -56,16 +56,16 @@ plugins:
   - charts
 
 markdown_extensions:
-    # Use to render part of README as home
-    - pymdownx.snippets:
-        base_path: [!relative $config_dir]
-        check_paths: true
-    - pymdownx.highlight
-    - pymdownx.superfences:
-        custom_fences:
-          - name: vegalite
-            class: vegalite
-            format: !!python/name:mkdocs_charts_plugin.fences.fence_vegalite
+  # Use to render part of README as home
+  - pymdownx.snippets:
+      base_path: [!relative $config_dir]
+      check_paths: true
+  - pymdownx.highlight
+  - pymdownx.superfences:
+      custom_fences:
+        - name: vegalite
+          class: vegalite
+          format: !!python/name:mkdocs_charts_plugin.fences.fence_vegalite
 
 extra_javascript:
   - https://cdn.jsdelivr.net/npm/vega@6.2.0
@@ -79,3 +79,4 @@ nav:
   - Performance: performance.md
   - Contributing guidelines: CONTRIBUTING.md
   - CLI Reference: cli.md
+  - Try it in your browser: jupyterlite.md
