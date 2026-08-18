@@ -2,19 +2,16 @@
 
 There are a few default parameters listed below that come with the 
 standard `powerfit` command. These default parameters are also the
-standard in the [PowerFit webserver](https://rascar.science.uu.nl/powerfit).
-Below we will describe the different parameters and some [input examples](#input-examples). 
-In addition we also explain [the output](#report-page) of the *report.html*
+standard in the [PowerFit web service](https://rascar.science.uu.nl/powerfit).
+Below we will describe the different [parameters](#parameters). 
+In addition, we will explain how to use PowerFit in the [CLI](#using-powerfit-in-the-cli) 
+and in the [webservice](#using-the-webservice).
+Lastly, we explain [the output](#report-page) of the *report.html*
 file or result page on the webserver.
 
-```shell
-powerfit <map> <resolution> <pdb>
-# To generate the report page after the run:
-powerfit <map> <resolution> <pdb> --report --delimiter ','
-```
 ## Parameters
 
-**Rotational sampling interval (-a):** Rotational sampling density in degrees.
+**Rotational sampling (-a):** Rotational sampling density in degrees.
 Increasing this number by a factor of 2 results in approximately 8 times
 more rotations sampled.
 
@@ -32,7 +29,7 @@ score. It can be combined with the Laplace pre-filter. In the default
 this is turned on and can be disabled by selecting *Disable Core-weighted correlation* 
 in the webserver or using the `-ncw` flag on the command line.
 
-**Number of top solutions (-n):** Number of top solutions for which the model in the coordinate 
+**Number of models (-n):** Number of top solutions for which the model in the coordinate 
 frame of the density map will be returned. This number will be capped if less solutions are found
 as requested. The default is 10.
 
@@ -57,7 +54,13 @@ the core-weighted correlation, or increasing the rotational samping. Increasing
 rotational sampling by a factor of 2 results in approximately 8 times more
 rotations and thus a signigicant increase in the runtime of a job.
 
-## Input examples
+## Using PowerFit in the CLI
+
+```shell
+powerfit <map> <resolution> <pdb>
+# To generate the report page after the run:
+powerfit <map> <resolution> <pdb> --report --delimiter ','
+```
 
 First, to see all options and their descriptions type
 
@@ -102,6 +105,30 @@ Using GPU-accelerated search.
 ...
 ```
 (See `--help` if you have multiple GPUs and want to specify which one to use)
+
+## Using the webservice
+
+Before you can submit your job on the webservice you need to upload a few files 
+and fill in a few parameters:
+
+**Input structure**: This is the atomic model that needs to be fitted in the density. 
+This file needs to be in a pdb or mmCIF format.
+
+**Cryo-EM map**: This is the density map file that the model will be fitted into.
+This files nees to be in a mrc, ccp4, or map format. 
+The maximum upload size is 250MB.
+
+**Resolution**: This is the resolution of the Cryo-EM map. Correct resolution is important
+for accurate results.
+
+The rest of the parameters are optional and will be set to default if you do not adjust them.
+For an explanation of the optional parameters, please refer to [parameters](#parameters).
+
+Once you have uploaded your input structure and Cryo-EM map and filled in the appropriate
+resolution, you can submit the job by pressing the submit button. You can leave the page open
+untill the run is finished, or you can close the page and find your job back in the workspace later.
+
+Once your job is finished, you will see the [report page](#report-page).
 
 ## Output
 
