@@ -63,7 +63,7 @@ jobs:
         env:
           CIBW_PLATFORM: pyodide
           CIBW_ARCHS: wasm32
-          CIBW_PYODIDE_VERSION: 314.0.0a1
+          CIBW_BUILD: cp314-pyodide_wasm32
       - uses: actions/upload-artifact@v7
         with:
           name: cibw-wheels-pyodide-0
