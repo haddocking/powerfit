@@ -17,7 +17,16 @@ COMMIT = "ab1800d"  # CPUCorrelator (python) vs CpuRustCorrelator (rust) are in 
 ENGINES = [("python", None), ("rust", "--rust")]
 
 
+def run(cmd: list, cwd: Path | None = None) -> None:
+    result = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        print(result.stdout)
+        print(result.stderr)
+        result.check_returncode()
+
+
 def fetch_data() -> tuple[Path, Path]:
+    print("-> fetching tutorial data")
     data_dir = Path(tempfile.mkdtemp(prefix="pf-bench-data"))
     map_url = "https://github.com/haddocking/powerfit-tutorial/raw/refs/heads/master/ribosome-KsgA.map"
     pdb_url = "https://github.com/haddocking/powerfit-tutorial/raw/refs/heads/master/KsgA.pdb"
@@ -32,14 +41,12 @@ def fetch_data() -> tuple[Path, Path]:
 
 def setup_clone(commit: str) -> Path:
     clone_dir = Path(tempfile.mkdtemp(prefix="pf-bench-"))
-    subprocess.run(["git", "clone", "https://github.com/haddocking/powerfit.git", str(clone_dir)], check=True)
-    subprocess.run(["git", "-C", str(clone_dir), "checkout", commit], check=True)
-    subprocess.run(["uv", "venv", ".venv", "--python=3.14"], cwd=clone_dir, check=True)
-    subprocess.run(
-        ["uv", "pip", "install", "--python", ".venv/bin/python", "-e", "."],
-        cwd=clone_dir,
-        check=True,
-    )
+    print(f"-> cloning {commit}")
+    run(["git", "clone", "https://github.com/haddocking/powerfit.git", str(clone_dir)])
+    run(["git", "-C", str(clone_dir), "checkout", commit])
+    print("-> building venv")
+    run(["uv", "venv", ".venv", "--python=3.14"], cwd=clone_dir)
+    run(["uv", "pip", "install", "--python", ".venv/bin/python", "-e", "."], cwd=clone_dir)
     return clone_dir
 
 
@@ -94,16 +101,20 @@ def main() -> None:
     clone_dir = setup_clone(COMMIT)
 
     try:
+        print("-> running benchmarks")
         rows = []
         for angle in ANGLES:
             for nproc in NPROCS:
                 for identifier, flag in ENGINES:
+                    print(f"   {identifier:<6} nproc={nproc:<2} angle={angle:<2} ", end="", flush=True)
                     # NOTE: dump results, we only need the times
                     with tempfile.TemporaryDirectory() as tmpdir:
                         seconds = run_powerfit(clone_dir, flag, map_path, pdb_path, angle, nproc, Path(tmpdir))
 
                     rows.append((identifier, nproc, angle, seconds))
+                    print(f"{seconds:.3f}s")
     finally:
+        print("-> cleaning up")
         shutil.rmtree(clone_dir, ignore_errors=True)
 
     summary_path = Path.cwd() / "summary.csv"
@@ -112,7 +123,7 @@ def main() -> None:
         for engine, nproc, angle, seconds in rows:
             f.write(f"{engine},{nproc},{angle},{seconds:.3f}\n")
 
-    print(f"summary: {summary_path}")
+    print(f"-> summary: {summary_path}")
 
 
 if __name__ == "__main__":
