@@ -34,6 +34,10 @@ jobs:
       - name: OpenCL platform and device test
         run: python -c 'import pyopencl as cl;from pyvkfft.fft import rfftn; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
 
+      - name: run clippy
+        working-directory: rust
+        run: cargo clippy --all --locked -- -D warnings
+
       - name: Run Rust tests
         working-directory: rust
         run: cargo test --all --locked --verbose
