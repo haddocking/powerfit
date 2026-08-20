@@ -2,18 +2,18 @@ name: Build and upload to PyPI
 
 on:
   workflow_dispatch:
-  #   inputs:
-  #     ref:
-  #       description: 'Reference to checkout'
-  #       required: true
-  #       default: 'master'
-  # pull_request:
-  # push:
-  #   branches:
-  #     - master
-  # release:
-  #   types:
-  #     - published
+    inputs:
+      ref:
+        description: "Reference to checkout"
+        required: true
+        default: "master"
+  pull_request:
+  push:
+    branches:
+      - master
+  release:
+    types:
+      - published
 
 jobs:
   build_wheels:
