@@ -13,7 +13,8 @@ from pathlib import Path
 RESOLUTION = 13
 NPROCS = (1, 4, 16)
 ANGLES = (20, 10)
-ENGINES = [("cython", "9a11eed", None), ("python", "ab1800d", None), ("rust", "ab1800d", "--rust")]
+COMMIT = "ab1800d"  # CPUCorrelator (python) vs CpuRustCorrelator (rust) are in the same commit
+ENGINES = [("python", None), ("rust", "--rust")]
 
 
 def fetch_data() -> tuple[Path, Path]:
@@ -90,26 +91,20 @@ def run_powerfit(
 def main() -> None:
     map_path, pdb_path = fetch_data()
 
-    # one clone per unique commit -- python and rust share ab1800d
-    commits = {commit for _, commit, _ in ENGINES}
-    clone_by_commit: dict[str, Path] = {}
-    for commit in commits:
-        clone_by_commit[commit] = setup_clone(commit)
+    clone_dir = setup_clone(COMMIT)
 
     try:
         rows = []
         for angle in ANGLES:
             for nproc in NPROCS:
-                for identifier, commit, flag in ENGINES:
-                    clone_dir = clone_by_commit[commit]
+                for identifier, flag in ENGINES:
                     # NOTE: dump results, we only need the times
                     with tempfile.TemporaryDirectory() as tmpdir:
                         seconds = run_powerfit(clone_dir, flag, map_path, pdb_path, angle, nproc, Path(tmpdir))
 
                     rows.append((identifier, nproc, angle, seconds))
     finally:
-        for clone_dir in clone_by_commit.values():
-            shutil.rmtree(clone_dir, ignore_errors=True)
+        shutil.rmtree(clone_dir, ignore_errors=True)
 
     summary_path = Path.cwd() / "summary.csv"
     with summary_path.open("w") as f:
