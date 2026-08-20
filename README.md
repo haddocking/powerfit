@@ -68,7 +68,7 @@ cross-correlation score on a single CPU-core. During the search, *powerfit*
 will update you about the progress of the search if you are using it
 interactively in the shell.
 
-Please find a sample input and output for PowerFit on the [PowerFit-example repository](https://github.com/haddocking/powerfit-example)
+Please find a sample input and output for PowerFit on the [PowerFit-examples repository](https://github.com/haddocking/powerfit-examples)
 
 Please refer to the [PowerFit tutorial](https://www.bonvinlab.org/education/Others/powerfit/) to learn how to use PowerFit in the command line.
 
