@@ -21,7 +21,7 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     strategy:
       matrix:
-        os: [linux-intel, linux-arm, macos-arm, windows-intel]
+        os: [linux-intel, linux-arm, macos-arm, windows-intel, windows-arm]
         include:
           - archs: auto64
             platform: auto
@@ -35,6 +35,8 @@ jobs:
             archs: auto64
           - os: windows-intel
             runs-on: windows-latest
+          - os: windows-arm
+            runs-on: windows-11-arm
     steps:
       - uses: actions/checkout@v6
         with:
