@@ -34,7 +34,7 @@ jobs:
             runs-on: macos-latest
             archs: auto64
           - os: windows-intel
-            runs-on: window-latest
+            runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
         with:
