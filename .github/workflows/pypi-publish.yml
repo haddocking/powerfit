@@ -64,6 +64,7 @@ jobs:
           CIBW_PLATFORM: pyodide
           CIBW_ARCHS: wasm32
           CIBW_BUILD: cp314-pyodide_wasm32
+          CIBW_ENABLE: pyodide-prerelease
       - uses: actions/upload-artifact@v7
         with:
           name: cibw-wheels-pyodide-0
