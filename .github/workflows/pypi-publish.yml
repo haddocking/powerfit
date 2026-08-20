@@ -62,6 +62,7 @@ jobs:
         uses: pypa/cibuildwheel@v4.0.0
         env:
           CIBW_PLATFORM: pyodide
+          CIBW_ARCHS: wasm32
           CIBW_PYODIDE_VERSION: 314.0.0a1
       - uses: actions/upload-artifact@v7
         with:
