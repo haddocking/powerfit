@@ -1,11 +1,11 @@
 name: Deploy MkDocs to GitHub Pages
 
 on:
-  # push:
-  #   branches:
-  #     - master
+  push:
+    branches:
+      - master
   workflow_dispatch:
-  # pull_request:
+  pull_request:
 
 permissions:
   contents: read
@@ -68,4 +68,3 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v5
-
