@@ -11,7 +11,7 @@ WHEELHOUSE         := wheelhouse
 LITE_DIR           := docs/lite
 LITE_PYPI          := $(LITE_DIR)/pypi
 SITE_DIR           := site
-PYODIDE_XBUILDENV  := 314.0.0a1
+PYODIDE_XBUILDENV  := 314.0.0
 
 .DEFAULT_GOAL := site
 
