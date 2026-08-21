@@ -8,21 +8,18 @@
 
 ROOT               := ..
 WHEELHOUSE         := wheelhouse
-LITE_DIR           := docs/lite
-LITE_PYPI          := $(LITE_DIR)/pypi
 SITE_DIR           := site
 PYODIDE_XBUILDENV  := 314.0.0
 
 .DEFAULT_GOAL := site
 
-.PHONY: help install wasm-wheel mkdocs lite site serve clean
+.PHONY: help install wasm-wheel mkdocs site serve clean
 
 help:
-	@echo "make site        - full build: wasm wheel + MkDocs site + JupyterLite"
+	@echo "make site        - full build: wasm wheel + MkDocs site (JupyterLite demo embedded via mkdocs-jupyterlite)"
 	@echo "make install     - install '.[docs]' (mkdocs + JupyterLite + wasm build tooling)"
-	@echo "make wasm-wheel  - build the wasm wheel, stage it into lite/pypi/"
-	@echo "make mkdocs      - build the MkDocs site only (into ../site/)"
-	@echo "make lite        - build the JupyterLite site into ../site/lite/ (needs wasm-wheel + mkdocs first)"
+	@echo "make wasm-wheel  - build the wasm wheel into wheelhouse/"
+	@echo "make mkdocs      - build the MkDocs site (into ../site/); works without wasm-wheel"
 	@echo "make serve       - serve the built site at http://localhost:8000"
 	@echo "make clean       - remove build outputs"
 
@@ -42,19 +39,12 @@ wasm-wheel: install
 	rm -rf $(WHEELHOUSE) && mkdir -p $(WHEELHOUSE)
 	# build
 	uv run pyodide build . --outdir $(WHEELHOUSE)
-	# move to a location jupyterlite needs it
-	mkdir -p $(LITE_PYPI)
-	cp $(WHEELHOUSE)/*.whl $(LITE_PYPI)/
 
 mkdocs: install
 	cd $(ROOT)
 	uv run mkdocs build
 
-lite:
-	cd $(ROOT)
-	uv run jupyter lite build --lite-dir $(LITE_DIR) --contents content --output-dir $(SITE_DIR)/lite
-
-site: wasm-wheel mkdocs lite
+site: wasm-wheel mkdocs
 	@echo "Done. Serve with: make serve"
 
 serve:
@@ -63,4 +53,4 @@ serve:
 
 clean:
 	cd $(ROOT)
-	rm -rf $(WHEELHOUSE) $(SITE_DIR) $(LITE_PYPI)/*.whl $(LITE_DIR)/.jupyterlite.doit.db
+	rm -rf $(WHEELHOUSE) $(SITE_DIR)
