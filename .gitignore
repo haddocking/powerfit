@@ -30,3 +30,5 @@ wheelhouse/
 
 # marimo wasm POC
 docs/wasm/node_modules/
+/docs/lite/content/.ipynb_checkpoints
+/uv.lock
