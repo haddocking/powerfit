@@ -54,12 +54,6 @@ plugins:
             docstring_style: google
             show_source: false
   - charts
-  - jupyterlite:
-      notebook_patterns:
-        - "lite/content/*.ipynb"
-      wheels:
-        # with `|| true` so `make mkdocs` still works without the wheel
-        - command: "cp wheelhouse/*.whl {wheels_dir}/ || true"
 
 markdown_extensions:
   # Use to render part of README as home
@@ -73,9 +67,6 @@ markdown_extensions:
           class: vegalite
           format: !!python/name:mkdocs_charts_plugin.fences.fence_vegalite
 
-extra_css:
-  - stylesheets/extra.css
-
 extra_javascript:
   - https://cdn.jsdelivr.net/npm/vega@6.2.0
   - https://cdn.jsdelivr.net/npm/vega-lite@6.4.1
@@ -88,4 +79,4 @@ nav:
   - Performance: performance.md
   - Contributing guidelines: CONTRIBUTING.md
   - CLI Reference: cli.md
-  - Try it in your browser: lite/content/powerfit_demo.ipynb
+  - Try it in your browser: jupyterlite.md

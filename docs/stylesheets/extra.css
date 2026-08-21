@@ -1,6 +1,0 @@
-/* mkdocs-jupyterlite hardcodes height="800px" inline on the iframe it injects;
-   override it so the embedded notebook fills most of the viewport instead. */
-#jupyterlite-iframe {
-  height: calc(100vh - 160px) !important;
-  min-height: 600px;
-}
