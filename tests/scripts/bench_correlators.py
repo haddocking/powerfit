@@ -4,7 +4,6 @@ Usage:
 """
 
 import csv
-import itertools
 import os
 import re
 import shutil
@@ -131,7 +130,7 @@ def print_chart(summary_path: Path, bar_width: int = 40) -> None:
     print("\n-> chart (search seconds)")
     for angle in sorted({a for _, _, a, _ in rows}):
         for nproc in sorted({n for _, n, a, _ in rows if a == angle}):
-            print(f"\n  angle={angle} nproc={nproc}")
+            print(f"\n  nproc={nproc}")
             for identifier, n, a, seconds in rows:
                 if n != nproc or a != angle:
                     continue
@@ -142,19 +141,19 @@ def print_chart(summary_path: Path, bar_width: int = 40) -> None:
 
 def main() -> None:
 
-    nprocs = (1, 4, 16)
+    nprocs = (1, 16)
 
     # paper data
     map_url = "https://ftp.ebi.ac.uk/pub/databases/emdb/structures/EMD-1046/map/emd_1046.map.gz"
     pdb_url = "https://files.rcsb.org/download/9A2G.cif.gz"
     resolution = 20
-    angles = (4.71,)
+    angle = 4.71
 
     # "tutorial" data
     # map_url = "https://github.com/haddocking/powerfit-tutorial/raw/refs/heads/master/ribosome-KsgA.map"
     # pdb_url = "https://github.com/haddocking/powerfit-tutorial/raw/refs/heads/master/KsgA.pdb"
     # resolution = 13
-    # angles = (10, 20)
+    # angle = 20
 
     # naming: <orchestration>+<rotation kernel>[-fma][-native]
     # python+cython = pyFFTW + C/Cython rotation (v5.0.2 baseline)
@@ -165,11 +164,11 @@ def main() -> None:
     ENGINES = [
         Engine("python+cython", "cf1e3f8"),  # v5.0.2
         Engine("python+rust", "ab1800d"),
-        Engine("python+rust-fma", "f60fce9"),
+        Engine("python+rust-fma", "a78c7ab"),
         Engine("rust", "ab1800d", flag="--rust"),
-        Engine("rust-fma", "f60fce9", flag="--rust"),
+        Engine("rust-fma", "a78c7ab", flag="--rust"),
         Engine("rust-native", "ab1800d", flag="--rust", optimize=True),
-        Engine("rust-fma-native", "f60fce9", flag="--rust", optimize=True),
+        Engine("rust-fma-native", "a78c7ab", flag="--rust", optimize=True),
     ]
 
     print("-> running benchmarks")
@@ -179,8 +178,8 @@ def main() -> None:
         for engine in ENGINES:
             # NOTE: context here to make cleaning easier
             with engine.cloned() as clone_dir:
-                for angle, nproc in itertools.product(angles, nprocs):
-                    print(f"   {engine.identifier:<16} nproc={nproc:<2} angle={angle:<2} ", end="", flush=True)
+                for nproc in nprocs:
+                    print(f"   {engine.identifier:<16} nproc={nproc:<2} ", end="", flush=True)
                     # NOTE: dump results, we only need the times
                     with tempfile.TemporaryDirectory() as tmpdir:
                         seconds = engine.run_powerfit(
