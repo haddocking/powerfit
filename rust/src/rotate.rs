@@ -279,36 +279,20 @@ pub fn rotate_grid3d<'py>(
     Ok(())
 }
 
-/// Rotate a template (trilinear) and its mask (nearest-neighbor) by the same
-/// inverse `rotmat` in one pass, writing into `out_template`/`out_mask`.
-///
-/// Errors if `template`, `mask`, `out_template`, and `out_mask` don't all
-/// share the same shape.
-#[pyfunction]
-pub fn rotate_grid3d_pair<'py>(
-    py: Python<'py>,
-    template: PyReadonlyArray3<'py, f32>,
-    mask: PyReadonlyArray3<'py, f32>,
-    rotmat: PyReadonlyArray2<'py, f32>,
+/// Shared kernel behind `rotate_grid3d_pair` and the scan hot path's
+/// `crate::correlator::rotation::rotate_pair_internal_into`: rotates
+/// `template` (trilinear) and `mask` (nearest-neighbor) by the inverse of
+/// `rotmat` in one pass, within `radius` of the origin (voxels farther than
+/// `radius` are left untouched in `out_template`/`out_mask`, not zeroed),
+/// writing wrapped-around indices so the origin stays at index `[0, 0, 0]`.
+pub(crate) fn rotate_grid3d_pair_core(
+    template: ArrayView3<'_, f32>,
+    mask: ArrayView3<'_, f32>,
+    rotmat: &[[f32; 3]; 3],
     radius: i32,
-    out_template: &Bound<'py, PyArray3<f32>>,
-    out_mask: &Bound<'py, PyArray3<f32>>,
-) -> PyResult<()> {
-    let template = template.as_array();
-    let mask = mask.as_array();
-    let rotmat = rotmat.as_array();
-    let mut out_template = unsafe { out_template.as_array_mut() };
-    let mut out_mask = unsafe { out_mask.as_array_mut() };
-
-    if template.shape() != mask.shape()
-        || template.shape() != out_template.shape()
-        || template.shape() != out_mask.shape()
-    {
-        return Err(PyValueError::new_err(
-            "template, mask, out_template, and out_mask must have identical shapes",
-        ));
-    }
-
+    mut out_template: ArrayViewMut3<'_, f32>,
+    mut out_mask: ArrayViewMut3<'_, f32>,
+) {
     let gs = template.shape();
     let gs0 = gs[0] as isize;
     let gs1 = gs[1] as isize;
@@ -325,15 +309,15 @@ pub fn rotate_grid3d_pair<'py>(
 
     let radius2 = (radius * radius) as isize;
 
-    let r00 = rotmat[[0, 0]];
-    let r01 = rotmat[[0, 1]];
-    let r02 = rotmat[[0, 2]];
-    let r10 = rotmat[[1, 0]];
-    let r11 = rotmat[[1, 1]];
-    let r12 = rotmat[[1, 2]];
-    let r20 = rotmat[[2, 0]];
-    let r21 = rotmat[[2, 1]];
-    let r22 = rotmat[[2, 2]];
+    let r00 = rotmat[0][0];
+    let r01 = rotmat[0][1];
+    let r02 = rotmat[0][2];
+    let r10 = rotmat[1][0];
+    let r11 = rotmat[1][1];
+    let r12 = rotmat[1][2];
+    let r20 = rotmat[2][0];
+    let r21 = rotmat[2][1];
+    let r22 = rotmat[2][2];
 
     let template_raw = template.as_ptr();
     let mask_raw = mask.as_ptr();
@@ -487,13 +471,51 @@ pub fn rotate_grid3d_pair<'py>(
             }
         }
     }
+}
+
+/// Rotate a template (trilinear) and its mask (nearest-neighbor) by the same
+/// inverse `rotmat` in one pass, writing into `out_template`/`out_mask`.
+///
+/// Errors if `template`, `mask`, `out_template`, and `out_mask` don't all
+/// share the same shape.
+#[pyfunction]
+pub fn rotate_grid3d_pair<'py>(
+    py: Python<'py>,
+    template: PyReadonlyArray3<'py, f32>,
+    mask: PyReadonlyArray3<'py, f32>,
+    rotmat: PyReadonlyArray2<'py, f32>,
+    radius: i32,
+    out_template: &Bound<'py, PyArray3<f32>>,
+    out_mask: &Bound<'py, PyArray3<f32>>,
+) -> PyResult<()> {
+    let template = template.as_array();
+    let mask = mask.as_array();
+    let rotmat = rotmat.as_array();
+    let out_template = unsafe { out_template.as_array_mut() };
+    let out_mask = unsafe { out_mask.as_array_mut() };
+
+    if template.shape() != mask.shape()
+        || template.shape() != out_template.shape()
+        || template.shape() != out_mask.shape()
+    {
+        return Err(PyValueError::new_err(
+            "template, mask, out_template, and out_mask must have identical shapes",
+        ));
+    }
+
+    let rotmat_arr = [
+        [rotmat[[0, 0]], rotmat[[0, 1]], rotmat[[0, 2]]],
+        [rotmat[[1, 0]], rotmat[[1, 1]], rotmat[[1, 2]]],
+        [rotmat[[2, 0]], rotmat[[2, 1]], rotmat[[2, 2]]],
+    ];
+    rotate_grid3d_pair_core(template, mask, &rotmat_arr, radius, out_template, out_mask);
     let _ = py;
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
-    use super::rotate_grid3d_core;
+    use super::{rotate_grid3d_core, rotate_grid3d_pair_core};
     use ndarray::{Array2, Array3};
 
     fn make_grid() -> Array3<f32> {
@@ -548,5 +570,59 @@ mod tests {
         answer[[3, 0, 0]] = 1.0;
 
         assert_allclose_3d(&answer, &out);
+    }
+
+    #[test]
+    fn test_rotate_grid3d_pair_core_matches_rotate_grid3d_core() {
+        let template = make_grid();
+        let mut mask = Array3::<f32>::zeros((4, 5, 6));
+        mask[[0, 0, 0]] = 1.0;
+        mask[[1, 2, 3]] = 1.0;
+        mask[[2, 1, 4]] = 1.0;
+
+        #[rustfmt::skip]
+        let rotmat_vals = [
+            0.0_f32, -1.0, 0.0,
+            1.0, 0.0, 0.0,
+            0.0, 0.0, 1.0,
+        ];
+        let rotmat = Array2::from_shape_vec((3, 3), rotmat_vals.to_vec()).unwrap();
+        let rotmat_arr = [
+            [rotmat_vals[0], rotmat_vals[1], rotmat_vals[2]],
+            [rotmat_vals[3], rotmat_vals[4], rotmat_vals[5]],
+            [rotmat_vals[6], rotmat_vals[7], rotmat_vals[8]],
+        ];
+        let radius = 2;
+
+        let mut expected_template = Array3::<f32>::zeros((4, 5, 6));
+        rotate_grid3d_core(
+            template.view(),
+            rotmat.view(),
+            radius,
+            expected_template.view_mut(),
+            false,
+        );
+        let mut expected_mask = Array3::<f32>::zeros((4, 5, 6));
+        rotate_grid3d_core(
+            mask.view(),
+            rotmat.view(),
+            radius,
+            expected_mask.view_mut(),
+            true,
+        );
+
+        let mut got_template = Array3::<f32>::zeros((4, 5, 6));
+        let mut got_mask = Array3::<f32>::zeros((4, 5, 6));
+        rotate_grid3d_pair_core(
+            template.view(),
+            mask.view(),
+            &rotmat_arr,
+            radius,
+            got_template.view_mut(),
+            got_mask.view_mut(),
+        );
+
+        assert_allclose_3d(&expected_template, &got_template);
+        assert_allclose_3d(&expected_mask, &got_mask);
     }
 }
