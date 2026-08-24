@@ -32,8 +32,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-opencl = ["pyopencl", "siphash24", "pyvkfft"]
-pocl = ["pyopencl[pocl]", "siphash24", "pyvkfft"]
+opencl = ["pyopencl", "siphash24", "pyvkfft", "mako"]
+pocl = ["pyopencl[pocl]", "siphash24", "pyvkfft", "mako"]
 cuda13x = ["cupy-cuda13x", "siphash24", "pyvkfft"]
 cuda12x = ["cupy-cuda12x", "siphash24", "pyvkfft"]
 dev = [
