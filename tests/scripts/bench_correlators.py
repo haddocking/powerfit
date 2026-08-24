@@ -3,6 +3,7 @@ Usage:
     uv run python tests/scripts/bench_correlators.py
 """
 
+import csv
 import itertools
 import os
 import re
@@ -116,6 +117,29 @@ def fetch_data(map_url: str, pdb_url: str) -> Iterator[tuple[Path, Path]]:
         shutil.rmtree(data_dir, ignore_errors=True)
 
 
+def print_chart(summary_path: Path, bar_width: int = 40) -> None:
+    """Make an ASCII chart."""
+    with summary_path.open(newline="") as f:
+        rows = [
+            (r["engine"], int(r["nproc"]), float(r["angle"]), float(r["search_seconds"])) for r in csv.DictReader(f)
+        ]
+    if not rows:
+        return
+
+    max_seconds = max(seconds for _, _, _, seconds in rows)
+
+    print("\n-> chart (search seconds)")
+    for angle in sorted({a for _, _, a, _ in rows}):
+        for nproc in sorted({n for _, n, a, _ in rows if a == angle}):
+            print(f"\n  angle={angle} nproc={nproc}")
+            for identifier, n, a, seconds in rows:
+                if n != nproc or a != angle:
+                    continue
+                bar_len = round(seconds / max_seconds * bar_width) if max_seconds else 0
+                bar = "#" * bar_len
+                print(f"    {identifier:<12} {bar} {seconds:.2f}s")
+
+
 def main() -> None:
 
     nprocs = (1, 4, 16)
@@ -170,6 +194,7 @@ def main() -> None:
             f.write(f"{engine},{nproc},{angle},{seconds:.3f}\n")
 
     print(f"-> summary: {summary_path}")
+    print_chart(summary_path)
 
 
 if __name__ == "__main__":
