@@ -137,7 +137,7 @@ def print_chart(summary_path: Path, bar_width: int = 40) -> None:
                     continue
                 bar_len = round(seconds / max_seconds * bar_width) if max_seconds else 0
                 bar = "#" * bar_len
-                print(f"    {identifier:<12} {bar} {seconds:.2f}s")
+                print(f"    {identifier:<16} {bar} {seconds:.2f}s")
 
 
 def main() -> None:
@@ -156,11 +156,20 @@ def main() -> None:
     # resolution = 13
     # angles = (10, 20)
 
+    # naming: <orchestration>+<rotation kernel>[-fma][-native]
+    # python+cython = pyFFTW + C/Cython rotation (v5.0.2 baseline)
+    # python+rust   = pyFFTW + Rust rotation
+    # rust          = ndrustfft + Rust rotation (pure rust, compute-wise)
+    #
+    # NOTE: `fma` = fused multiply-add -> <https://doc.rust-lang.org/stable/core/primitive.f32.html#algebraic-operators>
     ENGINES = [
-        Engine("baseline", "cf1e3f8"),  # v5.0.2
-        Engine("python", "ab1800d"),
-        Engine("rust-native", "ab1800d", flag="--rust", optimize=True),
+        Engine("python+cython", "cf1e3f8"),  # v5.0.2
+        Engine("python+rust", "ab1800d"),
+        Engine("python+rust-fma", "f60fce9"),
         Engine("rust", "ab1800d", flag="--rust"),
+        Engine("rust-fma", "f60fce9", flag="--rust"),
+        Engine("rust-native", "ab1800d", flag="--rust", optimize=True),
+        Engine("rust-fma-native", "f60fce9", flag="--rust", optimize=True),
     ]
 
     print("-> running benchmarks")
@@ -171,7 +180,7 @@ def main() -> None:
             # NOTE: context here to make cleaning easier
             with engine.cloned() as clone_dir:
                 for angle, nproc in itertools.product(angles, nprocs):
-                    print(f"   {engine.identifier:<6} nproc={nproc:<2} angle={angle:<2} ", end="", flush=True)
+                    print(f"   {engine.identifier:<16} nproc={nproc:<2} angle={angle:<2} ", end="", flush=True)
                     # NOTE: dump results, we only need the times
                     with tempfile.TemporaryDirectory() as tmpdir:
                         seconds = engine.run_powerfit(
