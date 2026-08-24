@@ -6,6 +6,7 @@ use num_complex::Complex;
 
 use super::fft::{FftHandlers, ForwardFftScratch, InverseFftScratch, irfftn3_into, rfftn3_into};
 use super::rotation::rotate_pair_internal_into;
+use crate::algebraic::{conj_mul_alg, diff_alg};
 
 /// Reusable worker-local buffers for scan hot path.
 ///
@@ -139,7 +140,7 @@ pub fn scan_one_rotation(
         let fo = work.ft_out.as_slice_memory_order_mut().unwrap();
         let tft = target.target_ft.as_slice_memory_order().unwrap();
         for i in 0..fo.len() {
-            fo[i] = fo[i].conj() * tft[i];
+            fo[i] = conj_mul_alg(fo[i], tft[i]);
         }
     }
     irfftn3_into(
@@ -173,7 +174,7 @@ pub fn scan_one_rotation(
         let fo = work.ft_out.as_slice_memory_order_mut().unwrap();
         let tft = target.target_ft.as_slice_memory_order().unwrap();
         for i in 0..fo.len() {
-            fo[i] = fo[i].conj() * tft[i];
+            fo[i] = conj_mul_alg(fo[i], tft[i]);
         }
     }
     irfftn3_into(
@@ -210,7 +211,7 @@ pub fn scan_one_rotation(
         let fo = work.ft_out.as_slice_memory_order_mut().unwrap();
         let tft2 = target.target2_ft.as_slice_memory_order().unwrap();
         for i in 0..fo.len() {
-            fo[i] = fo[i].conj() * tft2[i];
+            fo[i] = conj_mul_alg(fo[i], tft2[i]);
         }
     }
     irfftn3_into(
@@ -241,8 +242,7 @@ pub fn scan_one_rotation(
     ) {
         for &i in target.lcc_mask_indices {
             debug_assert!(mask_s[i]);
-            let ave2_v = ave2_s[i] * norm_factor;
-            let var = ave2_v - ave_s[i] * ave_s[i];
+            let var = diff_alg(ave2_s[i], norm_factor, ave_s[i], ave_s[i]);
             let lcc_val = if var > 0.0 {
                 gcc_s[i] / var.sqrt()
             } else {
@@ -262,7 +262,7 @@ pub fn scan_one_rotation(
             .and(target.lcc_mask_arr)
             .for_each(|best_lcc, best_rot, &gcc_v, &ave_v, &ave2_v, &mask_v| {
                 if mask_v {
-                    let var = ave2_v * norm_factor - ave_v * ave_v;
+                    let var = diff_alg(ave2_v, norm_factor, ave_v, ave_v);
                     let lcc_val = if var > 0.0 { gcc_v / var.sqrt() } else { 0.0 };
                     if lcc_val > *best_lcc {
                         *best_lcc = lcc_val;
