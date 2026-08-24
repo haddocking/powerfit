@@ -3,6 +3,19 @@ use numpy::{PyArray3, PyArrayMethods, PyReadonlyArray2, PyReadonlyArray3};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
+/// `a + b * c`, using algebraic (fast-math-safe, stabilized Rust 1.98)
+/// float semantics so the compiler may reorder/fuse into an FMA.
+#[inline(always)]
+fn fma_alg(a: f32, b: f32, c: f32) -> f32 {
+    a.algebraic_add(b.algebraic_mul(c))
+}
+
+/// `a * wa + b * wb`, using algebraic float semantics.
+#[inline(always)]
+fn blend_alg(a: f32, wa: f32, b: f32, wb: f32) -> f32 {
+    a.algebraic_mul(wa).algebraic_add(b.algebraic_mul(wb))
+}
+
 /// Shared kernel behind both `rotate_grid3d` and `rotate_grid3d_pair`'s
 /// template rotation: samples `grid` at the *inverse* of `rotmat` for every
 /// integer offset within `radius` of the origin (voxels farther than
@@ -67,9 +80,9 @@ fn rotate_grid3d_core(
                     continue;
                 }
                 let yf = y as f32;
-                let xcoor_zy = xcoor_z + r10 * yf;
-                let ycoor_zy = ycoor_z + r11 * yf;
-                let zcoor_zy = zcoor_z + r12 * yf;
+                let xcoor_zy = fma_alg(xcoor_z, r10, yf);
+                let ycoor_zy = fma_alg(ycoor_z, r11, yf);
+                let zcoor_zy = fma_alg(zcoor_z, r12, yf);
 
                 let mut out_zy = out_z + y as isize * os2;
                 if y < 0 {
@@ -82,9 +95,9 @@ fn rotate_grid3d_core(
                         continue;
                     }
                     let xf = x as f32;
-                    let xcoor_zyx = xcoor_zy + r00 * xf;
-                    let ycoor_zyx = ycoor_zy + r01 * xf;
-                    let zcoor_zyx = zcoor_zy + r02 * xf;
+                    let xcoor_zyx = fma_alg(xcoor_zy, r00, xf);
+                    let ycoor_zyx = fma_alg(ycoor_zy, r01, xf);
+                    let zcoor_zyx = fma_alg(zcoor_zy, r02, xf);
 
                     let mut out_zyx = out_zy + x as isize;
                     if x < 0 {
@@ -134,9 +147,9 @@ fn rotate_grid3d_core(
                     continue;
                 }
                 let yf = y as f32;
-                let xcoor_zy = xcoor_z + r10 * yf;
-                let ycoor_zy = ycoor_z + r11 * yf;
-                let zcoor_zy = zcoor_z + r12 * yf;
+                let xcoor_zy = fma_alg(xcoor_z, r10, yf);
+                let ycoor_zy = fma_alg(ycoor_z, r11, yf);
+                let zcoor_zy = fma_alg(zcoor_z, r12, yf);
 
                 let mut out_zy = out_z + y as isize * os2;
                 if y < 0 {
@@ -149,9 +162,9 @@ fn rotate_grid3d_core(
                         continue;
                     }
                     let xf = x as f32;
-                    let xcoor_zyx = xcoor_zy + r00 * xf;
-                    let ycoor_zyx = ycoor_zy + r01 * xf;
-                    let zcoor_zyx = zcoor_zy + r02 * xf;
+                    let xcoor_zyx = fma_alg(xcoor_zy, r00, xf);
+                    let ycoor_zyx = fma_alg(ycoor_zy, r01, xf);
+                    let zcoor_zyx = fma_alg(zcoor_zy, r02, xf);
 
                     let mut out_zyx = out_zy + x as isize;
                     if x < 0 {
@@ -185,14 +198,23 @@ fn rotate_grid3d_core(
 
                     let off1: isize = if x1 == 0 { 1 - gs2 } else { 1 };
                     let c00 = unsafe {
-                        *grid_raw.offset(grid_zyx) * dx1 + *grid_raw.offset(grid_zyx + off1) * dx
+                        blend_alg(
+                            *grid_raw.offset(grid_zyx),
+                            dx1,
+                            *grid_raw.offset(grid_zyx + off1),
+                            dx,
+                        )
                     };
 
                     let off0y: isize = if y1 == 0 { gs2 - grid_slice } else { gs2 };
                     let off1y: isize = off0y + if x1 == 0 { 1 - gs2 } else { 1 };
                     let c10 = unsafe {
-                        *grid_raw.offset(grid_zyx + off0y) * dx1
-                            + *grid_raw.offset(grid_zyx + off1y) * dx
+                        blend_alg(
+                            *grid_raw.offset(grid_zyx + off0y),
+                            dx1,
+                            *grid_raw.offset(grid_zyx + off1y),
+                            dx,
+                        )
                     };
 
                     let off0z: isize = if z1 == 0 {
@@ -202,8 +224,12 @@ fn rotate_grid3d_core(
                     };
                     let off1z: isize = off0z + if x1 == 0 { 1 - gs2 } else { 1 };
                     let c01 = unsafe {
-                        *grid_raw.offset(grid_zyx + off0z) * dx1
-                            + *grid_raw.offset(grid_zyx + off1z) * dx
+                        blend_alg(
+                            *grid_raw.offset(grid_zyx + off0z),
+                            dx1,
+                            *grid_raw.offset(grid_zyx + off1z),
+                            dx,
+                        )
                     };
 
                     let mut off0zy: isize = if z1 == 0 {
@@ -214,14 +240,18 @@ fn rotate_grid3d_core(
                     off0zy += if y1 == 0 { gs2 - grid_slice } else { gs2 };
                     let off1zy: isize = off0zy + if x1 == 0 { 1 - gs2 } else { 1 };
                     let c11 = unsafe {
-                        *grid_raw.offset(grid_zyx + off0zy) * dx1
-                            + *grid_raw.offset(grid_zyx + off1zy) * dx
+                        blend_alg(
+                            *grid_raw.offset(grid_zyx + off0zy),
+                            dx1,
+                            *grid_raw.offset(grid_zyx + off1zy),
+                            dx,
+                        )
                     };
 
-                    let c0 = c00 * dy1 + c10 * dy;
-                    let c1 = c01 * dy1 + c11 * dy;
+                    let c0 = blend_alg(c00, dy1, c10, dy);
+                    let c1 = blend_alg(c01, dy1, c11, dy);
                     unsafe {
-                        *out_raw.offset(out_zyx) = c0 * dz1 + c1 * dz;
+                        *out_raw.offset(out_zyx) = blend_alg(c0, dz1, c1, dz);
                     }
                 }
             }
@@ -331,9 +361,9 @@ pub fn rotate_grid3d_pair<'py>(
                 continue;
             }
             let yf = y as f32;
-            let xcoor_zy = xcoor_z + r10 * yf;
-            let ycoor_zy = ycoor_z + r11 * yf;
-            let zcoor_zy = zcoor_z + r12 * yf;
+            let xcoor_zy = fma_alg(xcoor_z, r10, yf);
+            let ycoor_zy = fma_alg(ycoor_z, r11, yf);
+            let zcoor_zy = fma_alg(zcoor_z, r12, yf);
 
             let mut out_zy = out_z + y as isize * os2;
             if y < 0 {
@@ -346,9 +376,9 @@ pub fn rotate_grid3d_pair<'py>(
                     continue;
                 }
                 let xf = x as f32;
-                let xcoor_zyx = xcoor_zy + r00 * xf;
-                let ycoor_zyx = ycoor_zy + r01 * xf;
-                let zcoor_zyx = zcoor_zy + r02 * xf;
+                let xcoor_zyx = fma_alg(xcoor_zy, r00, xf);
+                let ycoor_zyx = fma_alg(ycoor_zy, r01, xf);
+                let zcoor_zyx = fma_alg(zcoor_zy, r02, xf);
 
                 let mut out_zyx = out_zy + x as isize;
                 if x < 0 {
@@ -382,15 +412,23 @@ pub fn rotate_grid3d_pair<'py>(
 
                 let off1: isize = if x1 == 0 { 1 - gs2 } else { 1 };
                 let c00 = unsafe {
-                    *template_raw.offset(grid_zyx) * dx1
-                        + *template_raw.offset(grid_zyx + off1) * dx
+                    blend_alg(
+                        *template_raw.offset(grid_zyx),
+                        dx1,
+                        *template_raw.offset(grid_zyx + off1),
+                        dx,
+                    )
                 };
 
                 let off0y: isize = if y1 == 0 { gs2 - grid_slice } else { gs2 };
                 let off1y: isize = off0y + if x1 == 0 { 1 - gs2 } else { 1 };
                 let c10 = unsafe {
-                    *template_raw.offset(grid_zyx + off0y) * dx1
-                        + *template_raw.offset(grid_zyx + off1y) * dx
+                    blend_alg(
+                        *template_raw.offset(grid_zyx + off0y),
+                        dx1,
+                        *template_raw.offset(grid_zyx + off1y),
+                        dx,
+                    )
                 };
 
                 let off0z: isize = if z1 == 0 {
@@ -400,8 +438,12 @@ pub fn rotate_grid3d_pair<'py>(
                 };
                 let off1z: isize = off0z + if x1 == 0 { 1 - gs2 } else { 1 };
                 let c01 = unsafe {
-                    *template_raw.offset(grid_zyx + off0z) * dx1
-                        + *template_raw.offset(grid_zyx + off1z) * dx
+                    blend_alg(
+                        *template_raw.offset(grid_zyx + off0z),
+                        dx1,
+                        *template_raw.offset(grid_zyx + off1z),
+                        dx,
+                    )
                 };
 
                 let mut off0zy: isize = if z1 == 0 {
@@ -412,12 +454,16 @@ pub fn rotate_grid3d_pair<'py>(
                 off0zy += if y1 == 0 { gs2 - grid_slice } else { gs2 };
                 let off1zy: isize = off0zy + if x1 == 0 { 1 - gs2 } else { 1 };
                 let c11 = unsafe {
-                    *template_raw.offset(grid_zyx + off0zy) * dx1
-                        + *template_raw.offset(grid_zyx + off1zy) * dx
+                    blend_alg(
+                        *template_raw.offset(grid_zyx + off0zy),
+                        dx1,
+                        *template_raw.offset(grid_zyx + off1zy),
+                        dx,
+                    )
                 };
 
-                let c0 = c00 * dy1 + c10 * dy;
-                let c1 = c01 * dy1 + c11 * dy;
+                let c0 = blend_alg(c00, dy1, c10, dy);
+                let c1 = blend_alg(c01, dy1, c11, dy);
 
                 let xm = xcoor_zyx.round() as isize;
                 let ym = ycoor_zyx.round() as isize;
@@ -435,7 +481,7 @@ pub fn rotate_grid3d_pair<'py>(
                 }
 
                 unsafe {
-                    *out_template_raw.offset(out_zyx) = c0 * dz1 + c1 * dz;
+                    *out_template_raw.offset(out_zyx) = blend_alg(c0, dz1, c1, dz);
                     *out_mask_raw.offset(out_zyx) = *mask_raw.offset(mask_idx);
                 }
             }
