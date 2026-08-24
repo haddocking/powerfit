@@ -62,6 +62,10 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.14"
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
       - name: install python deps from pypi
         run: pip install -e .[dev]
       - name: Check style against standards using ruff
