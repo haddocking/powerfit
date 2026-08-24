@@ -100,17 +100,20 @@ class Engine:
         return (int(minutes) * 60 if minutes else 0) + float(seconds)
 
 
-def fetch_data(map_url: str, pdb_url: str) -> tuple[Path, Path]:
+@contextmanager
+def fetch_data(map_url: str, pdb_url: str) -> Iterator[tuple[Path, Path]]:
     print("-> fetching data")
-    data_dir = Path(tempfile.mkdtemp(prefix="pf-bench-data"))
+    data_dir = Path(tempfile.mkdtemp(prefix="pf-bench-data-"))
+    try:
+        map_path = data_dir / Path(urlparse(map_url).path).name
+        pdb_path = data_dir / Path(urlparse(pdb_url).path).name
 
-    map_path = data_dir / Path(urlparse(map_url).path).name
-    pdb_path = data_dir / Path(urlparse(pdb_url).path).name
+        urllib.request.urlretrieve(map_url, map_path)
+        urllib.request.urlretrieve(pdb_url, pdb_path)
 
-    urllib.request.urlretrieve(map_url, map_path)
-    urllib.request.urlretrieve(pdb_url, pdb_path)
-
-    return map_path, pdb_path
+        yield map_path, pdb_path
+    finally:
+        shutil.rmtree(data_dir, ignore_errors=True)
 
 
 def main() -> None:
@@ -136,29 +139,29 @@ def main() -> None:
         Engine("rust", "ab1800d", flag="--rust"),
     ]
 
-    map_path, pdb_path = fetch_data(map_url=map_url, pdb_url=pdb_url)
-
     print("-> running benchmarks")
     rows = []
-    for engine in ENGINES:
-        # NOTE: context here to make cleaning easier
-        with engine.cloned() as clone_dir:
-            for angle, nproc in itertools.product(angles, nprocs):
-                print(f"   {engine.identifier:<6} nproc={nproc:<2} angle={angle:<2} ", end="", flush=True)
-                # NOTE: dump results, we only need the times
-                with tempfile.TemporaryDirectory() as tmpdir:
-                    seconds = engine.run_powerfit(
-                        clone_dir=clone_dir,
-                        map_path=map_path,
-                        pdb_path=pdb_path,
-                        angle=angle,
-                        resolution=resolution,
-                        nproc=nproc,
-                        out_dir=Path(tmpdir),
-                    )
+    # NOTE: context here to make cleaning easier
+    with fetch_data(map_url=map_url, pdb_url=pdb_url) as (map_path, pdb_path):
+        for engine in ENGINES:
+            # NOTE: context here to make cleaning easier
+            with engine.cloned() as clone_dir:
+                for angle, nproc in itertools.product(angles, nprocs):
+                    print(f"   {engine.identifier:<6} nproc={nproc:<2} angle={angle:<2} ", end="", flush=True)
+                    # NOTE: dump results, we only need the times
+                    with tempfile.TemporaryDirectory() as tmpdir:
+                        seconds = engine.run_powerfit(
+                            clone_dir=clone_dir,
+                            map_path=map_path,
+                            pdb_path=pdb_path,
+                            angle=angle,
+                            resolution=resolution,
+                            nproc=nproc,
+                            out_dir=Path(tmpdir),
+                        )
 
-                rows.append((engine.identifier, nproc, angle, seconds))
-                print(f"{seconds:.3f}s")
+                    rows.append((engine.identifier, nproc, angle, seconds))
+                    print(f"{seconds:.3f}s")
 
     summary_path = Path.cwd() / "summary.csv"
     with summary_path.open("w") as f:
