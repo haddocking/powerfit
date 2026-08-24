@@ -3,18 +3,7 @@ use numpy::{PyArray3, PyArrayMethods, PyReadonlyArray2, PyReadonlyArray3};
 use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 
-/// `a + b * c`, using algebraic (fast-math-safe, stabilized Rust 1.98)
-/// float semantics so the compiler may reorder/fuse into an FMA.
-#[inline(always)]
-fn fma_alg(a: f32, b: f32, c: f32) -> f32 {
-    a.algebraic_add(b.algebraic_mul(c))
-}
-
-/// `a * wa + b * wb`, using algebraic float semantics.
-#[inline(always)]
-fn blend_alg(a: f32, wa: f32, b: f32, wb: f32) -> f32 {
-    a.algebraic_mul(wa).algebraic_add(b.algebraic_mul(wb))
-}
+use crate::algebraic::{blend_alg, fma_alg};
 
 /// Shared kernel behind both `rotate_grid3d` and `rotate_grid3d_pair`'s
 /// template rotation: samples `grid` at the *inverse* of `rotmat` for every
