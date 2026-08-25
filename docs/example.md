@@ -8,12 +8,12 @@ The data is hosted on the [powerfit-examples github repository](https://github.c
 First download the input files and install PowerFit:
 
 ```shell
-# Downloads the unput files
+# Downloads the input files
 mkdir powerfit-example-data/
 cd powerfit-example-data
-wget https://github.com/haddocking/powerfit-examples/raw/refs/heads/main/3zpz_C.cif.gz
-wget https://github.com/haddocking/powerfit-examples/raw/refs/heads/main/EMD-2325.map.gz
-# Create an environemnt
+curl -L -o 3zpz_C.cif.gz https://github.com/haddocking/powerfit-examples/raw/refs/heads/main/3zpz_C.cif.gz
+curl -L -o EMD-2325.map.gz https://github.com/haddocking/powerfit-examples/raw/refs/heads/main/EMD-2325.map.gz
+# Create an environment, on Windows use WSL
 python3 -m venv .venv
 .venv/bin/activate # or activate equivalent for your OS/shell
 # Install PowerFit release version 5.0.2
@@ -25,9 +25,9 @@ corresponding cryo-EM density map of the full complex (EMDB entry 2325 - 8.9 Å 
 a rotational sampling interval of 5 degrees.
 
 In the repository you find the following files:
-- `3zpz_C.cif.gz`
-- `EMD-2325.map.gz`
-- `output.zip`
+- [3zpz_C.cif.gz](https://github.com/haddocking/powerfit-examples/raw/refs/heads/main/3zpz_C.cif.gz)
+- [EMD-2325.map.gz](https://github.com/haddocking/powerfit-examples/raw/refs/heads/main/EMD-2325.map.gz)
+- [output.zip](https://github.com/haddocking/powerfit-examples/raw/refs/heads/main/output.zip)
 
 The following command can be used to generate the output present in `output.zip`:
 
@@ -41,7 +41,7 @@ Dependent on your system and the amount of CPUs used to run the example, this ru
 If you want to quickly check the results of the run, you can directly downloads `output.zip`
 ```shell
 # Download ouput.zip
-wget https://github.com/haddocking/powerfit-examples/raw/refs/heads/main/output.zip
+curl -L -o output.zip https://github.com/haddocking/powerfit-examples/raw/refs/heads/main/output.zip
 ```
 
 Please refer to the [manual](https://www.bonvinlab.org/powerfit/manual.html#output) for an explanation
