@@ -243,12 +243,9 @@ Follow the general instructions [here](README.md#installation) to install
 
 ### Windows
 
-First install *git* for Windows, as it comes with a handy bash shell. Go to
-[git-scm](https://git-scm.com/download/), download *git* and install it. Next,
-install a Python distribution such as
-[Anaconda](http://continuum.io/downloads). After installation, open up the
-bash shell shipped with *git* and follow the general instructions written
-above.
+You can not run PowerFit natively on Windows, but you can use the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) to run it. Open a WSL terminal and follow the [Linux installation instructions](#linux) above.
+If you have an NVIDIA GPU, you can use the CUDA GPU backend after you follow
+the instructions [here](https://docs.nvidia.com/cuda/wsl-user-guide/index.html).
 
 ## Tested platforms
 
@@ -256,7 +253,7 @@ above.
 | --------------- | ---------- | --------- | --- | -- |
 |Linux            | Yes        | Yes       | Yes | Yes |
 |MacOSX           | Yes        | Yes       | No  | No  |
-|Windows          | Yes        | Fail      | No  | No  |
+|Windows via WSL  | Yes        | Yes       | No  | Yes  |
 
 The GPU version has been successfully tested on Linux and with a Docker container for the following devices;
 
