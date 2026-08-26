@@ -4,6 +4,7 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14185749.svg)](https://doi.org/10.5281/zenodo.14185749)
 [![Research Software Directory Badge](https://img.shields.io/badge/rsd-powerfit-00a3e3.svg)](https://www.research-software.nl/software/powerfit)
 [![SBGrid Badge](https://img.shields.io/badge/PowerFit-blue?label=SBGrid&labelColor=%3D)](https://sbgrid.org/software/titles/powerfit)
+![AI Declaration Format](https://img.shields.io/badge/AI_Declaration_Format-validated-blue)
 
 ## About PowerFit
 
@@ -104,3 +105,9 @@ Copyright (c) 2005-2015, Christoph Gohlke
 ## Contributing
 
 To contribute to PowerFit, see our [Contribution guidelines](CONTRIBUTING.md).
+
+## AI Declaration
+
+Large language models (LLM) were used in this repository since [v3.0.0](https://github.com/haddocking/powerfit/releases/tag/v3.0.0).
+The changes were always reviewed by a human before being merged.
+See [aidecl.yaml](aidecl.yaml) for machine-readable details of the LLM usage.
