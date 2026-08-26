@@ -1,3 +1,7 @@
+# /// script
+# requires-python = ">=3.14"
+# dependencies = []
+# ///
 """
 Usage:
     uv run python tests/scripts/bench_correlators.py
