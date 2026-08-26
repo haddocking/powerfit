@@ -147,10 +147,10 @@ def print_chart(summary_path: Path, bar_width: int = 40) -> None:
 def main() -> None:
 
     # point check
-    # nprocs = (1, 16)
+    nprocs = (1, 4, 8, 16)
 
     # full sweep
-    nprocs = tuple(range(1, 96 + 1))
+    # nprocs = tuple(range(1, 96 + 1))
 
     # paper data
     map_url = "https://ftp.ebi.ac.uk/pub/databases/emdb/structures/EMD-1046/map/emd_1046.map.gz"
@@ -170,11 +170,11 @@ def main() -> None:
         # python+rust = pyFFTW + Rust rotation (--rust off)
         Engine("python+rust", "bc27fc1"),
         # rust-pre-fma = ndrustfft + Rust rotation (pure rust) before FMA
-        Engine("rust-pre-fma", "a78c7ab", flag="--rust"),
+        # Engine("rust-pre-fma", "a78c7ab", flag="--rust"),
         # rust = ndrustfft + Rust rotation (pure rust)
         Engine("rust", "bc27fc1", flag="--rust"),
         # rust-native-pre-fma = ndrustfft + Rust rotation (pure rust) before FMA optimized
-        Engine("rust-native-pre-fma", "a78c7ab", flag="--rust", optimize=True),
+        # Engine("rust-native-pre-fma", "a78c7ab", flag="--rust", optimize=True),
         # rust-native = ndrustfft + Rust rotation (pure rust), built with RUSTFLAGS="-C target-cpu=native"
         Engine("rust-native", "bc27fc1", flag="--rust", optimize=True),
     ]
