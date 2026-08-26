@@ -155,20 +155,15 @@ def main() -> None:
     # resolution = 13
     # angle = 20
 
-    # naming: <orchestration>+<rotation kernel>[-fma][-native]
-    # python+cython = pyFFTW + C/Cython rotation (v5.0.2 baseline)
-    # python+rust   = pyFFTW + Rust rotation
-    # rust          = ndrustfft + Rust rotation (pure rust, compute-wise)
-    #
-    # NOTE: `fma` = fused multiply-add -> <https://doc.rust-lang.org/stable/core/primitive.f32.html#algebraic-operators>
     ENGINES = [
-        Engine("python+cython", "cf1e3f8"),  # v5.0.2
-        Engine("python+rust", "ab1800d"),
-        Engine("python+rust-fma", "a78c7ab"),
-        Engine("rust", "ab1800d", flag="--rust"),
-        Engine("rust-fma", "a78c7ab", flag="--rust"),
-        Engine("rust-native", "ab1800d", flag="--rust", optimize=True),
-        Engine("rust-fma-native", "a78c7ab", flag="--rust", optimize=True),
+        # python+cython = pyFFTW + C/Cython rotation (v5.0.2 baseline)
+        Engine("python+cython", "cf1e3f8"),
+        # python+rust = pyFFTW + Rust rotation (--rust off)
+        Engine("python+rust", "bc27fc1"),
+        # rust = ndrustfft + Rust rotation (pure rust)
+        Engine("rust", "bc27fc1", flag="--rust"),
+        # rust-native = ndrustfft + Rust rotation (pure rust), built with RUSTFLAGS="-C target-cpu=native"
+        Engine("rust-native", "bc27fc1", flag="--rust", optimize=True),
     ]
 
     print("-> running benchmarks")
