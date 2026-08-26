@@ -142,7 +142,11 @@ def print_chart(summary_path: Path, bar_width: int = 40) -> None:
 
 def main() -> None:
 
-    nprocs = (1, 16)
+    # point check
+    # nprocs = (1, 16)
+
+    # full sweep
+    nprocs = tuple(range(1, 96 + 1))
 
     # paper data
     map_url = "https://ftp.ebi.ac.uk/pub/databases/emdb/structures/EMD-1046/map/emd_1046.map.gz"
