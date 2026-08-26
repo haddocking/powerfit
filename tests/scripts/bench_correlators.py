@@ -1,10 +1,13 @@
+# /// script
+# requires-python = ">=3.14"
+# dependencies = []
+# ///
 """
 Usage:
     uv run python tests/scripts/bench_correlators.py
 """
 
 import csv
-import itertools
 import os
 import re
 import shutil
@@ -127,51 +130,65 @@ def print_chart(summary_path: Path, bar_width: int = 40) -> None:
         return
 
     max_seconds = max(seconds for _, _, _, seconds in rows)
+    name_width = max(len(identifier) for identifier, _, _, _ in rows)
 
     print("\n-> chart (search seconds)")
     for angle in sorted({a for _, _, a, _ in rows}):
         for nproc in sorted({n for _, n, a, _ in rows if a == angle}):
-            print(f"\n  angle={angle} nproc={nproc}")
+            print(f"\n  nproc={nproc}")
             for identifier, n, a, seconds in rows:
                 if n != nproc or a != angle:
                     continue
                 bar_len = round(seconds / max_seconds * bar_width) if max_seconds else 0
                 bar = "#" * bar_len
-                print(f"    {identifier:<12} {bar} {seconds:.2f}s")
+                print(f"    {identifier:<{name_width}} {bar} {seconds:.2f}s")
 
 
 def main() -> None:
 
-    nprocs = (1, 4, 16)
+    # point check
+    # nprocs = (1, 16)
+
+    # full sweep
+    nprocs = tuple(range(1, 96 + 1))
 
     # paper data
     map_url = "https://ftp.ebi.ac.uk/pub/databases/emdb/structures/EMD-1046/map/emd_1046.map.gz"
     pdb_url = "https://files.rcsb.org/download/9A2G.cif.gz"
     resolution = 20
-    angles = (4.71,)
+    angle = 4.71
 
     # "tutorial" data
     # map_url = "https://github.com/haddocking/powerfit-tutorial/raw/refs/heads/master/ribosome-KsgA.map"
     # pdb_url = "https://github.com/haddocking/powerfit-tutorial/raw/refs/heads/master/KsgA.pdb"
     # resolution = 13
-    # angles = (10, 20)
+    # angle = 20
 
     ENGINES = [
-        Engine("baseline", "cf1e3f8"),  # v5.0.2
-        Engine("python", "ab1800d"),
-        Engine("rust-native", "ab1800d", flag="--rust", optimize=True),
-        Engine("rust", "ab1800d", flag="--rust"),
+        # python+cython = pyFFTW + C/Cython rotation (v5.0.2 baseline)
+        Engine("python+cython", "cf1e3f8"),
+        # python+rust = pyFFTW + Rust rotation (--rust off)
+        Engine("python+rust", "bc27fc1"),
+        # rust-pre-fma = ndrustfft + Rust rotation (pure rust) before FMA
+        Engine("rust-pre-fma", "a78c7ab", flag="--rust"),
+        # rust = ndrustfft + Rust rotation (pure rust)
+        Engine("rust", "bc27fc1", flag="--rust"),
+        # rust-native-pre-fma = ndrustfft + Rust rotation (pure rust) before FMA optimized
+        Engine("rust-native-pre-fma", "a78c7ab", flag="--rust", optimize=True),
+        # rust-native = ndrustfft + Rust rotation (pure rust), built with RUSTFLAGS="-C target-cpu=native"
+        Engine("rust-native", "bc27fc1", flag="--rust", optimize=True),
     ]
 
     print("-> running benchmarks")
     rows = []
+    name_width = max(len(engine.identifier) for engine in ENGINES)
     # NOTE: context here to make cleaning easier
     with fetch_data(map_url=map_url, pdb_url=pdb_url) as (map_path, pdb_path):
         for engine in ENGINES:
             # NOTE: context here to make cleaning easier
             with engine.cloned() as clone_dir:
-                for angle, nproc in itertools.product(angles, nprocs):
-                    print(f"   {engine.identifier:<6} nproc={nproc:<2} angle={angle:<2} ", end="", flush=True)
+                for nproc in nprocs:
+                    print(f"   {engine.identifier:<{name_width}} nproc={nproc:<2} ", end="", flush=True)
                     # NOTE: dump results, we only need the times
                     with tempfile.TemporaryDirectory() as tmpdir:
                         seconds = engine.run_powerfit(

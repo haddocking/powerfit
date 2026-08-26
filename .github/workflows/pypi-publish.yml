@@ -37,6 +37,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.inputs.ref }}
+      - uses: dtolnay/rust-toolchain@stable
       - name: Build wheels
         uses: pypa/cibuildwheel@v4.0.0
         env:
@@ -54,6 +55,7 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.inputs.ref }}
+      - uses: dtolnay/rust-toolchain@stable
       - name: Setup Rust target
         run: rustup target add wasm32-unknown-emscripten
       - name: Build wheels
