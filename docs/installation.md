@@ -139,7 +139,7 @@ sudo docker run --rm -ti \
 
 ### Linux
 
-Linux systems usually already include a Python3.10 or greater distribution. First make
+Linux systems usually already include a Python3.11 or greater distribution. First make
 sure the Python header files, pip and *git* are available by
 opening up a terminal and typing for Debian and Ubuntu systems
 

@@ -27,7 +27,7 @@ been succesfully installed and used on Linux and MacOSX machines.
 
 Minimal requirements for the CPU version:
 
-* Python3.10 or greater
+* Python3.11 or greater
 
 To offload computations to a discrete or integrated\* GPU the following is also required
 
