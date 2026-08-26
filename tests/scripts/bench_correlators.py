@@ -159,10 +159,10 @@ def main() -> None:
     ENGINES = [
         # python+cython = pyFFTW + C/Cython rotation (v5.0.2 baseline)
         Engine("python+cython", "cf1e3f8"),
-        # python+rust-pre-opt = pyFFTW + Rust rotation before FMA
-        Engine("python+rust-pre-opt", "40cc084"),
         # python+rust = pyFFTW + Rust rotation (--rust off)
         Engine("python+rust", "bc27fc1"),
+        # rust-pre-fma = ndrustfft + Rust rotation (pure rust) before FMA
+        Engine("rust-pre-fma", "40cc084", flag="--rust"),
         # rust = ndrustfft + Rust rotation (pure rust)
         Engine("rust", "bc27fc1", flag="--rust"),
         # rust-native = ndrustfft + Rust rotation (pure rust), built with RUSTFLAGS="-C target-cpu=native"
