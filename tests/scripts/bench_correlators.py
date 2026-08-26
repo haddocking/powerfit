@@ -165,6 +165,8 @@ def main() -> None:
         Engine("rust-pre-fma", "40cc084", flag="--rust"),
         # rust = ndrustfft + Rust rotation (pure rust)
         Engine("rust", "bc27fc1", flag="--rust"),
+        # rust-pre-fma = ndrustfft + Rust rotation (pure rust) before FMA optimized
+        Engine("rust-native-pre-fma", "40cc084", flag="--rust", optimize=True),
         # rust-native = ndrustfft + Rust rotation (pure rust), built with RUSTFLAGS="-C target-cpu=native"
         Engine("rust-native", "bc27fc1", flag="--rust", optimize=True),
     ]
