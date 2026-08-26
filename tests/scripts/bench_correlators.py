@@ -170,11 +170,11 @@ def main() -> None:
         # python+rust = pyFFTW + Rust rotation (--rust off)
         Engine("python+rust", "bc27fc1"),
         # rust-pre-fma = ndrustfft + Rust rotation (pure rust) before FMA
-        Engine("rust-pre-fma", "40cc084", flag="--rust"),
+        Engine("rust-pre-fma", "a78c7ab", flag="--rust"),
         # rust = ndrustfft + Rust rotation (pure rust)
         Engine("rust", "bc27fc1", flag="--rust"),
-        # rust-pre-fma = ndrustfft + Rust rotation (pure rust) before FMA optimized
-        Engine("rust-native-pre-fma", "40cc084", flag="--rust", optimize=True),
+        # rust-native-pre-fma = ndrustfft + Rust rotation (pure rust) before FMA optimized
+        Engine("rust-native-pre-fma", "a78c7ab", flag="--rust", optimize=True),
         # rust-native = ndrustfft + Rust rotation (pure rust), built with RUSTFLAGS="-C target-cpu=native"
         Engine("rust-native", "bc27fc1", flag="--rust", optimize=True),
     ]
