@@ -126,6 +126,7 @@ def print_chart(summary_path: Path, bar_width: int = 40) -> None:
         return
 
     max_seconds = max(seconds for _, _, _, seconds in rows)
+    name_width = max(len(identifier) for identifier, _, _, _ in rows)
 
     print("\n-> chart (search seconds)")
     for angle in sorted({a for _, _, a, _ in rows}):
@@ -136,7 +137,7 @@ def print_chart(summary_path: Path, bar_width: int = 40) -> None:
                     continue
                 bar_len = round(seconds / max_seconds * bar_width) if max_seconds else 0
                 bar = "#" * bar_len
-                print(f"    {identifier:<16} {bar} {seconds:.2f}s")
+                print(f"    {identifier:<{name_width}} {bar} {seconds:.2f}s")
 
 
 def main() -> None:
@@ -159,7 +160,7 @@ def main() -> None:
         # python+cython = pyFFTW + C/Cython rotation (v5.0.2 baseline)
         Engine("python+cython", "cf1e3f8"),
         # python+rust-pre-opt = pyFFTW + Rust rotation before FMA
-        Engine("python+cython-pre-opt", "40cc084"),
+        Engine("python+rust-pre-opt", "40cc084"),
         # python+rust = pyFFTW + Rust rotation (--rust off)
         Engine("python+rust", "bc27fc1"),
         # rust = ndrustfft + Rust rotation (pure rust)
@@ -170,13 +171,14 @@ def main() -> None:
 
     print("-> running benchmarks")
     rows = []
+    name_width = max(len(engine.identifier) for engine in ENGINES)
     # NOTE: context here to make cleaning easier
     with fetch_data(map_url=map_url, pdb_url=pdb_url) as (map_path, pdb_path):
         for engine in ENGINES:
             # NOTE: context here to make cleaning easier
             with engine.cloned() as clone_dir:
                 for nproc in nprocs:
-                    print(f"   {engine.identifier:<16} nproc={nproc:<2} ", end="", flush=True)
+                    print(f"   {engine.identifier:<{name_width}} nproc={nproc:<2} ", end="", flush=True)
                     # NOTE: dump results, we only need the times
                     with tempfile.TemporaryDirectory() as tmpdir:
                         seconds = engine.run_powerfit(
