@@ -68,6 +68,7 @@ python-source = "src"
 module-name = "powerfit_em.powerfit_rs"
 include = [
   { path = "README.md", format = "sdist" },
+  { path = "LICENSE", format = "sdist" },
   "powerfit_em/data/*.npy",
   "powerfit_em/correlators/kernels.cl",
   "powerfit_em/correlators/kernels.cu",
