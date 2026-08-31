@@ -1,7 +1,8 @@
 [package]
 name = "powerfit_rs"
-version = "5.0.2"
+version = "6.0.1"
 edition = "2024"
+rust-version = "1.98"
 description = "Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps"
 license = "Apache-2.0"
 homepage = "https://github.com/haddocking/powerfit"
@@ -36,5 +37,5 @@ opt-level = 3
 
 [profile.release]
 codegen-units = 1
-lto = "thin"
+lto = "fat"
 strip = true

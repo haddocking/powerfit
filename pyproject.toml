@@ -7,18 +7,17 @@ name = "powerfit-em"
 description = "Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps"
 authors = [{ name = "Gydo C.P. van Zundert", email = "g.c.p.vanzundert@uu.nl" }]
 maintainers = [{ name = "BonvinLab" }, { email = "bonvinlab.support@uu.nl" }]
-requires-python = ">=3.10"
-readme = { file = "README.md", content-type = "text/markdown" }
-dynamic = ["version"]
+requires-python = ">=3.11,<4.0"
+dynamic = ["readme", "version"]
 license = "Apache-2.0"
 classifiers = [
-  "Development Status :: 3 - Alpha",
-  "Programming Language :: Python :: 3.10",
-  "Programming Language :: Python :: 3.11",
-  "Programming Language :: Python :: 3.12",
-  "Programming Language :: Python :: 3.13",
-  "Intended Audience :: Science/Research",
-  "Topic :: Scientific/Engineering :: Bio-Informatics",
+    "Development Status :: 3 - Alpha",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Bio-Informatics"
 ]
 dependencies = [
   "numpy>=1.8",
@@ -32,8 +31,8 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-opencl = ["pyopencl", "siphash24", "pyvkfft"]
-pocl = ["pyopencl[pocl]", "siphash24", "pyvkfft"]
+opencl = ["pyopencl", "siphash24", "pyvkfft", "mako"]
+pocl = ["pyopencl[pocl]", "siphash24", "pyvkfft", "mako"]
 cuda13x = ["cupy-cuda13x", "siphash24", "pyvkfft"]
 cuda12x = ["cupy-cuda12x", "siphash24", "pyvkfft"]
 dev = [
@@ -78,6 +77,7 @@ python-source = "src"
 module-name = "powerfit_em.powerfit_rs"
 include = [
   { path = "README.md", format = "sdist" },
+  { path = "LICENSE", format = "sdist" },
   "powerfit_em/data/*.npy",
   "powerfit_em/correlators/kernels.cl",
   "powerfit_em/correlators/kernels.cu",
@@ -85,7 +85,7 @@ include = [
 
 [tool.cibuildwheel]
 # Skip build that do not work or are not needed
-skip = "cp314-manylinux* cp314-musllinux* cp314-macosx* cp314-win* cp310-musllinux* cp311-musllinux* cp312-musllinux* *universal2"
+skip = "cp314-musllinux* cp310* cp311-musllinux* cp312-musllinux* *universal2"
 archs = ["auto64"]
 test-command = "powerfit --help"
 
