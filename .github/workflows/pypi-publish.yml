@@ -4,9 +4,9 @@ on:
   workflow_dispatch:
     inputs:
       ref:
-        description: 'Reference to checkout'
+        description: "Reference to checkout"
         required: true
-        default: 'master'
+        default: "master"
   pull_request:
   push:
     branches:
@@ -21,7 +21,7 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     strategy:
       matrix:
-        os: [ linux-intel, linux-arm, macOS-arm, pyodide ]
+        os: [linux-intel, linux-arm, macos-arm]
         include:
           - archs: auto64
             platform: auto
@@ -33,14 +33,11 @@ jobs:
             # macos-14+ (including latest) are ARM64 runners
             runs-on: macos-latest
             archs: auto64
-          - os: pyodide
-            runs-on: ubuntu-latest
-            platform: pyodide
-            archs: wasm32
     steps:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.inputs.ref }}
+      - uses: dtolnay/rust-toolchain@stable
       - name: Build wheels
         uses: pypa/cibuildwheel@v4.0.0
         env:
@@ -49,6 +46,28 @@ jobs:
       - uses: actions/upload-artifact@v7
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
+          path: ./wheelhouse/*.whl
+
+  build_wasm:
+    name: Build wasm wheel (Pyodide)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event.inputs.ref }}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Setup Rust target
+        run: rustup target add wasm32-unknown-emscripten
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v4.0.0
+        env:
+          CIBW_PLATFORM: pyodide
+          CIBW_ARCHS: wasm32
+          CIBW_BUILD: cp314-pyodide_wasm32
+          CIBW_ENABLE: pyodide-prerelease
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cibw-wheels-pyodide-0
           path: ./wheelhouse/*.whl
 
   build_sdist:
@@ -61,7 +80,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.13"
+          python-version: "3.14"
           cache: "pip"
       - name: Install build
         run: pip install build
@@ -73,13 +92,13 @@ jobs:
           path: dist/*.tar.gz
 
   upload_pypi:
-    needs: [build_wheels, build_sdist]
+    needs: [build_wheels, build_wasm, build_sdist]
     runs-on: ubuntu-latest
     environment:
-        name: pypi
-        url: https://pypi.org/p/powerfit-em
+      name: pypi
+      url: https://pypi.org/p/powerfit-em
     permissions:
-        id-token: write
+      id-token: write
     if: github.event_name == 'release' && github.event.action == 'published'
     steps:
       - uses: actions/download-artifact@v8

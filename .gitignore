@@ -12,6 +12,8 @@ powerfit_em.egg-info/
 src/powerfit_em/_powerfit.c
 src/powerfit_em/_extensions.*.so
 src/powerfit_em/_powerfit.*.so
+src/powerfit_em/powerfit_rs.*
 
 .coverage
 coverage.xml
+/target/rust-analyzer

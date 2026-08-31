@@ -1,0 +1,41 @@
+[package]
+name = "powerfit_rs"
+version = "6.0.0"
+edition = "2024"
+rust-version = "1.98"
+description = "Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps"
+license = "Apache-2.0"
+homepage = "https://github.com/haddocking/powerfit"
+repository = "https://github.com/haddocking/powerfit"
+documentation = "https://bonvinlab.org/powerfit"
+readme = "../README.md"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "powerfit_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+pyo3 = "0.28.3"
+numpy = "0.28.0"
+ndarray = { version = "0.17", features = ["rayon"] }
+ndrustfft = "0.6"
+num-complex = "0.4"
+rayon = "1"
+
+[dev-dependencies]
+# `Python::attach` in unit tests needs an embedded interpreter; the real
+# cdylib build (loaded into an already-running Python) must not link this in,
+# so it's scoped to dev-dependencies rather than added as a feature above.
+pyo3 = { version = "0.28.3", features = ["auto-initialize"] }
+
+[profile.dev]
+# `maturin develop` uses Cargo's dev profile by default.
+# Keep debug symbols for iteration, but compile hot loops with optimization
+# so runtime performance is representative for CPU benchmarks.
+opt-level = 3
+
+[profile.release]
+codegen-units = 1
+lto = "fat"
+strip = true

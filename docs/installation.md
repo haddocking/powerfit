@@ -247,6 +247,20 @@ You can not run PowerFit natively on Windows, but you can use the [Windows Subsy
 If you have an NVIDIA GPU, you can use the CUDA GPU backend after you follow
 the instructions [here](https://docs.nvidia.com/cuda/wsl-user-guide/index.html).
 
+## Source build with native CPU optimization
+
+By default, binary wheels are built for portability. If you install from source,
+you can opt into host-CPU optimization by setting `RUSTFLAGS` during install.
+
+Linux/macOS:
+```shell
+RUSTFLAGS="-C target-cpu=native" pip install --no-binary powerfit-em powerfit-em
+```
+
+The optimized build only works on current hardware.
+
+For a test case the runtime from 34s (binary wheel from PyPi) to 26s (cpu native optimized) on 6 CPU cores.
+
 ## Tested platforms
 
 | Operating System| CPU single | CPU multi | OpenCL | CUDA |

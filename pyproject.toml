@@ -1,6 +1,6 @@
 [build-system]
-requires = ["setuptools", "numpy>=1.8", "cython"]
-build-backend = "setuptools.build_meta"
+requires = ["maturin>=1.13,<2.0"]
+build-backend = "maturin"
 
 [project]
 name = "powerfit-em"
@@ -16,18 +16,18 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
-    "Intended Audience :: Science/Research", 
+    "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Bio-Informatics"
 ]
 dependencies = [
-    "numpy>=1.8",
-    "more-itertools>=10.0; python_version < '3.12'",
-    # pyfftw binary wheel is not available on wasm or on macOS <14 arm, so fallback to numpy for wasm and macOS
-    "pyfftw>=0.12.0; platform_machine != 'wasm32' and sys_platform != 'darwin'",
-    "scipy",
-    "tqdm",
-    "rich",
-    "molviewspec>=1.6.0",
+  "numpy>=1.8",
+  "more-itertools>=10.0; python_version < '3.12'",
+  # pyfftw binary wheel is not available on wasm or on macOS <14 arm, so fallback to numpy for wasm and macOS
+  "pyfftw>=0.12.0; platform_machine != 'wasm32' and sys_platform != 'darwin'",
+  "scipy",
+  "tqdm",
+  "rich",
+  "molviewspec>=1.6.0",
 ]
 
 [project.optional-dependencies]
@@ -36,19 +36,20 @@ pocl = ["pyopencl[pocl]", "siphash24", "pyvkfft", "mako"]
 cuda13x = ["cupy-cuda13x", "siphash24", "pyvkfft"]
 cuda12x = ["cupy-cuda12x", "siphash24", "pyvkfft"]
 dev = [
-    "pytest",
-    "pytest-cov",
-    "ruff",
-    "cython-lint",
-    "pandas>=2.3.3",
-    "pooch",
+  "pytest",
+  "pytest-cov",
+  "ruff",
+  "cython-lint",
+  "pandas>=2.3.3",
+  "pooch",
+  "maturin>=1.13.1",
 ]
 docs = [
-    "mkdocs>=1.6.1",
-    "mkdocs-charts-plugin>=0.0.13",
-    "mkdocs-material>=9.6.14",
-    "mkdocs-rich-argparse>=0.1.3",
-    "mkdocstrings-python>=2.0.1",
+  "mkdocs>=1.6.1",
+  "mkdocs-charts-plugin>=0.0.13",
+  "mkdocs-material>=9.6.14",
+  "mkdocs-rich-argparse>=0.1.3",
+  "mkdocstrings-python>=2.0.1",
 ]
 
 [project.urls]
@@ -61,25 +62,28 @@ tutorial = "https://www.bonvinlab.org/education/Others/"
 [project.scripts]
 powerfit = "powerfit_em.powerfit:main"
 
-[tool.setuptools]
-# ext_modules is still in setup.py as numpy.get_include() 
-# and cythonize() can not be used here
-
-[tool.setuptools.packages.find]
-where = ["src"]
-
-[tool.setuptools.package-data]
-powerfit_em = ["data/*.npy", "correlators/kernels.cl", "correlators/kernels.cu", "_powerfit.pyx"]
-
-[tool.setuptools.dynamic]
-readme = {file = "README.md", content-type = "text/markdown"}
-version = {attr = "powerfit_em.__version__"}
+[tool.maturin]
+manifest-path = "rust/Cargo.toml"
+python-source = "src"
+module-name = "powerfit_em.powerfit_rs"
+include = [
+  { path = "README.md", format = "sdist" },
+  "powerfit_em/data/*.npy",
+  "powerfit_em/correlators/kernels.cl",
+  "powerfit_em/correlators/kernels.cu",
+]
 
 [tool.cibuildwheel]
 # Skip build that do not work or are not needed
 skip = "cp314-musllinux* cp310* cp311-musllinux* cp312-musllinux* *universal2"
 archs = ["auto64"]
 test-command = "powerfit --help"
+
+[tool.cibuildwheel.pyodide]
+# Pin Pyodide for deterministic wasm wheel tags/build environment.
+pyodide-version = "314.0.0a1"
+# Prefer `python -m` entrypoints for pyodide test env reliability.
+test-command = "python -m powerfit_em.powerfit --help"
 
 # For some reason the source wheel for pyfftw is used instead of the binary wheel
 # so we install its compilation dependencies manually
@@ -94,9 +98,9 @@ before-all = "apk add fftw-dev"
 
 [tool.pytest.ini_options]
 markers = [
-    "requires_cuda: test requires CUDA hardware and cupy package",
-    "requires_opencl: test requires OpenCL platform/device and pyopencl package",
-    "gpu_integration: test is a GPU integration test requiring hardware",
+  "requires_cuda: test requires CUDA hardware and cupy package",
+  "requires_opencl: test requires OpenCL platform/device and pyopencl package",
+  "gpu_integration: test is a GPU integration test requiring hardware",
 ]
 
 [tool.ruff]
@@ -104,20 +108,20 @@ line-length = 120
 
 [tool.ruff.lint]
 select = [
-    # pycodestyle
-    "E",
-    # Pyflakes
-    "F",
-    # pyupgrade
-    "UP",
-    # flake8-bugbear
-    "B",
-    # flake8-simplify
-    "SIM",
-    # isort
-    "I",
-    # flake8-bandit assert
-    "S101",
+  # pycodestyle
+  "E",
+  # Pyflakes
+  "F",
+  # pyupgrade
+  "UP",
+  # flake8-bugbear
+  "B",
+  # flake8-simplify
+  "SIM",
+  # isort
+  "I",
+  # flake8-bandit assert
+  "S101",
 ]
 pydocstyle.convention = "google"
 

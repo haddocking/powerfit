@@ -45,7 +45,7 @@ In case you feel like you've made a valuable contribution, but you don't know ho
 To create a release you need write permission on the repository.
 
 1. Check the author list in [`CITATION.cff`](https://github.com/haddocking/powerfit/blob/master/CITATION.cff)
-1. Bump the version in [src/powerfit_em/__init__.py](https://github.com/haddocking/powerfit/blob/master/src/powerfit_em/__init__.py)
+1. Bump the version in [rust/Cargo.toml](https://github.com/haddocking/powerfit/blob/master/rust/Cargo.toml) under `[package].version`.
 1. In [installation.md](docs/installation.md) adjust docker command to use new version.
 1. Merge the changes into the main branch.
 1. Run regression tests to verify baseline stability across execution profiles:
@@ -58,7 +58,7 @@ To create a release you need write permission on the repository.
    All tests must pass with numerically matching results (within rounding tolerance). If the baseline fixture requires updates, see [Baseline fixture maintenance](#baseline-fixture-maintenance) section under Development.
 1. Go to the [GitHub release page](https://github.com/haddocking/powerfit/releases)
 1. Press draft a new release button
-1. Fill tag, title and description field. For tag use version from pyproject.toml and prepend with "v" character. For description use "Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps." line plus press "Generate release notes" button.
+1. Fill tag, title and description field. For tag use version from `rust/Cargo.toml` (`[package].version`) and prepend with "v" character. The Python package version in `pyproject.toml` is dynamic and follows Cargo. For description use "Rigid body fitting of high-resolution structures in low-resolution cryo-electron microscopy density maps." line plus press "Generate release notes" button.
 1. Press the Publish Release button
 1. Wait until [Build and upload to PyPI](https://github.com/haddocking/powerfit/actions/workflows/pypi-publish.yml) has completed
 1. Verify new release is on [PyPi](https://pypi.org/project/powerfit-em/#history)
@@ -136,6 +136,15 @@ The binary wheels can be build for all supported platforms by running the
 https://github.com/haddocking/powerfit/actions/workflows/pypi-publish.yml GitHub action and downloading the artifacts.
 The workflow is triggered by a push to the main branch, a release or can be manually triggered.
 
+### Rust extension
+
+The CPU version of rotate grid function and `--rust` variant are handled by a Rust extension in the `rust/` directory.
+To build the Rust extension, you need to have [Rust](https://rustup.rs/) installed and run:
+
+```shell
+uv run maturin develop --release
+```
+
 ### Linting & formatting
 
 To lint the Python code, run
@@ -151,25 +160,33 @@ To format the Python code, run
 ruff format
 ```
 
-To check Cython code, run
+Cargo commands do not work when uv venv is active, so make sure to deactivate it before running the commands below.
+
+To format the Rust code in rust/ directory, run
 
 ```shell
-cython-lint src/powerfit_em/_powerfit.pyx
+cargo fmt --manifest-path rust/Cargo.toml --all
 ```
 
-To format the C code, run
+To lint the Rust code, run
 
 ```shell
-clang-format -i src/powerfit_em/_extensions.c
+cargo clippy --manifest-path rust/Cargo.toml --all-targets
 ```
 
-To lint the C code, run
+Use `--fix` to automatically apply clippy suggestions when possible:
 
 ```shell
-clang-tidy src/powerfit_em/_extensions.c -- \
-    -I"$(python -c 'from sysconfig import get_paths; print(get_paths()["include"])')" \
-    -I"$(python -c 'import numpy; print(numpy.get_include())')"
+cargo clippy --manifest-path rust/Cargo.toml --all-targets --fix --allow-dirty --allow-staged
 ```
+
+To run the Rust tests, run
+
+```shell
+cargo test --manifest-path rust/Cargo.toml --all --locked --verbose
+```
+
+Note: unlike the other cargo commands above, `cargo test` needs the uv venv active (`source .venv/bin/activate`) so it picks up the venv's numpy; otherwise some tests fail.
 
 ### Baseline fixture maintenance
 
@@ -186,3 +203,35 @@ The regression test in `test_powerfit_regression.py` compares `solutions.out` ag
 3. Manually copy the generated `solutions.out` from the test's temporary directory into `tests/fixtures/solutions.out`.
 4. Run the test again, see [step 5 of "You want to make a new release of the code base" section](#you-want-to-make-a-new-release-of-the-code-base) for example commands.
 5. Commit the updated baseline fixture file as part of your change.
+
+### Build wasm wheel locally
+
+Normally wasm wheels are build by CI and published as GitHub release artifacts, but you can also build them locally.
+
+Prerequisites:
+
+1. Python environment with project dependencies
+2. Rust installed via rustup
+3. Rust target `wasm32-unknown-emscripten`
+
+Commands:
+
+```shell
+uv sync --extra dev
+uv pip install cibuildwheel
+uv pip install -n pyodide-build==0.34.3 pyodide-lock==0.1.3 wheel==0.47.0
+rustup target add wasm32-unknown-emscripten
+
+rm -rf wheelhouse && mkdir -p wheelhouse
+uv run pyodide xbuildenv install 314.0.0a1
+uv run pyodide build . --outdir wheelhouse
+ls -lh wheelhouse
+```
+
+Expected output (filename pattern):
+
+```text
+powerfit_em-<version>-cp314-cp314-pyemscripten_2026_0_wasm32.whl
+```
+
+See docs/wasm/runme.mjs and docs/wasm/notebook.py how to use the generated wheel.
