@@ -1,3 +1,4 @@
+import logging
 import multiprocessing
 from multiprocessing import Lock, Process, RawValue
 from multiprocessing.managers import DictProxy
@@ -11,6 +12,11 @@ from powerfit_em.volume import Volume
 
 if TYPE_CHECKING:
     import pyopencl as cl  # noqa: I001
+
+logger = logging.getLogger(__name__)
+
+# NOTE: This is a guesstimate!
+HYBRID_NPROC_THRESHOLD = 16
 
 
 class _Counter:
@@ -70,7 +76,7 @@ class PowerFitter:
         laplace: bool = False,
         cuda_stream: object | None = None,
         batch_size: int = DEFAULT_BATCH_SIZE,
-        rust: bool = False,
+        cpu_backend: str = "py",
     ):
         self._target = target
         self._rotations = rotations
@@ -85,6 +91,10 @@ class PowerFitter:
         self._corr = None
         self._lcc = np.zeros(0, dtype=np.float32)
         self._rot = np.zeros(0, dtype=np.float32)
+        if cpu_backend == "hybrid":
+            cpu_backend = "rust" if nproc >= HYBRID_NPROC_THRESHOLD else "py"
+            logger.info(f"hybrid backend resolved to '{cpu_backend}' for nproc={nproc}")
+        self._cpu_backend = cpu_backend
 
     @property
     def lcc(self):
@@ -99,7 +109,7 @@ class PowerFitter:
             self._opencl_scan()
         elif self._cuda_stream is not None:
             self._cuda_scan()
-        elif self._rust:
+        elif self._cpu_backend == "rust":
             self._rust_cpu_scan()
         else:
             if self._nproc == 1:

@@ -139,7 +139,7 @@ sudo docker run --rm -ti \
 
 ### Linux
 
-Linux systems usually already include a Python3.10 or greater distribution. First make
+Linux systems usually already include a Python3.11 or greater distribution. First make
 sure the Python header files, pip and *git* are available by
 opening up a terminal and typing for Debian and Ubuntu systems
 
@@ -243,12 +243,23 @@ Follow the general instructions [here](README.md#installation) to install
 
 ### Windows
 
-First install *git* for Windows, as it comes with a handy bash shell. Go to
-[git-scm](https://git-scm.com/download/), download *git* and install it. Next,
-install a Python distribution such as
-[Anaconda](http://continuum.io/downloads). After installation, open up the
-bash shell shipped with *git* and follow the general instructions written
-above.
+You can not run PowerFit natively on Windows, but you can use the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) to run it. Open a WSL terminal and follow the [Linux installation instructions](#linux) above.
+If you have an NVIDIA GPU, you can use the CUDA GPU backend after you follow
+the instructions [here](https://docs.nvidia.com/cuda/wsl-user-guide/index.html).
+
+## Source build with native CPU optimization
+
+By default, binary wheels are built for portability. If you install from source,
+you can opt into host-CPU optimization by setting `RUSTFLAGS` during install.
+
+Linux/macOS:
+```shell
+RUSTFLAGS="-C target-cpu=native" pip install --no-binary powerfit-em powerfit-em
+```
+
+The optimized build only works on current hardware.
+
+For a test case the runtime from 34s (binary wheel from PyPi) to 26s (cpu native optimized) on 6 CPU cores.
 
 ## Source build with native CPU optimization
 
@@ -270,7 +281,7 @@ For a test case the runtime from 34s (binary wheel from PyPi) to 26s (cpu native
 | --------------- | ---------- | --------- | --- | -- |
 |Linux            | Yes        | Yes       | Yes | Yes |
 |MacOSX           | Yes        | Yes       | No  | No  |
-|Windows          | Yes        | Fail      | No  | No  |
+|Windows via WSL  | Yes        | Yes       | No  | Yes  |
 
 The GPU version has been successfully tested on Linux and with a Docker container for the following devices;
 

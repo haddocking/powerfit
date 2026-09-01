@@ -4,6 +4,7 @@
 [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.14185749.svg)](https://doi.org/10.5281/zenodo.14185749)
 [![Research Software Directory Badge](https://img.shields.io/badge/rsd-powerfit-00a3e3.svg)](https://www.research-software.nl/software/powerfit)
 [![SBGrid Badge](https://img.shields.io/badge/PowerFit-blue?label=SBGrid&labelColor=%3D)](https://sbgrid.org/software/titles/powerfit)
+![AI Declaration Format](https://img.shields.io/badge/AI_Declaration_Format-validated-blue)
 
 ## About PowerFit
 
@@ -26,7 +27,7 @@ been succesfully installed and used on Linux and MacOSX machines.
 
 Minimal requirements for the CPU version:
 
-* Python3.10 or greater
+* Python3.11 or greater
 
 To offload computations to a discrete or integrated\* GPU the following is also required
 
@@ -68,7 +69,9 @@ cross-correlation score on a single CPU-core. During the search, *powerfit*
 will update you about the progress of the search if you are using it
 interactively in the shell.
 
-Please refer to the [PowerFit tutorial](https://www.bonvinlab.org/education/Others/powerfit/) to learn how to use PowerFit in the command line.
+Please refer to the [PowerFit Example](https://bonvinlab.org/powerfit/example.html) to see an example in and output for a PowerFit run.
+
+Please refer to the [PowerFit tutorial](https://www.bonvinlab.org/education/Others/powerfit/) to learn how to use PowerFit and analyze the results in the command line.
 
 Please refer to the [PowerFit webserver tutorial](https://www.bonvinlab.org/education/Others/powerfit-webserver/) to learn how to use PowerFit on the webserver.
 
@@ -102,3 +105,9 @@ Copyright (c) 2005-2015, Christoph Gohlke
 ## Contributing
 
 To contribute to PowerFit, see our [Contribution guidelines](CONTRIBUTING.md).
+
+## AI Declaration
+
+Large language models (LLM) were used in this repository since [v3.0.0](https://github.com/haddocking/powerfit/releases/tag/v3.0.0).
+The changes were always reviewed by a human before being merged.
+See [aidecl.yaml](aidecl.yaml) for machine-readable details of the LLM usage.
