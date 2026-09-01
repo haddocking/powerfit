@@ -18,7 +18,7 @@ PYEMSCRIPTEN_TAG   := pyemscripten_2026_0_wasm32
 PKG_VERSION        := $(shell grep -m1 '^version' $(ROOT)/rust/Cargo.toml | sed -E 's/version = "(.*)"/\1/')
 # Use `test.pypi` for development and `pypi` for pdo
 # WASM_INDEX_URL     := https://test.pypi.org/simple/
-WASM_INDEX_URL     := https://pypi.org/
+WASM_INDEX_URL     := https://pypi.org/simple/
 
 .DEFAULT_GOAL := site
 
