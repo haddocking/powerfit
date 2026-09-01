@@ -67,15 +67,12 @@ def add_computational_resources2parser(p: ArgumentParser):
         help="Show a progress bar during the search (CPU only). Enabling the progressbar may reduce performance.",
     )
     p.add_argument(
-        "--cpu-backend",
-        dest="cpu_backend",
-        choices=["py", "rust", "hybrid"],
-        default="py",
-        help=(
-            "CPU correlator backend. 'py' uses pyFFTW + Rust rotation kernel (default). "
-            "'rust' uses the pure-Rust correlator (rustfft) — faster at high --nproc, slower at low. "
-            "'hybrid' picks automatically based on --nproc. Incompatible with --gpu."
-        ),
+        "--rust",
+        dest="rust",
+        action="store_true",
+        default=False,
+        help="Use the Rust CPU correlator backend (CPU only, incompatible with --gpu). "
+        "In this mode --nproc sets the number of Rust worker threads.",
     )
     p.add_argument(
         "--batch-size",
@@ -285,8 +282,8 @@ def main():
 
     if args.progressbar and args.gpu is not None:
         raise SystemExit("--progressbar cannot be used with --gpu. Progress bars are only supported for CPU backends.")
-    if args.cpu_backend != "py" and args.gpu is not None:
-        raise SystemExit("--cpu-backend rust/hybrid cannot be combined with --gpu. Both are CPU-only.")
+    if args.rust and args.gpu is not None:
+        raise SystemExit("--rust cannot be combined with --gpu. The Rust backend is CPU-only.")
 
     progress = partial(rich_tqdm, desc="Processing rotations", unit="rot") if args.progressbar else None
 
@@ -309,7 +306,7 @@ def main():
         batch_size=args.batch_size,
         delimiter=args.delimiter,
         progress=progress,
-        cpu_backend=args.cpu_backend,
+        rust=args.rust,
     )
     if args.report:
         # Report shows all options that affect the fitting
@@ -433,13 +430,13 @@ def powerfit(
     batch_size: int = DEFAULT_BATCH_SIZE,
     delimiter: str | None = None,
     progress: ProgressFactory | None = None,
-    cpu_backend: str = "py",
+    rust: bool = False,
 ):
     time0 = time()
     Path(directory).mkdir(exist_ok=True)
 
-    if cpu_backend != "py" and gpu is not None:
-        raise ValueError("--cpu-backend rust/hybrid cannot be combined with --gpu. Both are CPU-only.")
+    if rust and gpu is not None:
+        raise ValueError("--rust cannot be combined with --gpu. The Rust backend is CPU-only.")
 
     opencl_queue, cuda_stream = setup_gpu_backend(gpu)
 
@@ -464,13 +461,13 @@ def powerfit(
         queue=opencl_queue,
         cuda_stream=cuda_stream,
         batch_size=batch_size,
-        cpu_backend=cpu_backend,
+        rust=rust,
     )
     if opencl_queue is not None:
         logger.info("Using OpenCL-accelerated search.")
     elif cuda_stream is not None:
         logger.info("Using CUDA-accelerated search.")
-    elif cpu_backend == "rust":
+    elif rust:
         logger.info(f"Using Rust CPU correlator with {nproc:d} worker thread(s).")
     else:
         logger.info(f"Requested number of processors: {nproc:d}")

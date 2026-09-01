@@ -180,14 +180,6 @@ Use `--fix` to automatically apply clippy suggestions when possible:
 cargo clippy --manifest-path rust/Cargo.toml --all-targets --fix --allow-dirty --allow-staged
 ```
 
-To run the Rust tests, run
-
-```shell
-cargo test --manifest-path rust/Cargo.toml --all --locked --verbose
-```
-
-Note: unlike the other cargo commands above, `cargo test` needs the uv venv active (`source .venv/bin/activate`) so it picks up the venv's numpy; otherwise some tests fail.
-
 ### Baseline fixture maintenance
 
 The regression test in `test_powerfit_regression.py` compares `solutions.out` against a cached baseline at `tests/fixtures/solutions.out`. The baseline should remain stable across different execution profiles (CPU nproc 1/N and GPU backends).

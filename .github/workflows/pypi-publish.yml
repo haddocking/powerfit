@@ -2,18 +2,18 @@ name: Build and upload to PyPI
 
 on:
   workflow_dispatch:
-    inputs:
-      ref:
-        description: "Reference to checkout"
-        required: true
-        default: "master"
-  pull_request:
-  push:
-    branches:
-      - master
-  release:
-    types:
-      - published
+  #   inputs:
+  #     ref:
+  #       description: 'Reference to checkout'
+  #       required: true
+  #       default: 'master'
+  # pull_request:
+  # push:
+  #   branches:
+  #     - master
+  # release:
+  #   types:
+  #     - published
 
 jobs:
   build_wheels:
@@ -21,7 +21,7 @@ jobs:
     runs-on: ${{ matrix.runs-on }}
     strategy:
       matrix:
-        os: [linux-intel, linux-arm, macos-arm]
+        os: [linux-intel, linux-arm, macOS-arm]
         include:
           - archs: auto64
             platform: auto
@@ -37,7 +37,6 @@ jobs:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.inputs.ref }}
-      - uses: dtolnay/rust-toolchain@stable
       - name: Build wheels
         uses: pypa/cibuildwheel@v4.0.0
         env:
@@ -52,20 +51,25 @@ jobs:
     name: Build wasm wheel (Pyodide)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
         with:
           ref: ${{ github.event.inputs.ref }}
-      - uses: dtolnay/rust-toolchain@stable
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: "pip"
       - name: Setup Rust target
         run: rustup target add wasm32-unknown-emscripten
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v4.0.0
-        env:
-          CIBW_PLATFORM: pyodide
-          CIBW_ARCHS: wasm32
-          CIBW_BUILD: cp314-pyodide_wasm32
-          CIBW_ENABLE: pyodide-prerelease
-      - uses: actions/upload-artifact@v7
+      - name: Install Pyodide build tools
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pyodide-build==0.34.3 pyodide-lock==0.1.3 wheel==0.47.0 "maturin>=1.13,<2.0"
+      - name: Build wasm wheel
+        run: |
+          pyodide xbuildenv install 314.0.0a1
+          pyodide build . --outdir wheelhouse
+      - uses: actions/upload-artifact@v4
         with:
           name: cibw-wheels-pyodide-0
           path: ./wheelhouse/*.whl
@@ -80,7 +84,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
-          python-version: "3.14"
+          python-version: "3.13"
           cache: "pip"
       - name: Install build
         run: pip install build

@@ -1,4 +1,3 @@
-mod algebraic;
 mod correlator;
 mod helpers;
 mod rotate;

@@ -2,50 +2,53 @@
 
 There are a few default parameters listed below that come with the 
 standard `powerfit` command. These default parameters are also the
-standard in the [PowerFit web service](https://wenmr.science.uu.nl/powerfit).
-Below we will describe the different [parameters](#parameters). 
-In addition, we will explain how to use PowerFit in the [CLI](#using-powerfit-in-the-cli) 
-and in the [webservice](#using-the-webservice).
-Lastly, we explain [the output](#report-page) of the *report.html*
+standard in the [PowerFit webserver](https://rascar.science.uu.nl/powerfit).
+Below we will describe the different parameters and some [input examples](#input-examples). 
+In addition we also explain [the output](#report-page) of the *report.html*
 file or result page on the webserver.
 
+```shell
+powerfit <map> <resolution> <pdb>
+# To generate the report page after the run:
+powerfit <map> <resolution> <pdb> --report --delimiter ','
+```
 ## Parameters
 
-**Rotational sampling (-a, --angle):** Rotational sampling density in degrees.
+**Rotational sampling interval (-a):** Rotational sampling density in degrees.
 Increasing this number by a factor of 2 results in approximately 8 times
 more rotations sampled.
 
-**Chain ID(s) (-c, --chain):** The chain IDs of the structure to be fitted. Multiple
+**Chain ID(s) (-c):** The chain IDs of the structure to be fitted. Multiple
 chains can be selected using a comma separated list, i.e. A,B,C.
 The default is the whole structure.
 
-**Laplace pre-filter (-nl, --no-laplace)**: Usage of the Laplace pre-filter to filter 
-the density data. Can be combined with the core-weighted local cross-correlation. 
-In the default this is turned on and can be disabled by selecting *Disable Laplace 
-pre-filter* in the webserver or using the `-nl` flag on the command line. 
+**Laplace pre-filter (-nl)**: Usage of the Laplace pre-filter to filter the density data.
+Can be combined with the core-weighted local cross-correlation. In the default this
+is turned on and can be disabled by selecting *Disable Laplace pre-filter* in the 
+webserver or using the `-nl` flag on the command line. 
 
-**Core-weighted local cross-correlation (-ncw, --no-core-weighted):** Usage of a 
-core-weighted local cross-correlation score. It can be combined with the Laplace 
-pre-filter. In the default this is turned on and can be disabled by selecting *Disable 
-Core-weighted correlation* in the webserver or using the `-ncw` flag on the command line.
+**Core-weighted local cross-correlation (-ncw):** Usage of a core-weighted local cross-correlation
+score. It can be combined with the Laplace pre-filter. In the default 
+this is turned on and can be disabled by selecting *Disable Core-weighted correlation* 
+in the webserver or using the `-ncw` flag on the command line.
 
-**Number of models (-n, --num):** Number of top solutions for which the model in the coordinate 
+**Number of top solutions (-n):** Number of top solutions for which the model in the coordinate 
 frame of the density map will be returned. This number will be capped if less solutions are found
 as requested. The default is 10.
 
-**Density map resampling (-nr, --no-resampling):** Resample the density map prior to fitting. 
-In the default this is turned on and can be disabled by selecting *No resampling* in the 
-webserver or using the `-nr` flag on the command line.
+**Density map resampling (-nr):** Resample the density map prior to fitting. In the default
+this is turned on and can be disabled by selecting *No resampling* in the webserver or using
+the `-nr` flag on the command line.
 
-**Resampling rate (-rr, --resampling-rate):** Adjust resampling of the density map to a 
-specific factor of the Nyquist rate. The default is 2.
+**Resampling rate (-rr):** Adjust resampling of the density map to a specific factor of the
+Nyquist rate. The default is 2.
 
-**Density map trimming (-nt, --no-trimming):** Trim the density to a pre-defined 
-intensity cutoff. In the default this is turned on and can be disabled by selecting
-*No trimming* in the webserver or using the `-nt` flag on the command line.
+**Density map trimming (-nt):** Trim the density to a preddefined intensity cutoff. 
+In the default this is turned on and can be disabled by selecting *No trimming* in 
+the webserver or using the `-nt` flag on the command line.
 
-**Trimming cutoff (-tc, --trimming-cutoff):** Intensity cutoff to which the map will 
-be trimmed. Default is 10 percent of the maximum intensity.
+**Trimming cutoff (-tc):** Intensity cutoff to which the map will be trimmed. 
+Default is 10 percent of the maximum intensity.
 
 In most cases the default parameters of PowerFit will be reasonable and don't
 have to be changed. In cases where the fitting results are unsatisfactory,
@@ -54,13 +57,7 @@ the core-weighted correlation, or increasing the rotational samping. Increasing
 rotational sampling by a factor of 2 results in approximately 8 times more
 rotations and thus a signigicant increase in the runtime of a job.
 
-## Using PowerFit in the CLI
-
-```shell
-powerfit <map> <resolution> <pdb>
-# To generate the report page after the run:
-powerfit <map> <resolution> <pdb> --report --delimiter ','
-```
+## Input examples
 
 First, to see all options and their descriptions type
 
@@ -76,21 +73,21 @@ To perform a search with an approximate 24&deg; rotational sampling interval
 with laplace pre-filtering and core-weighted scoring function using 1 CPU
 
 ```shell
-powerfit <map> <resolution> <pdb> --angle 24
+powerfit <map> <resolution> <pdb> -a 24
 ```
 
 To use multiple CPU cores without laplace pre-filter and 5&deg; rotational
 interval
 
 ```shell
-powerfit <map> <resolution> <pdb> --nproc 4 --no-laplace --angle 5
+powerfit <map> <resolution> <pdb> -p 4 -nl -a 5
 ```
 
 To off-load computations to the GPU and do not use the core-weighted scoring function
 and write out the top 15 solutions
 
 ```shell
-powerfit <map> <resolution> <pdb> --gpu --no-core-weighted --num 15
+powerfit <map> <resolution> <pdb> -g -ncw -n 15
 ```
 
 Note that all options can be combined except for the `-g` and `-p` flag:
@@ -105,31 +102,6 @@ Using GPU-accelerated search.
 ...
 ```
 (See `--help` if you have multiple GPUs and want to specify which one to use)
-
-## Using the webservice
-
-Before you can submit your job on the webservice you need to upload a few files 
-and fill in a few parameters:
-
-**Input structure**: This is the atomic model that needs to be fitted in the density. 
-This file needs to be in a pdb or mmCIF format.
-
-**Cryo-EM map**: This is the density map file that the model will be fitted into.
-This files nees to be in a mrc, ccp4, or map format. 
-The maximum upload size is 250MB.
-
-**Resolution**: This is the resolution of the Cryo-EM map. Correct resolution is important
-for accurate results.
-
-The rest of the parameters are optional and will be set to default if you do not adjust them.
-For an explanation of the optional parameters, please refer to [parameters](#parameters).
-
-Once you have uploaded your input structure and Cryo-EM map and filled in the appropriate
-resolution, you can submit the job by pressing the submit button. You can leave the page open
-untill the run is finished, or you can close the page and find your job back in the 
-[workspace](https://wenmr.science.uu.nl/workspace) later.
-
-Once your job is finished, you will see the [report page](#report-page).
 
 ## Output
 

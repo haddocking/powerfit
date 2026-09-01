@@ -364,13 +364,6 @@ mod tests {
     // -----------------------------------------------------------------------
     #[test]
     fn test_scan_nproc1_vs_nproc2_identical() {
-        assert!(
-            Python::attach(|py| py.import("numpy").is_ok()),
-            "test_scan_nproc1_vs_nproc2_identical requires `numpy` to be importable: \
-             this test drives CpuRustCorrelator through the PyO3/numpy API, so \
-             `numpy` must be installed for the Python interpreter `cargo test` links \
-             against. Run from inside a venv with numpy installed."
-        );
         let mut target = Array3::<f32>::zeros((8, 8, 8));
         for z in 2..6usize {
             for y in 2..6usize {
