@@ -87,7 +87,6 @@ class PowerFitter:
         self._laplace = laplace
         self._cuda_stream = cuda_stream
         self._batch_size = batch_size
-        self._rust = rust
         self._corr = None
         self._lcc = np.zeros(0, dtype=np.float32)
         self._rot = np.zeros(0, dtype=np.float32)
