@@ -80,10 +80,18 @@ Build the documentation site with the following command:
 ```shell
 cd docs
 make
-make serve
 ```
 
 The site will be built on `site/`
+
+To serve it locally so you can verify the changes:
+
+```
+make serve
+```
+
+Open <http://0.0.0.0:8000>
+
 
 `make` requires `uv` and Rust (via [rustup](https://rustup.rs/)) `>=1.98`, see `make help` for individual targets.
 
