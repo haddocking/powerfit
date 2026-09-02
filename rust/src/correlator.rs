@@ -202,7 +202,7 @@ impl CpuRustCorrelator {
     /// its own FFT handlers and `ScanWorkspace`, and merges per-worker
     /// best-so-far (`scan::merge_best_lcc_rot`) by taking the higher LCC
     /// score per voxel. Overwrites `self.lcc`/`self.rot` in place.
-    pub fn scan(&mut self) -> PyResult<()> {
+    pub fn scan(&mut self, py: Python<'_>) -> PyResult<()> {
         let n_rot = self.rotations.shape()[0];
         let shape = self.shape;
         let radius = self.radius;
@@ -226,6 +226,10 @@ impl CpuRustCorrelator {
             };
 
             for n in 0..n_rot {
+                // -----------------------------------------------------------
+                // Do not remove! without this, Ctrl-C can't interrupt a scan
+                py.check_signals()?;
+                // -----------------------------------------------------------
                 let rotmat = rot_slice_to_mat(&self.rotations.slice(s![n, .., ..]));
                 scan_one_rotation(
                     n,
@@ -251,11 +255,15 @@ impl CpuRustCorrelator {
             self.lcc = lcc;
             self.rot = rot;
         } else {
-            // Parallel path: chunk rotations across nproc workers
+            // Parallel path, check for signals every `ROUND_SIZE` interval
+            //  the smaller this value the faster `Ctrl-C` response, but
+            //  more overhead, the larger this value the slower the response
+            //  and lower overhead - 32 seems like a sensible middleground
+            const ROUND_SIZE: usize = 32; // rotations per worker per round;
+
             let nproc = self.nproc;
             let chunk_size = n_rot.div_ceil(nproc);
 
-            // Build owned copies of shared inputs for each worker
             let template = &self.template;
             let mask = &self.mask;
             let target_ft = &self.target_ft;
@@ -265,18 +273,47 @@ impl CpuRustCorrelator {
             let norm_factor = self.norm_factor;
             let rotations = &self.rotations;
 
-            let (final_lcc, final_rot) = (0..nproc)
-                .into_par_iter()
+            // Define a struct to hold the state of the workers
+            struct WorkerState {
+                hx: ndrustfft::R2cFftHandler<f32>,
+                hy: ndrustfft::FftHandler<f32>,
+                hz: ndrustfft::FftHandler<f32>,
+                work: ScanWorkspace,
+                lcc: Array3<f32>,
+                rot: Array3<i32>,
+                start: usize,
+                end: usize,
+            }
+
+            // populate
+            let n_active_workers = nproc.min(n_rot);
+            let mut workers: Vec<WorkerState> = (0..n_active_workers)
                 .map(|worker| {
                     let start = worker * chunk_size;
-                    if start >= n_rot {
-                        return (Array3::<f32>::zeros(shape), Array3::<i32>::zeros(shape));
-                    }
                     let end = (start + chunk_size).min(n_rot);
-                    let (mut hx, mut hy, mut hz) = make_fft_handlers(shape.0, shape.1, shape.2);
-                    let mut lcc = Array3::<f32>::zeros(shape);
-                    let mut rot = Array3::<i32>::zeros(shape);
-                    let mut work = ScanWorkspace::new(shape);
+                    let (hx, hy, hz) = make_fft_handlers(shape.0, shape.1, shape.2);
+                    WorkerState {
+                        hx,
+                        hy,
+                        hz,
+                        work: ScanWorkspace::new(shape),
+                        lcc: Array3::<f32>::zeros(shape),
+                        rot: Array3::<i32>::zeros(shape),
+                        start,
+                        end,
+                    }
+                })
+                .collect();
+
+            let mut round_offset = 0usize;
+            loop {
+                if !workers.iter().any(|w| w.start + round_offset < w.end) {
+                    break;
+                }
+                workers.par_iter_mut().for_each(|w| {
+                    // Define a round chunk
+                    let round_start = (w.start + round_offset).min(w.end);
+                    let round_end = (round_start + ROUND_SIZE).min(w.end);
                     let target = TargetContext {
                         target_ft,
                         target2_ft,
@@ -285,7 +322,8 @@ impl CpuRustCorrelator {
                         norm_factor,
                     };
 
-                    for n in start..end {
+                    // Run the round
+                    for n in round_start..round_end {
                         let rotmat = rot_slice_to_mat(&rotations.slice(s![n, .., ..]));
                         scan_one_rotation(
                             n,
@@ -297,26 +335,38 @@ impl CpuRustCorrelator {
                             &target,
                             radius,
                             &mut FftHandlers {
-                                x: &mut hx,
-                                y: &mut hy,
-                                z: &mut hz,
+                                x: &mut w.hx,
+                                y: &mut w.hy,
+                                z: &mut w.hz,
                             },
-                            &mut work,
+                            &mut w.work,
                             &mut ScanOutput {
-                                lcc: &mut lcc,
-                                rot: &mut rot,
+                                lcc: &mut w.lcc,
+                                rot: &mut w.rot,
                             },
                         );
                     }
-                    (lcc, rot)
-                })
-                .reduce(
-                    || (Array3::<f32>::zeros(shape), Array3::<i32>::zeros(shape)),
-                    |(mut acc_lcc, mut acc_rot), (lcc_w, rot_w)| {
-                        merge_best_lcc_rot(&mut acc_lcc, &mut acc_rot, &lcc_w, &rot_w);
-                        (acc_lcc, acc_rot)
-                    },
-                );
+                });
+                // -----------------------------------------------------------
+                // Do not remove! without this, Ctrl-C can't interrupt a scan
+                py.check_signals()?;
+                // -----------------------------------------------------------
+
+                // Move to next round
+                round_offset += ROUND_SIZE;
+            }
+
+            // merge all workers
+            let zero_worker = || (Array3::<f32>::zeros(shape), Array3::<i32>::zeros(shape));
+            let combine_workers = |(mut acc_lcc, mut acc_rot), (lcc_w, rot_w)| {
+                merge_best_lcc_rot(&mut acc_lcc, &mut acc_rot, &lcc_w, &rot_w);
+                (acc_lcc, acc_rot)
+            };
+            let (final_lcc, final_rot) = workers
+                .into_par_iter()
+                .map(|w| (w.lcc, w.rot))
+                .reduce(zero_worker, combine_workers);
+
             self.lcc = final_lcc;
             self.rot = final_rot;
         }
@@ -412,7 +462,8 @@ mod tests {
                     nproc,
                 )
                 .unwrap();
-                corr.scan().unwrap();
+                // pass the `py` token so we can check for signals inside the `scan` method
+                corr.scan(py).unwrap();
                 let lcc = corr.lcc(py).readonly().as_array().to_owned();
                 let rot = corr.rot(py).readonly().as_array().to_owned();
                 (lcc, rot)

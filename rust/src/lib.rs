@@ -17,7 +17,9 @@ fn cargo_version() -> &'static str {
 /// `CpuRustCorrelator` (the LCC scan engine) plus the standalone
 /// `blur_points`/`dilate_points`/`rotate_grid3d`/`rotate_grid3d_pair`
 /// pyfunctions used to build its inputs.
-#[pymodule]
+///
+/// This module is thread-safe, so we can declare that it does not require Python's GIL on free-threaded builds.
+#[pymodule(gil_used = false)]
 mod powerfit_rs {
     use pyo3::types::PyModuleMethods;
 
