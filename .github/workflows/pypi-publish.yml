@@ -29,7 +29,7 @@ jobs:
             runs-on: ubuntu-latest
           - os: linux-arm
             runs-on: ubuntu-24.04-arm
-          - os: macos-arm
+          - os: macOS-arm
             # macos-14+ (including latest) are ARM64 runners
             runs-on: macos-latest
             archs: auto64
