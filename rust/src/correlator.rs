@@ -226,8 +226,10 @@ impl CpuRustCorrelator {
             };
 
             for n in 0..n_rot {
-                // listen for ctrl-c signals
+                // -----------------------------------------------------------
+                // Do not remove! without this, Ctrl-C can't interrupt a scan
                 py.check_signals()?;
+                // -----------------------------------------------------------
                 let rotmat = rot_slice_to_mat(&self.rotations.slice(s![n, .., ..]));
                 scan_one_rotation(
                     n,
@@ -345,9 +347,10 @@ impl CpuRustCorrelator {
                         );
                     }
                 });
-
-                // Check for a Ctrl-C signal
+                // -----------------------------------------------------------
+                // Do not remove! without this, Ctrl-C can't interrupt a scan
                 py.check_signals()?;
+                // -----------------------------------------------------------
 
                 // Move to next round
                 round_offset += ROUND_SIZE;
