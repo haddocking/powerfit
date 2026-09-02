@@ -18,7 +18,7 @@ fn cargo_version() -> &'static str {
 /// `blur_points`/`dilate_points`/`rotate_grid3d`/`rotate_grid3d_pair`
 /// pyfunctions used to build its inputs.
 ///
-/// This module is thread-safe, so we can tuern off python's GIL
+/// This module is thread-safe, so we can declare that it does not require Python's GIL on free-threaded builds.
 #[pymodule(gil_used = false)]
 mod powerfit_rs {
     use pyo3::types::PyModuleMethods;
