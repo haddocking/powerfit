@@ -75,20 +75,17 @@ To work on the PowerFit documentation you need to install the documentation vers
 pip install -e .[docs]
 ```
 
-Start the live-reloading docs server with:
+Build the documentation site with the following command:
 
 ```shell
-mkdocs serve
+cd docs
+make
+make serve
 ```
 
-Build the documentation site with:
+The site will be built on `site/`
 
-```shell
-mkdocs build
-# The site will be built in the 'site/' directory.
-# You can preview it with
-python3 -m http.server -d site
-```
+`make` requires `uv` and Rust (via [rustup](https://rustup.rs/)) `>=1.98`, see `make help` for individual targets.
 
 # Development
 
@@ -206,32 +203,15 @@ The regression test in `test_powerfit_regression.py` compares `solutions.out` ag
 
 ### Build wasm wheel locally
 
-Normally wasm wheels are build by CI and published as GitHub release artifacts, but you can also build them locally.
-
-Prerequisites:
-
-1. Python environment with project dependencies
-2. Rust installed via rustup
-3. Rust target `wasm32-unknown-emscripten`
-
-Commands:
+Normally `wasm` wheels are built by CI and published to PyPI, but you can also build them locally with `docs/Makefile`:
 
 ```shell
-uv sync --extra dev
-uv pip install cibuildwheel
-uv pip install -n pyodide-build==0.34.3 pyodide-lock==0.1.3 wheel==0.47.0
-rustup target add wasm32-unknown-emscripten
-
-rm -rf wheelhouse && mkdir -p wheelhouse
-uv run pyodide xbuildenv install 314.0.0a1
-uv run pyodide build . --outdir wheelhouse
-ls -lh wheelhouse
+cd docs
+make wasm-wheel-build
 ```
 
-Expected output (filename pattern):
+Expected output (filename pattern) in `docs/lite/pypi/`:
 
 ```text
 powerfit_em-<version>-cp314-cp314-pyemscripten_2026_0_wasm32.whl
 ```
-
-See docs/wasm/runme.mjs and docs/wasm/notebook.py how to use the generated wheel.
