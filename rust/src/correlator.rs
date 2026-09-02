@@ -284,9 +284,10 @@ impl CpuRustCorrelator {
             }
 
             // populate
-            let mut workers: Vec<WorkerState> = (0..nproc)
+            let n_active_workers = nproc.min(n_rot);
+            let mut workers: Vec<WorkerState> = (0..n_active_workers)
                 .map(|worker| {
-                    let start = (worker * chunk_size).min(n_rot);
+                    let start = worker * chunk_size;
                     let end = (start + chunk_size).min(n_rot);
                     let (hx, hy, hz) = make_fft_handlers(shape.0, shape.1, shape.2);
                     WorkerState {
@@ -353,11 +354,15 @@ impl CpuRustCorrelator {
             }
 
             // merge all workers
-            let (mut final_lcc, mut final_rot) =
-                (Array3::<f32>::zeros(shape), Array3::<i32>::zeros(shape));
-            for w in &workers {
-                merge_best_lcc_rot(&mut final_lcc, &mut final_rot, &w.lcc, &w.rot);
-            }
+            let zero_worker = || (Array3::<f32>::zeros(shape), Array3::<i32>::zeros(shape));
+            let combine_workers = |(mut acc_lcc, mut acc_rot), (lcc_w, rot_w)| {
+                merge_best_lcc_rot(&mut acc_lcc, &mut acc_rot, &lcc_w, &rot_w);
+                (acc_lcc, acc_rot)
+            };
+            let (final_lcc, final_rot) = workers
+                .into_par_iter()
+                .map(|w| (w.lcc, w.rot))
+                .reduce(zero_worker, combine_workers);
 
             self.lcc = final_lcc;
             self.rot = final_rot;
