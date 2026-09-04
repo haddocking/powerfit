@@ -18,7 +18,9 @@ on:
 jobs:
   build_wheels:
     name: Build wheels on ${{ matrix.os }}
+
     runs-on: ${{ matrix.runs-on }}
+
     strategy:
       matrix:
         os: [linux-intel, linux-arm, macos-arm, windows-intel]
@@ -35,16 +37,20 @@ jobs:
             archs: auto64
           - os: windows-intel
             runs-on: windows-latest
+
     steps:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.inputs.ref }}
+
       - uses: dtolnay/rust-toolchain@stable
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v4.0.0
         env:
           CIBW_PLATFORM: ${{ matrix.platform }}
           CIBW_ARCHS: ${{ matrix.archs }}
+
       - uses: actions/upload-artifact@v7
         with:
           name: cibw-wheels-${{ matrix.os }}-${{ strategy.job-index }}
@@ -52,14 +58,19 @@ jobs:
 
   build_wasm:
     name: Build wasm wheel (Pyodide)
+
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.inputs.ref }}
+
       - uses: dtolnay/rust-toolchain@stable
+
       - name: Setup Rust target
         run: rustup target add wasm32-unknown-emscripten
+
       - name: Build wheels
         uses: pypa/cibuildwheel@v4.0.0
         env:
@@ -67,6 +78,7 @@ jobs:
           CIBW_ARCHS: wasm32
           CIBW_BUILD: cp314-pyodide_wasm32
           CIBW_ENABLE: pyodide-prerelease
+
       - uses: actions/upload-artifact@v7
         with:
           name: cibw-wheels-pyodide-0
@@ -74,20 +86,26 @@ jobs:
 
   build_sdist:
     name: Build source distribution
+
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v6
         with:
           ref: ${{ github.event.inputs.ref }}
+
       - name: Setup Python
         uses: actions/setup-python@v6
         with:
           python-version: "3.14"
           cache: "pip"
+
       - name: Install build
         run: pip install build
+
       - name: Build sdist
         run: python3 -m build --sdist
+
       - uses: actions/upload-artifact@v7
         with:
           name: cibw-sdist
