@@ -35,18 +35,16 @@ jobs:
         with:
           workspaces: rust
 
-      - run: pip install -e .[dev,pocl]
+      - name: install python deps from pypi (Linux, with OpenCL)
+        if: runner.os == 'Linux'
+        run: pip install -e .[dev,pocl]
 
-      # - name: install python deps from pypi (Linux, with OpenCL)
-      #   if: runner.os == 'Linux'
-      #   run: pip install -e .[dev,pocl]
-      #
-      # - name: install python deps from pypi (Windows, no OpenCL)
-      #   if: runner.os == 'Windows'
-      #   run: pip install -e .[dev]
+      - name: install python deps from pypi (Windows, no OpenCL)
+        if: runner.os == 'Windows'
+        run: pip install -e .[dev]
 
       - name: OpenCL platform and device test
-        # if: runner.os == 'Linux'
+        if: runner.os == 'Linux'
         run: python -c 'import pyopencl as cl;from pyvkfft.fft import rfftn; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
 
       - name: run clippy
