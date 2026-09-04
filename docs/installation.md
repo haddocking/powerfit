@@ -243,9 +243,15 @@ Follow the general instructions [here](README.md#installation) to install
 
 ### Windows
 
-You can not run PowerFit natively on Windows, but you can use the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) to run it. Open a WSL terminal and follow the [Linux installation instructions](#linux) above.
-If you have an NVIDIA GPU, you can use the CUDA GPU backend after you follow
-the instructions [here](https://docs.nvidia.com/cuda/wsl-user-guide/index.html).
+PowerFit ships a native Windows wheel (CPU only), so a plain
+
+```shell
+pip install powerfit-em
+```
+
+In a `cmd`/PowerShell `venv` works without installing any compiler or Visual Studio Build Tools.
+
+GPU acceleration (OpenCL/CUDA) is not available in native Windows, use the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) instead. Open a WSL terminal and follow the [Linux installation instructions](#linux) above. If you have an NVIDIA GPU, you can use the CUDA GPU backend after you follow the instructions [here](https://docs.nvidia.com/cuda/wsl-user-guide/index.html).
 
 ## Source build with native CPU optimization
 
@@ -267,12 +273,14 @@ For a test case the runtime from 34s (binary wheel from PyPi) to 26s (cpu native
 | --------------- | ---------- | --------- | --- | -- |
 |Linux            | Yes        | Yes       | Yes | Yes |
 |MacOSX           | Yes        | Yes       | No  | No  |
+|Windows (native) | Yes        | Yes       | No  | No  |
 |Windows via WSL  | Yes        | Yes       | No  | Yes  |
 
 The GPU version has been successfully tested on Linux and with a Docker container for the following devices;
 
 * NVIDIA GeForce GTX 3050
 * NVIDIA GeForce RTX 4070
+- AMD Radeon RX 7700 XT
 * AMD Radeon RX 7800 XT
 * AMD Radeon RX 7900 XTX
 * Intel Iris Xe Graphics (on a Core i7-1185G7)
