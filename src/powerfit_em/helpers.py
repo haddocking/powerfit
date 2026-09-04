@@ -1,11 +1,16 @@
+import json
 import logging
 import re
 from importlib.util import find_spec
 from math import sqrt
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 from scipy.ndimage import binary_erosion
+
+if TYPE_CHECKING:
+    from IPython.display import IFrame
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +69,30 @@ def blobify_local_refs(html: str, base_dir: str | Path) -> str:
         return f'{attr}="{make_blob_url(path.read_bytes())}"'
 
     return re.sub(r'(href|src)="([^"]+)"', repl, html)
+
+
+def render_in_jupyterlite(directory: str | Path, width: str = "100%", height: int = 750) -> "IFrame":
+    """Render a `generate_report()` output directory in a JupyterLite notebook."""
+    if not pyodide_available():
+        msg = "render_in_jupyterlite() requires running under Pyodide (js module not found)."
+        raise RuntimeError(msg)
+
+    from IPython.display import IFrame  # pyright: ignore[reportMissingImports]
+
+    state = json.loads(Path(directory, "state.mvsj").read_text())
+    for snapshot in state["snapshots"]:
+        patch_download_urls(snapshot["root"], directory)
+
+    report_html = Path(directory, "report.html").read_text()
+    report_html = report_html.replace(
+        "mvsStories.loadFromURL('state.mvsj', { format: 'mvsj' });",
+        f"mvsStories.loadFromData({json.dumps(json.dumps(state))}, {{ format: 'mvsj' }});",
+    )
+    report_html = blobify_local_refs(report_html, directory)
+
+    viewer_url = make_blob_url(report_html.encode("utf-8"), "text/html")
+
+    return IFrame(viewer_url, width=width, height=height)
 
 
 def determine_core_indices(mask):
