@@ -29,6 +29,7 @@ def test_make_blob_url_raises_outside_pyodide() -> None:
         helpers.make_blob_url(b"data")
 
 
+@pytest.mark.usefixtures("fake_make_blob_url")
 def test_patch_download_urls_rewrites_download_node(tmp_path: Path) -> None:
     """A `download` node's url is replaced with a blob url."""
     (tmp_path / "density.map").write_bytes(b"some-map-bytes")
@@ -36,9 +37,10 @@ def test_patch_download_urls_rewrites_download_node(tmp_path: Path) -> None:
     node = {"kind": "download", "params": {"url": "density.map"}, "children": []}
     helpers.patch_download_urls(node, tmp_path)
 
-    assert node["params"]["url"] == "blob:map-bytes"
+    assert node["params"]["url"] == "blob:some-map-bytes"
 
 
+@pytest.mark.usefixtures("fake_make_blob_url")
 def test_patch_download_urls_nested_children(tmp_path: Path) -> None:
     """Nested `download` nodes, several levels deep should all get patched."""
     (tmp_path / "a.pdb").write_bytes(b"AAA")
@@ -89,6 +91,7 @@ def test_patch_download_urls_non_download_node_untouched(
     assert node == {"kind": "parse", "params": {"format": "pdb"}, "children": None}
 
 
+@pytest.mark.usefixtures("fake_make_blob_url")
 def test_blobify_local_refs_rewrites_local_file_ref(tmp_path: Path) -> None:
     """A relative href to a file that exists in base_dir is rewritten."""
     (tmp_path / "fit_1.pdb").write_bytes(b"PDB")
@@ -99,6 +102,7 @@ def test_blobify_local_refs_rewrites_local_file_ref(tmp_path: Path) -> None:
     assert result == '<a href="blob:PDB">download</a>'
 
 
+@pytest.mark.usefixtures("fake_make_blob_url")
 def test_blobify_local_refs_rewrites_href_and_src(tmp_path: Path) -> None:
     """Both `href` and `src` attributes are rewritten."""
     (tmp_path / "state.mvsj").write_bytes(b"{}")
