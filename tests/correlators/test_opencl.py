@@ -7,6 +7,8 @@ OPENCL_AVAILABLE = opencl_available()
 
 pytestmark = pytest.mark.skipif(not OPENCL_AVAILABLE, reason="OpenCL resources are not available.")
 
+pytest.importorskip("pyopencl", reason="OpenCL resources are not available.")
+
 from powerfit_em.correlators.cpu import CPUCorrelator  # noqa: E402
 from powerfit_em.correlators.opencl import (  # noqa: E402
     OpenCLBatchedCorrelator,
