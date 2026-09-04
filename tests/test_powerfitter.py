@@ -31,7 +31,8 @@ class TestCLKernels:
     """Tests for the OpenCL kernels"""
 
     @pytest.fixture(autouse=True)
-    def setup(self):
+    def setup(self) -> None:
+        """Build an OpenCL context, queue, and CLKernels instance for each test."""
         try:
             p = cl.get_platforms()[0]
         except cl.LogicError as exc:
@@ -86,7 +87,8 @@ class TestPowerFitterIntegration:
 
     @pytest.mark.requires_opencl
     @pytest.mark.skipif(not OPENCL_AVAILABLE, reason="OpenCL (pyopencl) not installed")
-    def test_opencl_scan_matches_cpu(self):
+    def test_opencl_scan_matches_cpu(self) -> None:
+        """Compare OpenCL scan results against the CPU correlator on tiny inputs."""
         from powerfit_em.gpu import get_opencl_queue
 
         target, template, mask, rotations = _make_tiny_inputs()
