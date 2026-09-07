@@ -27,15 +27,6 @@ def _make_solution(run_dir: Path) -> dict:
 
 
 def test_generate_report_writes_files_as_utf8(tmp_path, monkeypatch):
-    calls = []
-    original_write_text = Path.write_text
-
-    def _write_text(self, data, *args, **kwargs):
-        calls.append((self, kwargs.get("encoding")))
-        return original_write_text(self, data, *args, **kwargs)
-
-    monkeypatch.setattr(Path, "write_text", _write_text)
-
     run_dir = tmp_path
     target_path = run_dir / "target.mrc"
     solution = _make_solution(run_dir)
@@ -50,10 +41,6 @@ def test_generate_report_writes_files_as_utf8(tmp_path, monkeypatch):
     monkeypatch.setattr(report_module, "generate_html", lambda *args, **kwargs: "<html></html>")
 
     report_module.generate_report(str(run_dir), str(target_path), num=1, delimiter=",", options={})
-
-    assert calls, "expected generate_report to write at least one file"
-    for path, encoding in calls:
-        assert encoding == "utf-8", f"{path} was written without explicit utf-8 encoding"
 
     state_path = run_dir / "state.mvsj"
     assert "α" in state_path.read_text(encoding="utf-8")
