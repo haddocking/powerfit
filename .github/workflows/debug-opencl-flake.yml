@@ -1,0 +1,38 @@
+name: debug-opencl-flake
+
+on: workflow_dispatch
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        run: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: install system deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ocl-icd-opencl-dev ocl-icd-libopencl1
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
+
+      - name: install python deps
+        run: pip install -e .[dev,pocl]
+
+      - name: host fingerprint
+        run: |
+          grep "model name" /proc/cpuinfo | uniq
+          python -c "import pyopencl as cl; print(cl.get_platforms()[0].get_devices())"
+
+      - name: run opencl tests
+        run: pytest -vvv tests/correlators/test_opencl.py
