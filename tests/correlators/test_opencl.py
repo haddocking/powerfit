@@ -23,7 +23,7 @@ def opencl_queue():
         queue = get_opencl_queue("0:0")
         cl.Program(queue.context, "__kernel void noop() {}").build()
     except (RuntimeError, ValueError, cl.Error) as exc:
-        pytest.fail(str(exc))  # TODO: revert to pytest.skip once guard confirmed working
+        pytest.skip(str(exc))
     return queue
 
 

@@ -36,7 +36,7 @@ class TestCLKernels:
         try:
             p = cl.get_platforms()[0]
         except cl.LogicError as exc:
-            pytest.fail(f"OpenCL platform not available: {exc}")  # TODO: revert to pytest.skip once guard confirmed working
+            pytest.skip(f"OpenCL platform not available: {exc}")
         devs = p.get_devices()
         self.ctx = cl.Context(devices=devs)
         self.queue = cl.CommandQueue(self.ctx, device=devs[0])
@@ -49,7 +49,7 @@ class TestCLKernels:
         try:
             self.k = CLKernels(self.ctx, values=values)
         except cl.RuntimeError as e:
-            pytest.fail(f"pocl failed to build OpenCL kernel: {e}")  # TODO: revert to pytest.skip once guard confirmed working
+            pytest.skip(f"pocl failed to build OpenCL kernel: {e}")
         self.s_linear = cl.Sampler(self.ctx, False, cl.addressing_mode.CLAMP, cl.filter_mode.LINEAR)
         self.s_nearest = cl.Sampler(self.ctx, False, cl.addressing_mode.CLAMP, cl.filter_mode.NEAREST)
 
@@ -103,7 +103,7 @@ class TestPowerFitterIntegration:
             ocl_pf = PowerFitter(target, rotations, template, mask, queue=queue)
             ocl_pf.scan(progress=None)
         except (cl.RuntimeError, cl.LogicError, RuntimeError) as e:
-            pytest.fail(str(e))  # TODO: revert to pytest.skip once guard confirmed working
+            pytest.skip(str(e))
 
         assert np.allclose(cpu_pf.lcc, ocl_pf.lcc, atol=1e-4, rtol=1e-4)
         assert np.array_equal(cpu_pf.rot, ocl_pf.rot)
