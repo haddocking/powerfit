@@ -1,6 +1,6 @@
 name: debug-opencl-flake
 
-on: workflow_dispatch
+on: [push]
 
 jobs:
   test:
