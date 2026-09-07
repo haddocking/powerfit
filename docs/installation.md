@@ -251,16 +251,45 @@ pip install powerfit-em
 
 In a `cmd`/PowerShell `venv` works without installing any compiler or Visual Studio Build Tools.
 
-GPU acceleration (OpenCL/CUDA) is not available in native Windows, use the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) instead. Open a WSL terminal and follow the [Linux installation instructions](#linux) above. If you have an NVIDIA GPU, you can use the CUDA GPU backend after you follow the instructions [here](https://docs.nvidia.com/cuda/wsl-user-guide/index.html).
+CUDA acceleration is available natively via Conda/Micromamba, see below. 
+
+OpenCL is not currently available natively; use the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) instead. Open a WSL terminal and follow the [Linux installation instructions](#linux) above.
+
+#### Steps for running on NVIDIA GPU with Conda/Micromamba
+
+```powershell
+# In admin PowerShell
+winget install Nvidia.CUDA
+winget install Mamba.Micromamba
+```
+
+```powershell
+micromamba create -n powerfit-cuda pyvkfft pyopencl cupy cuda-version=13
+micromamba shell hook -s powershell | Out-String | Invoke-Expression
+micromamba activate powerfit-cuda
+pip install powerfit-em
+```
+
+```powershell
+powerfit <map> <resolution> <pdb> --gpu -d rgpu
+```
 
 ## Source build with native CPU optimization
 
 By default, binary wheels are built for portability. If you install from source,
 you can opt into host-CPU optimization by setting `RUSTFLAGS` during install.
 
+Building from source (rather than installing the prebuilt wheel) also requires the Rust toolchain and a C-compiler.
+
 Linux/macOS:
 ```shell
 RUSTFLAGS="-C target-cpu=native" pip install --no-binary powerfit-em powerfit-em
+```
+
+Windows (requires [Rust](https://rustup.rs/) and [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/); "Desktop development with C++"):
+
+```shell
+$env:RUSTFLAGS="-C target-cpu=native"; pip install --no-binary powerfit-em powerfit-em
 ```
 
 The optimized build only works on current hardware.
@@ -273,7 +302,7 @@ For a test case the runtime from 34s (binary wheel from PyPi) to 26s (cpu native
 | --------------- | ---------- | --------- | --- | -- |
 |Linux            | Yes        | Yes       | Yes | Yes |
 |MacOSX           | Yes        | Yes       | No  | No  |
-|Windows (native) | Yes        | Yes       | No  | No  |
+|Windows (native) | Yes        | Yes       | No  | Yes |
 |Windows via WSL  | Yes        | Yes       | No  | Yes  |
 
 The GPU version has been successfully tested on Linux and with a Docker container for the following devices;
