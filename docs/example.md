@@ -1,6 +1,6 @@
 # Powerfit Example
 
-This example contains a sample input and ouput generated with PowerFit release version 5.0.2.
+This example contains a sample input and ouput generated with PowerFit release version 6.0.2.
 The data is hosted on the [powerfit-examples github repository](https://github.com/haddocking/powerfit-examples/).
 
 ## Running the example
@@ -13,11 +13,11 @@ mkdir powerfit-example-data/
 cd powerfit-example-data
 curl -L -o 3zpz_C.cif.gz https://github.com/haddocking/powerfit-examples/raw/refs/heads/main/3zpz_C.cif.gz
 curl -L -o EMD-2325.map.gz https://github.com/haddocking/powerfit-examples/raw/refs/heads/main/EMD-2325.map.gz
-# Create an environment, on Windows use WSL
+# Create an environment
 python3 -m venv .venv
 .venv/bin/activate # or activate equivalent for your OS/shell
-# Install PowerFit release version 5.0.2
-pip install powerfit-em==5.0.2
+# Install PowerFit release version 6.0.2
+pip install powerfit-em==6.0.2
 ```
 
 In this example chain C of the GroEL/ES chaperonin system (PDB entry 3zpz) was fitted into the 
