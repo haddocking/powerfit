@@ -89,6 +89,7 @@ class TestPowerFitterIntegration:
     @pytest.mark.skipif(not OPENCL_AVAILABLE, reason="OpenCL (pyopencl) not installed")
     def test_opencl_scan_matches_cpu(self) -> None:
         """Compare OpenCL scan results against the CPU correlator on tiny inputs."""
+        import pyopencl as cl
         from powerfit_em.gpu import get_opencl_queue
 
         target, template, mask, rotations = _make_tiny_inputs()
@@ -100,7 +101,7 @@ class TestPowerFitterIntegration:
             queue = get_opencl_queue("0:0")
             ocl_pf = PowerFitter(target, rotations, template, mask, queue=queue)
             ocl_pf.scan(progress=None)
-        except Exception as e:
+        except (cl.RuntimeError, cl.LogicError, RuntimeError) as e:
             pytest.skip(str(e))
 
         assert np.allclose(cpu_pf.lcc, ocl_pf.lcc, atol=1e-4, rtol=1e-4)
