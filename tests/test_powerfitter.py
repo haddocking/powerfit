@@ -90,6 +90,7 @@ class TestPowerFitterIntegration:
     def test_opencl_scan_matches_cpu(self) -> None:
         """Compare OpenCL scan results against the CPU correlator on tiny inputs."""
         import pyopencl as cl
+
         from powerfit_em.gpu import get_opencl_queue
 
         target, template, mask, rotations = _make_tiny_inputs()
