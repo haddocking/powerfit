@@ -36,7 +36,7 @@ help:
 
 install:
 	cd $(ROOT)
-	uv sync --extra docs
+	uv sync --extra docs --inexact
 
 wasm-wheel: install
 	cd $(ROOT)
