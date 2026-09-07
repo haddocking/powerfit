@@ -35,4 +35,4 @@ jobs:
           python -c "import pyopencl as cl; print(cl.get_platforms()[0].get_devices())"
 
       - name: run opencl tests
-        run: pytest -vvv tests/correlators/test_opencl.py
+        run: pytest -vvv tests/correlators/test_opencl.py tests/test_powerfitter.py
