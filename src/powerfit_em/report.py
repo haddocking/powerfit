@@ -630,13 +630,13 @@ def generate_report(
         )
     )
     state_path = run_dir / "state.mvsj"
-    state_path.write_text(state.dumps(indent=2))
+    state_path.write_text(state.dumps(indent=2), encoding="utf-8")
 
     solutions_table = generated_table(solutions[:num])
 
     report = run_dir / "report.html"
     body = generate_html(target_path, iso, state_path, options, solutions_table)
-    report.write_text(body)
+    report.write_text(body, encoding="utf-8")
 
     rel_report = Path(os.path.relpath(report, Path.cwd()))
     rel_run_dir = Path(os.path.relpath(run_dir, Path.cwd()))
