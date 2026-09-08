@@ -17,10 +17,14 @@ from powerfit_em.correlators.opencl import (  # noqa: E402
 
 @pytest.fixture(scope="module")
 def opencl_queue():
+    import pyopencl as cl
+
     try:
-        return get_opencl_queue("0:0")
-    except (RuntimeError, ValueError) as exc:
+        queue = get_opencl_queue("0:0")
+        cl.Program(queue.context, "__kernel void noop() {}").build()
+    except (RuntimeError, ValueError, cl.Error) as exc:
         pytest.skip(str(exc))
+    return queue
 
 
 def _make_inputs():
