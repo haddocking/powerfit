@@ -251,9 +251,9 @@ pip install powerfit-em
 
 In a `cmd`/PowerShell `venv` works without installing any compiler or Visual Studio Build Tools.
 
-CUDA acceleration is available natively via [Conda/Micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html), see below.
+CUDA and OpenCL acceleration are available natively via [Conda/Micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html), see below.
 
-OpenCL is not currently available natively; use the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) instead. Open a WSL terminal and follow the [Linux installation instructions](#linux) above.
+Use `--gpu <platform>:<device>` options after installing the CUDA/Micromamba environment above; both CUDA and OpenCL devices are exposed the same way. Without dedicated GPU hardware, use the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) instead: open a WSL terminal and follow the [Linux installation instructions](#linux) above.
 
 #### Steps for running on NVIDIA GPU with Conda/Micromamba
 
