@@ -9,22 +9,6 @@ from powerfit_em.volume import Volume
 
 
 @pytest.fixture
-def example_volume() -> Volume:
-    array = np.zeros((3, 4, 5))
-    array[0, 0, 0] = 1.1
-    array[1, 2, 3] = 2.2
-    array[2, 3, 4] = 3.3
-    return Volume(array)
-
-
-@pytest.fixture
-def example_mrc_file(tmp_path: Path, example_volume: Volume) -> Path:
-    fn = tmp_path / "example_volume.mrc"
-    example_volume.tofile(fn)
-    return fn
-
-
-@pytest.fixture
 def example_gz_file(tmp_path: Path, example_mrc_file: Path) -> Path:
     with open(example_mrc_file, mode="rb") as f:
         mrc_file = f.read()
