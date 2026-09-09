@@ -630,20 +630,20 @@ def generate_report(
         )
     )
     state_path = run_dir / "state.mvsj"
-    state_path.write_text(state.dumps(indent=2))
+    state_path.write_text(state.dumps(indent=2), encoding="utf-8")
 
     solutions_table = generated_table(solutions[:num])
 
     report = run_dir / "report.html"
     body = generate_html(target_path, iso, state_path, options, solutions_table)
-    report.write_text(body)
+    report.write_text(body, encoding="utf-8")
 
-    rel_report = Path(os.path.relpath(report, Path.cwd()))
-    rel_run_dir = Path(os.path.relpath(run_dir, Path.cwd()))
     logger.warning(
-        f"Report generated at {rel_report}. Start web server with "
-        f"`python3 -m http.server -d {rel_run_dir}`. "
-        "Open http://localhost:8000/report.html in a web browser to view the results."
+        "Report generated at %s. Start web server with "
+        "`python3 -m http.server -d %s`. "
+        "Open http://localhost:8000/report.html in a web browser to view the results.",
+        report,
+        run_dir,
     )
 
 

@@ -17,20 +17,100 @@ If you are starting from a clean system, follow the instructions for your
 particular operating system as described below, they should get you up and
 running in no time.
 
-### Conda
+## Linux
+
+Linux systems usually already include a Python3.11 or greater distribution. First make
+sure the Python header files and pip and *git* are available by
+opening up a terminal and typing for Debian and Ubuntu systems
+
+```shell
+sudo apt update
+sudo apt install python3-dev python3-pip git build-essential
+```
+
+If you are working on Fedora, this should be replaced by
+
+```shell
+sudo yum install python3-devel python3-pip git development-c development-tools
+```
+
+<details>
+<summary>Steps for running on AMD or Intel GPU</summary>
+
+If you want to use the GPU version of PowerFit, you need to install the
+drivers for your GPU. 
+
+For OpenCL, install the OpenCL development libraries and the OpenCL-enabled
+package.
+
+After installing the drivers, you need to install the OpenCL development libraries.
+For Debian/Ubuntu, this can be done by running
+
+```shell
+sudo apt install ocl-icd-opencl-dev ocl-icd-libopencl1
+```
+For Fedora, this can be done by running
+
+```shell
+sudo dnf install opencl-headers ocl-icd-devel
+```
+
+Install PowerFit with OpenCL support using
+
+```shell
+pip install powerfit-em[opencl]
+```
+
+Check that the OpenCL installation is working by running
+
+```shell
+python -c 'import pyopencl as cl;from pyvkfft.fft import rfftn; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
+# Should print the name of your GPU
+```
+</details>
+
+<details>
+<summary>Steps for running on NVIDIA GPU</summary>
+
+
+For the CUDA backend, make sure the CUDA toolkit/runtime is available and that
+`nvcc` can be found via `CUDA_PATH`, `CUDA_HOME`, or `PATH`. Without `nvcc`,
+CUDA support is not built and CUDA mode will not work.
+
+Install the CUDA-enabled package with
+
+```shell
+pip install powerfit-em[cuda13x] # For CUDA version 13.x
+# or
+pip install powerfit-em[cuda12x] # For CUDA version 12.x
+```
+
+Check that the CUDA installation is working by running
+
+```shell
+python -c 'import cupy; print(cupy.cuda.runtime.getDeviceProperties(0)["name"]);import pyvkfft.cuda;print(pyvkfft.cuda.cuda_runtime_version());print(pyvkfft.cuda.cuda_compile_version())'
+# Should print the name of your GPU and versions of CUDA runtime and compiler
+```
+
+</details>
+
+Your system is now prepared, follow the general instructions [here](README.md#installation) to install
+**PowerFit**.
+
+### Linux with Conda
 
 If you do not have system admin rights, you likely cannot compile `pyvkfft` locally.
 However, by installing powerfit in a conda environment, you can still do computations
 on GPU. If you are on a Linux system and have Conda or Mamba available, follow
 these instructions;
 
-<details><summary>Steps for running on AMD or Intel GPU with Conda</summary>
+<details><summary>Steps for running on AMD or Intel GPU</summary>
 
 For AMD or Intel GPUs using OpenCL you can run the following command. Note that
 this relies on OpenCL drivers being available system wide (under `/etc/OpenCL/vendors/`).
 
 ```shell
-conda create -n powerfit -c conda-forge python=3.12 ocl-icd ocl-icd-system pyopencl pyvkfft
+conda create -n powerfit -c conda-forge python=3.14 ocl-icd ocl-icd-system pyopencl pyvkfft
 conda activate powerfit
 pip install powerfit-em[opencl]
 ```
@@ -39,7 +119,7 @@ On Intel integrated graphics you can use the following command. This includes
 the OpenCL runtime and does not rely on your system setup:
 
 ```shell
-conda create -n powerfit -c conda-forge python=3.12 ocl-icd intel-compute-runtime pyopencl pyvkfft
+conda create -n powerfit -c conda-forge python=3.14 ocl-icd intel-compute-runtime pyopencl pyvkfft
 conda activate powerfit
 pip install powerfit-em[opencl]
 ```
@@ -53,7 +133,7 @@ python -c 'import pyopencl as cl;from pyvkfft.fft import rfftn; ps=cl.get_platfo
 
 </details>
 
-<details><summary>Steps for running on NVIDIA GPU with Conda</summary>
+<details><summary>Steps for running on NVIDIA GPU</summary>
 
 For NVIDIA GPUs using CUDA you can run the following command.
 
@@ -76,7 +156,114 @@ python -c 'import cupy; print(cupy.cuda.runtime.getDeviceProperties(0)["name"]);
 
 </details>
 
-### Usage in Docker
+## MacOSX
+
+First install [*git*](https://git-scm.com/download) by following the
+instructions on their website, or using a package manager such as *brew*
+
+```shell
+brew install git
+```
+
+Next install [*pip*](https://pip.pypa.io/en/latest/installation/), the
+Python package manager, by following the installation instructions on the
+website or open a terminal and type
+
+```shell
+python -m ensurepip --upgrade
+```
+
+To get faster score calculation, install the pyFTTW Python package in your conda environment
+with `conda install -c conda-forge pyfftw`.
+
+Follow the general instructions [here](README.md#installation) to install
+**PowerFit**.
+
+## Windows
+
+You can run PowerFit on your CPU by installing it in an [activated Python virtual environment](https://docs.python.org/3/library/venv.html) with:
+
+```shell
+pip install powerfit-em
+```
+
+You can also run powerfit on GPU with [micromamba](https://mamba.readthedocs.io/en/latest/installation/micromamba-installation.html).
+Expand below for instructions for your specific GPU type.
+
+<details><summary>AMD or Intel GPU</summary>
+
+```powershell
+# In admin PowerShell
+winget install Mamba.Micromamba
+# reboot to apply changes
+```
+
+```powershell
+# In PowerShell
+micromamba shell
+micromamba create -n powerfit pyvkfft pyopencl pip
+micromamba activate powerfit
+pip install powerfit-em[opencl]
+```
+
+```powershell
+powerfit <map> <resolution> <pdb> --gpu
+```
+</details>
+
+<details><summary>NVIDIA GPU</summary>
+
+```powershell
+# In admin PowerShell
+winget install Mamba.Micromamba
+# reboot to apply changes
+```
+
+```powershell
+# In PowerShell
+micromamba shell
+micromamba create -n powerfit pyvkfft pyopencl cupy cuda-version=13 pip
+micromamba activate powerfit
+pip install powerfit-em[cuda13x]
+```
+
+```powershell
+powerfit <map> <resolution> <pdb> --gpu
+```
+</details>
+
+### Windows Subsystem for Linux (WSL)
+
+You can also run powerfit in a [Windows Subsystem for Linux (WSL) terminal environment](https://learn.microsoft.com/en-us/windows/wsl/install)
+by following the [Linux installation instructions](#linux).
+
+If you have an NVIDIA GPU, you can use the CUDA GPU backend after you follow
+the instructions in the [cuda wsl guide](https://docs.nvidia.com/cuda/wsl-user-guide/index.html).
+
+## Source build with native CPU optimization
+
+By default, binary wheels are built for portability. If you install from source,
+you can opt into host-CPU optimization by setting `RUSTFLAGS` during install.
+
+Building from source (rather than installing the prebuilt wheel) also requires the Rust toolchain and a C-compiler.
+
+Linux/macOS:
+```shell
+RUSTFLAGS="-C target-cpu=native" pip install --no-binary powerfit-em powerfit-em
+```
+
+Windows (requires [Rust](https://rustup.rs/) and [Microsoft C++ Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/); "Desktop development with C++"):
+
+```shell
+$env:RUSTFLAGS="-C target-cpu=native"; pip install --no-binary powerfit-em powerfit-em
+```
+
+The resulting installation is specific to the current CPU and may fail on other CPUs.
+
+In a test using six CPU cores, using the native-optimized built was ~30% faster (34s -> 26s).
+``
+
+## Usage in Docker
 
 Powerfit can be run in a Docker container. 
 
@@ -137,145 +324,24 @@ sudo docker run --rm -ti \
     -a 20 -d /data/run-KsgA-docker-amd --gpu
 ```
 
-### Linux
-
-Linux systems usually already include a Python3.11 or greater distribution. First make
-sure the Python header files, pip and *git* are available by
-opening up a terminal and typing for Debian and Ubuntu systems
-
-```shell
-sudo apt update
-sudo apt install python3-dev python3-pip git build-essential
-```
-
-If you are working on Fedora, this should be replaced by
-
-```shell
-sudo yum install python3-devel python3-pip git development-c development-tools
-```
-
-<details>
-<summary>Steps for running on AMD or Intel GPU</summary>
-
-If you want to use the GPU version of PowerFit, you need to install the
-drivers for your GPU. 
-
-For OpenCL, install the OpenCL development libraries and the OpenCL-enabled
-package.
-
-After installing the drivers, you need to install the OpenCL development libraries.
-For Debian/Ubuntu, this can be done by running
-
-```shell
-sudo apt install ocl-icd-opencl-dev ocl-icd-libopencl1
-```
-For Fedora, this can be done by running
-
-```shell
-sudo dnf install opencl-headers ocl-icd-devel
-```
-
-
-Install PowerFit with OpenCL support using
-
-```shell
-pip install powerfit-em[opencl]
-```
-
-Check that the OpenCL installation is working by running
-
-```shell
-python -c 'import pyopencl as cl;from pyvkfft.fft import rfftn; ps=cl.get_platforms();print(ps);print(ps[0].get_devices())'
-# Should print the name of your GPU
-```
-</details>
-
-<details>
-<summary>Steps for running on NVIDIA GPU</summary>
-
-
-For the CUDA backend, make sure the CUDA toolkit/runtime is available and that
-`nvcc` can be found via `CUDA_PATH`, `CUDA_HOME`, or `PATH`. Without `nvcc`,
-CUDA support is not built and CUDA mode will not work.
-
-Install the CUDA-enabled package with
-
-```shell
-pip install powerfit-em[cuda13x] # For CUDA version 13.x
-# or
-pip install powerfit-em[cuda12x] # For CUDA version 12.x
-```
-
-Check that the CUDA installation is working by running
-
-```shell
-python -c 'import cupy; print(cupy.cuda.runtime.getDeviceProperties(0)["name"]);import pyvkfft.cuda;print(pyvkfft.cuda.cuda_runtime_version());print(pyvkfft.cuda.cuda_compile_version())'
-# Should print the name of your GPU and versions of CUDA runtime and compiler
-```
-
-</details>
-
-Your system is now prepared, follow the general instructions [here](README.md#installation) to install
-**PowerFit**.
-
-### MacOSX
-
-First install [*git*](https://git-scm.com/download) by following the
-instructions on their website, or using a package manager such as *brew*
-
-```shell
-brew install git
-```
-
-Next install [*pip*](https://pip.pypa.io/en/latest/installation/), the
-Python package manager, by following the installation instructions on the
-website or open a terminal and type
-
-```shell
-python -m ensurepip --upgrade
-```
-
-To get faster score calculation, install the pyFTTW Python package in your conda environment
-with `conda install -c conda-forge pyfftw`.
-
-Follow the general instructions [here](README.md#installation) to install
-**PowerFit**.
-
-### Windows
-
-You can not run PowerFit natively on Windows, but you can use the [Windows Subsystem for Linux (WSL)](https://learn.microsoft.com/en-us/windows/wsl/install) to run it. Open a WSL terminal and follow the [Linux installation instructions](#linux) above.
-If you have an NVIDIA GPU, you can use the CUDA GPU backend after you follow
-the instructions [here](https://docs.nvidia.com/cuda/wsl-user-guide/index.html).
-
-## Source build with native CPU optimization
-
-By default, binary wheels are built for portability. If you install from source,
-you can opt into host-CPU optimization by setting `RUSTFLAGS` during install.
-
-Linux/macOS:
-```shell
-RUSTFLAGS="-C target-cpu=native" pip install --no-binary powerfit-em powerfit-em
-```
-
-The optimized build only works on current hardware.
-
-For a test case the runtime from 34s (binary wheel from PyPi) to 26s (cpu native optimized) on 6 CPU cores.
-
 ## Tested platforms
 
 | Operating System| CPU single | CPU multi | OpenCL | CUDA |
-| --------------- | ---------- | --------- | --- | -- |
-|Linux            | Yes        | Yes       | Yes | Yes |
-|MacOSX           | Yes        | Yes       | No  | No  |
-|Windows via WSL  | Yes        | Yes       | No  | Yes  |
+| --------------- | ---------- | --------- | ------ | ---- |
+|Linux            | Yes        | Yes       | Yes    | Yes  |
+|MacOSX           | Yes        | Yes       | No     | No   |
+|Windows (native) | Yes        | Yes       | Yes    | Yes  |
+|Windows via WSL  | Yes        | Yes       | No     | Yes  |
 
 The GPU version has been successfully tested on Linux and with a Docker container for the following devices;
 
 * NVIDIA GeForce GTX 3050
 * NVIDIA GeForce RTX 4070
+- AMD Radeon RX 7700 XT
 * AMD Radeon RX 7800 XT
 * AMD Radeon RX 7900 XTX
 * Intel Iris Xe Graphics (on a Core i7-1185G7)
 
 The integrated graphics of AMD Ryzen CPUs do not officially support OpenCL.
 If they do seem available in PyOpenCL be aware that this [may lead to incorrect results](https://github.com/haddocking/powerfit/issues/76).
+

@@ -1,5 +1,3 @@
-from tempfile import NamedTemporaryFile
-
 import pytest
 
 from powerfit_em import powerfit
@@ -78,14 +76,20 @@ class TestSetupGpuModuleOpenCLOnly:
 
 
 class TestPowerfitCliGpuFlag:
-    def test_bare_gpu_flag_uses_auto_backend_resolution(self):
-        with NamedTemporaryFile() as target, NamedTemporaryFile() as template:
-            args = powerfit.make_parser().parse_args([target.name, "10", template.name, "--gpu"])
+    def test_bare_gpu_flag_uses_auto_backend_resolution(self, tmp_path):
+        target = tmp_path / "target.mrc"
+        template = tmp_path / "template.pdb"
+        target.touch()
+        template.touch()
+        args = powerfit.make_parser().parse_args([str(target), "10", str(template), "--gpu"])
         assert args.gpu == "auto"
 
-    def test_explicit_cuda_gpu_flag_is_preserved(self):
-        with NamedTemporaryFile() as target, NamedTemporaryFile() as template:
-            args = powerfit.make_parser().parse_args([target.name, "10", template.name, "--gpu", "cuda:0"])
+    def test_explicit_cuda_gpu_flag_is_preserved(self, tmp_path):
+        target = tmp_path / "target.mrc"
+        template = tmp_path / "template.pdb"
+        target.touch()
+        template.touch()
+        args = powerfit.make_parser().parse_args([str(target), "10", str(template), "--gpu", "cuda:0"])
         assert args.gpu == "cuda:0"
 
 
