@@ -260,7 +260,8 @@ $env:RUSTFLAGS="-C target-cpu=native"; pip install --no-binary powerfit-em power
 
 The resulting installation is specific to the current CPU and may fail on other CPUs.
 
-In a test using six CPU cores, runtime decreased from **34** seconds with the PyPI wheel to **26** seconds with the native-optimized build.
+In a test using six CPU cores, using the native-optimized built was ~30% faster (34s -> 26s).
+``
 
 ## Usage in Docker
 
