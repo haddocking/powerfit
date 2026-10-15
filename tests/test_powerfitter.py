@@ -26,6 +26,40 @@ def _make_tiny_inputs():
     return target, template, mask, rotations
 
 
+@pytest.mark.parametrize("cpu_backend", ["py", "rust"])
+@pytest.mark.parametrize("nproc", [1, 2])
+@pytest.mark.parametrize("scan_first", [False, True])
+def test_set_template_cpu(cpu_backend, nproc, scan_first):
+    """Replacing a template must give the same result as a fresh CPU fitter."""
+    rng = np.random.default_rng(150)
+    target = Volume(rng.random((8, 8, 8), dtype=np.float32))
+    template = Volume(rng.random(target.shape, dtype=np.float32))
+    replacement = Volume(rng.random(target.shape, dtype=np.float32))
+    mask_array = np.ones(target.shape, dtype=np.float32)
+    mask = Volume(mask_array)
+    replacement_mask = Volume(mask_array.copy())
+    replacement_mask.array[0, :4, :4] = 0
+    rotations = np.asarray([np.eye(3), [[0, -1, 0], [1, 0, 0], [0, 0, 1]]], dtype=np.float32)
+    kwargs = {"queue": None, "nproc": nproc, "cpu_backend": cpu_backend}
+
+    fitter = PowerFitter(target, rotations, template, mask, **kwargs)
+    original_lcc = None
+    if scan_first:
+        fitter.scan()
+        original_lcc = fitter.lcc
+
+    fitter.set_template(replacement, replacement_mask)
+    fitter.scan()
+
+    fresh = PowerFitter(target, rotations, replacement, replacement_mask, **kwargs)
+    fresh.scan()
+    assert np.any(fresh.lcc > 0)
+    if original_lcc is not None:
+        assert not np.allclose(original_lcc, fresh.lcc)
+    np.testing.assert_allclose(fitter.lcc, fresh.lcc, atol=1e-6)
+    np.testing.assert_array_equal(fitter.rot, fresh.rot)
+
+
 @pytest.mark.skipif(not OPENCL_AVAILABLE, reason="OpenCL (pyopencl) not installed")
 class TestCLKernels:
     """Tests for the OpenCL kernels"""
