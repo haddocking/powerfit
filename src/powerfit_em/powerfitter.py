@@ -117,10 +117,15 @@ class PowerFitter:
                 self._multi_cpu_scan(progress)
 
     def set_template(self, template: Volume, mask: Volume):
-        if not self._corr:
-            msg = "No correlator available yet. First run scan."
-            raise ValueError(msg)
-        self._corr.set_template(template.array, mask.array)
+        """Replace the template and mask for the next scan, including before the first scan.
+
+        CPU scans use the stored volumes; existing GPU correlators are updated in place.
+        The template and mask must be on the same grid as the target.
+        """
+        self._template = template
+        self._mask = mask
+        if self._corr is not None:
+            self._corr.set_template(template.array, mask.array)
 
     def _opencl_scan(self):
         from powerfit_em.correlators.opencl import OpenCLBatchedCorrelator, OpenCLSerialCorrelator
