@@ -92,40 +92,8 @@ def add_computational_resources2parser(p: ArgumentParser):
     )
 
 
-def make_parser():
-    """Create the command-line argument parser.
-    Any changes here should be reflected in the documentation at docs/manual.md#parameters"""
-    p = ArgumentParser(prog="powerfit", formatter_class=ArgumentDefaultsHelpFormatter)
-
-    p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
-
-    # Positional arguments
-    p.add_argument(
-        "target",
-        type=FileType("rb"),
-        help="Target density map to fit the model in. Data should either be in CCP4 or MRC format",
-    )
-    p.add_argument("resolution", type=float, help="Resolution of map in angstrom")
-    p.add_argument(
-        "template",
-        type=FileType("rb"),
-        help="Atomic model to be fitted in the density. "
-        "Format should either be PDB or mmCIF. "
-        "Valid extensions are .pdb, .ent, .cif, .pdb.gz, .ent.gz, .cif.gz",
-    )
-
-    # Optional arguments and flags
-    p.add_argument(
-        "-a",
-        "--angle",
-        dest="angle",
-        type=float,
-        default=10,
-        metavar="<float>",
-        help="Rotational sampling density in degree. Increasing "
-        "this number by a factor of 2 results in approximately "
-        "8 times more rotations sampled.",
-    )
+def add_scoring_arguments2parser(p: ArgumentParser):
+    """Add scoring and map preprocessing options with PowerFit defaults."""
     # Scoring flags
     p.add_argument(
         "-nl",
@@ -175,6 +143,29 @@ def make_parser():
         metavar="<float>",
         help="Intensity cutoff to which the map will be trimmed. Default is 10 percent of maximum intensity.",
     )
+
+
+def add_common_arguments2parser(p: ArgumentParser):
+    """Add shared input, scoring, preprocessing and output arguments."""
+    p.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
+
+    # Positional arguments
+    p.add_argument(
+        "target",
+        type=FileType("rb"),
+        help="Target density map to fit the model in. Data should either be in CCP4 or MRC format",
+    )
+    p.add_argument("resolution", type=float, help="Resolution of map in angstrom")
+    p.add_argument(
+        "template",
+        type=FileType("rb"),
+        help="Atomic model to be fitted in the density. "
+        "Format should either be PDB or mmCIF. "
+        "Valid extensions are .pdb, .ent, .cif, .pdb.gz, .ent.gz, .cif.gz",
+    )
+
+    add_scoring_arguments2parser(p)
+
     # Selection parameter
     p.add_argument(
         "-c",
@@ -200,17 +191,6 @@ def make_parser():
         help="Directory where the results are stored.",
     )
     p.add_argument(
-        "-n",
-        "--num",
-        dest="num",
-        type=int,
-        default=10,
-        metavar="<int>",
-        help="Number of models written to file. This number will be capped if less solutions are found as requested.",
-    )
-    # Computational resources parameters
-    add_computational_resources2parser(p)
-    p.add_argument(
         "--log-level",
         dest="log_level",
         type=str,
@@ -226,6 +206,35 @@ def make_parser():
         metavar="<str>",
         help="Delimiter used in the 'solutions.out' file. For example use ',' or '\\t'. Defaults to fixed width.",
     )
+
+
+def make_parser():
+    """Create the fitting CLI parser. Keep docs/manual.md#parameters in sync."""
+    p = ArgumentParser(prog="powerfit", formatter_class=ArgumentDefaultsHelpFormatter)
+    add_common_arguments2parser(p)
+    # Optional arguments and flags
+    p.add_argument(
+        "-a",
+        "--angle",
+        dest="angle",
+        type=float,
+        default=10,
+        metavar="<float>",
+        help="Rotational sampling density in degree. Increasing "
+        "this number by a factor of 2 results in approximately "
+        "8 times more rotations sampled.",
+    )
+    p.add_argument(
+        "-n",
+        "--num",
+        dest="num",
+        type=int,
+        default=10,
+        metavar="<int>",
+        help="Number of models written to file. This number will be capped if less solutions are found as requested.",
+    )
+    # Computational resources parameters
+    add_computational_resources2parser(p)
     p.add_argument(
         "--report",
         dest="report",
@@ -362,7 +371,12 @@ def setup_target(
 
 
 def setup_template_structure(
-    template_structure: BinaryIO, chain: str | None, target: Volume, resolution: float, core_weighted: bool
+    template_structure: BinaryIO,
+    chain: str | None,
+    target: Volume,
+    resolution: float,
+    core_weighted: bool,
+    center: bool = True,
 ) -> tuple[Structure, Volume, Volume, float]:
     """Load structure, setup template and mask, precompute Fisher sigma for scoring."""
     # Read in structure or high-resolution map
@@ -375,15 +389,26 @@ def setup_template_structure(
         raise ValueError("No atoms were selected.")
 
     # Move structure to origin of density
-    structure.translate(target.origin - structure.coor.mean(axis=1))
+    if center:
+        structure.translate(target.origin - structure.coor.mean(axis=1))
+    else:
+        # Use a local grid on the target's voxel lattice. Include the entire
+        # molecule even when its input coordinates lie outside the target map.
+        padding = max(5.0, float(structure.rvdw.max()), 4 * resolution / (np.sqrt(2) * np.pi))
+        lower = np.floor((structure.coor.min(axis=1) - padding - target.origin) / target.voxelspacing) - 1
+        upper = np.ceil((structure.coor.max(axis=1) + padding - target.origin) / target.voxelspacing) + 1
+        origin = target.origin + lower * target.voxelspacing
+        shape = (upper - lower + 1).astype(int)[::-1]
+        target = Volume(np.zeros(shape), target.voxelspacing, origin)
     template = structure_to_shape_like(
         target,
         structure.coor,
         resolution=resolution,
         weights=structure.atomnumber,
         shape="vol",
+        wraparound=center,
     )
-    mask = structure_to_shape_like(target, structure.coor, resolution=resolution, shape="mask")
+    mask = structure_to_shape_like(target, structure.coor, resolution=resolution, shape="mask", wraparound=center)
 
     # Apply core-weighted mask if requested
     if core_weighted:
@@ -398,6 +423,7 @@ def setup_template_structure(
             resolution=resolution,
             radii=structure.rvdw,
             shape="mask",
+            wraparound=center,
         ).array.sum()
         * target.voxelspacing**3
     )
@@ -434,7 +460,14 @@ def powerfit(
     delimiter: str | None = None,
     progress: ProgressFactory | None = None,
     cpu_backend: str = "py",
-):
+) -> None:
+    """Fit a template to a target density.
+
+    Results are written to solutions.out. Use powerfit_em.score.score_pose for direct access to scores.
+
+    Unlike the CLI, the Python API defaults laplace and core_weighted to False.
+    Set both to True to match the CLI's default scoring settings.
+    """
     time0 = time()
     Path(directory).mkdir(exist_ok=True)
 
