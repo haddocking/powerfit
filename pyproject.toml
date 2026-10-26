@@ -75,6 +75,7 @@ tutorial = "https://www.bonvinlab.org/education/Others/"
 
 [project.scripts]
 powerfit = "powerfit_em.powerfit:main"
+powerfit-score = "powerfit_em.score:main"
 
 [tool.maturin]
 manifest-path = "rust/Cargo.toml"
