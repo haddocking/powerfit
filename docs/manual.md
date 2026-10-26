@@ -5,7 +5,9 @@ standard `powerfit` command. These default parameters are also the
 standard in the [PowerFit web service](https://wenmr.science.uu.nl/powerfit).
 Below we will describe the different [parameters](#parameters). 
 In addition, we will explain how to use PowerFit in the [CLI](#using-powerfit-in-the-cli) 
-and in the [webservice](#using-the-webservice).
+and in the [webservice](#using-the-webservice). The separate
+[`powerfit-score` command](#scoring-an-existing-pose-with-powerfit-score) scores
+models at their input coordinates.
 Lastly, we explain [the output](#report-page) of the *report.html*
 file or result page on the webserver.
 
@@ -67,7 +69,7 @@ First, to see all options and their descriptions type
 ```shell
 powerfit --help
 ```
-You can also see all the options in the [CLI Reference](cli.md).
+The [CLI reference](cli.md) lists options for both `powerfit` and `powerfit-score`.
 The information should explain all options decently. In addtion, here are some
 examples for common operations. These examples can also be used in the webserver
 by adapting the Optional Parameters. 
@@ -105,6 +107,18 @@ Using GPU-accelerated search.
 ...
 ```
 (See `--help` if you have multiple GPUs and want to specify which one to use)
+
+## Scoring an existing pose with powerfit-score
+
+Use `powerfit-score` to calculate `cc`, `Fish-z`, and `rel-z` for the supplied
+atomic coordinates, for example before and after molecular dynamics (MD) refinement:
+
+```shell
+powerfit-score target.mrc 3.7 fit_1.pdb --out scores-before.csv
+powerfit-score target.mrc 3.7 post-md_1.pdb.gz --out scores-after.csv
+```
+
+Use the same settings for both models and compare the two rescored values.
 
 ## Using the webservice
 

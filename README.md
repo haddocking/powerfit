@@ -69,6 +69,14 @@ cross-correlation score on a single CPU-core. During the search, *powerfit*
 will update you about the progress of the search if you are using it
 interactively in the shell.
 
+To score a structure at its current coordinates, for example before and after MD:
+
+```shell
+powerfit-score <map> <resolution> <structure>
+```
+
+Scores are printed as CSV.
+
 Please refer to the [PowerFit Example](https://bonvinlab.org/powerfit/example.html) to see an example in and output for a PowerFit run.
 
 Please refer to the [PowerFit tutorial](https://www.bonvinlab.org/education/Others/powerfit/) to learn how to use PowerFit and analyze the results in the command line.
