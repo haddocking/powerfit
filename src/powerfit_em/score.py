@@ -48,7 +48,7 @@ def setup_target_with_laplace(
         Score many structures against the same map with the CLI's default settings::
 
             from powerfit_em.score import (
-                setup_target_with_laplace, setup_template_structure_with_laplace, score_pose
+                setup_target_with_laplace, setup_structure_with_laplace, score_pose
             )
 
             resolution = 3.7
@@ -58,12 +58,12 @@ def setup_target_with_laplace(
             scores = {}
             for filename in ["fit_1.pdb", "refined_1.pdb.gz"]:
                 with open(filename, "rb") as stream:
-                    template, mask, z_sigma = setup_template_structure_with_laplace(
-                        template_structure=stream, chain=None, target=target,
+                    structure, mask, z_sigma = setup_structure_with_laplace(
+                        structure=stream, chain=None, target=target,
                         resolution=resolution, core_weighted=True
                     )
                 scores[filename] = score_pose(
-                    target=target, template=template, mask=mask, z_sigma=z_sigma
+                    target=target, structure=structure, mask=mask, z_sigma=z_sigma
                 )
     """
     target = setup_target(
@@ -80,49 +80,49 @@ def setup_target_with_laplace(
     return target
 
 
-def setup_template_structure_with_laplace(
-    template_structure: BinaryIO,
+def setup_structure_with_laplace(
+    structure: BinaryIO,
     chain: str | None,
     target: Volume,
     resolution: float,
     core_weighted: bool,
     laplace: bool = True,
 ) -> tuple[Volume, Volume, float]:
-    """Build a template at its input coordinates and optionally Laplace-filter it.
+    """Build a structure at its input coordinates and optionally Laplace-filter it.
 
     Args:
-        template_structure: Open atomic structure file accepted by setup_template_structure.
+        structure: Open atomic structure file accepted by setup_template_structure.
         chain: Comma-separated chain IDs to select, or None for all chains.
         target: Preprocessed target defining the voxel lattice.
         resolution: Map resolution in angstrom.
         core_weighted: Whether to use a core-weighted mask.
-        laplace: Whether to Laplace-filter the template density. Must match the
+        laplace: Whether to Laplace-filter the structure density. Must match the
             setting used in setup_target_with_laplace.
 
     Returns:
-        Template density, mask, and Fisher z standard deviation ready for score_pose.
+        Structure density, mask, and Fisher z standard deviation ready for score_pose.
     """
-    _, template, mask, z_sigma = setup_template_structure(
-        template_structure=template_structure,
+    _, structure, mask, z_sigma = setup_template_structure(
+        template_structure=structure,
         chain=chain,
         target=target,
         resolution=resolution,
         core_weighted=core_weighted,
         center=False,
     )
-    model = np.asarray(template.array, dtype=np.float64)
+    model = np.asarray(structure.array, dtype=np.float64)
     if laplace:
         model = laplace_filter(model, mode="wrap")
-    template.array = model
-    return template, mask, z_sigma
+    structure.array = model
+    return structure, mask, z_sigma
 
 
-def score_pose(*, target: Volume, template: Volume, mask: Volume, z_sigma: float) -> list[float]:
-    """Score a template against a target returned by setup_target_with_laplace.
+def score_pose(*, target: Volume, structure: Volume, mask: Volume, z_sigma: float) -> list[float]:
+    """Score a structure against a target returned by setup_target_with_laplace.
 
-    Prepare the template with setup_template_structure_with_laplace using the
-    same Laplace setting as the target. Each template must use the target's voxel
-    lattice, though its shape and origin may differ. Rebuild the template, mask,
+    Prepare the structure with setup_structure_with_laplace using the
+    same Laplace setting as the target. Each structure must use the target's voxel
+    lattice, though its shape and origin may differ. Rebuild the structure, mask,
     and Fisher sigma for each structure, as shown in setup_target_with_laplace's example.
 
     Reuse the correlators' mask support and core-weighted normalization, evaluating
@@ -132,22 +132,22 @@ def score_pose(*, target: Volume, template: Volume, mask: Volume, z_sigma: float
 
     Args:
         target: Target density returned by setup_target_with_laplace.
-        template: Prepared template density on the target's voxel lattice.
-        mask: Mask weights on the template's grid, optionally core-weighted.
+        structure: Prepared structure density on the target's voxel lattice.
+        mask: Mask weights on the structure's grid, optionally core-weighted.
         z_sigma: Fisher z standard deviation for this structure and resolution.
 
     Returns:
         cc, Fisher z, and relative z.
 
     Raises:
-        ValueError: The template has zero density variance inside its mask, or
-            the target has nonzero constant density inside the template mask.
+        ValueError: The structure has zero density variance inside its mask, or
+            the target has nonzero constant density inside the structure mask.
     """
-    model = np.asarray(template.array, dtype=np.float64)
+    model = np.asarray(structure.array, dtype=np.float64)
     weights = np.asarray(mask.array, dtype=np.float64)
-    # Template and target share a voxel lattice. Target density outside the
+    # Structure and target share a voxel lattice. Target density outside the
     # supplied map is zero, rather than wrapping to the opposite map boundary.
-    offset = np.rint((np.asarray(template.origin) - target.origin) / target.voxelspacing)[::-1]
+    offset = np.rint((np.asarray(structure.origin) - target.origin) / target.voxelspacing)[::-1]
     density = affine_transform(
         target.array, np.eye(3), offset=offset, output_shape=model.shape, order=0, mode="constant", prefilter=False
     )
@@ -156,11 +156,11 @@ def score_pose(*, target: Volume, template: Volume, mask: Volume, z_sigma: float
     model_values = (model * weights)[support]
     target_values = (density * weights)[support]
     if model_values.std() == 0:
-        raise ValueError("Cannot score a template with zero density variance inside its mask.")
+        raise ValueError("Cannot score a structure with zero density variance inside its mask.")
     if not target_values.any():
         cc = 0.0
     elif target_values.std() == 0:
-        raise ValueError("Cannot score a target with zero density variance inside the template mask.")
+        raise ValueError("Cannot score a target with zero density variance inside the structure mask.")
     else:
         normalized_model = normalize_template(model, weights)
         # normalize_template includes the second mask multiplication used by
@@ -303,8 +303,8 @@ def main(argv: list[str] | None = None):
         "Map shape: %s; voxel spacing: %s; resolution: %s A", target.shape, target.voxelspacing, args.resolution
     )
     with args.structure:
-        template, mask, z_sigma = setup_template_structure_with_laplace(
-            template_structure=args.structure,
+        structure, mask, z_sigma = setup_structure_with_laplace(
+            structure=args.structure,
             chain=args.chain,
             target=target,
             resolution=args.resolution,
@@ -312,5 +312,5 @@ def main(argv: list[str] | None = None):
             laplace=not args.no_laplace,
         )
     logger.info("Scoring the supplied coordinates without alignment or pose optimization; outside-map density is zero.")
-    solution = score_pose(target=target, template=template, mask=mask, z_sigma=z_sigma)
+    solution = score_pose(target=target, structure=structure, mask=mask, z_sigma=z_sigma)
     write_solution(solution, out=args.out, delimiter=args.delimiter)

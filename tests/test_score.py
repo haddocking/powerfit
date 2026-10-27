@@ -14,8 +14,8 @@ from powerfit_em.correlators.cpu import CPUCorrelator
 from powerfit_em.score import (
     main,
     score_pose,
+    setup_structure_with_laplace,
     setup_target_with_laplace,
-    setup_template_structure_with_laplace,
     write_solution,
 )
 
@@ -43,10 +43,10 @@ def test_score_pose_matches_correlator(
     z, y, x = np.indices(shape)
     distance2 = sum(np.minimum(a, 24 - a) ** 2 for a in (x, y, z))
     mask = make_mask(distance2)
-    template = rng.random(shape)
-    target = 2 + sign * template + rng.normal(0, 0.1, shape)
+    structure = rng.random(shape)
+    target = 2 + sign * structure + rng.normal(0, 0.1, shape)
     rotations = np.eye(3, dtype=np.float32)[None]
-    correlator = CPUCorrelator(target, template, rotations, mask, laplace=laplace)
+    correlator = CPUCorrelator(target, structure, rotations, mask, laplace=laplace)
     correlator.compute_rotation(0, rotations[0])
     target_file = tmp_path / "target.mrc"
     Volume(target).tofile(target_file)
@@ -55,7 +55,7 @@ def test_score_pose_matches_correlator(
             target_volume=stream, resolution=8, no_resampling=True, no_trimming=True, laplace=laplace
         )
 
-    solution = score_pose(target=prepared, template=Volume(filter_density(template)), mask=Volume(mask), z_sigma=0.25)
+    solution = score_pose(target=prepared, structure=Volume(filter_density(structure)), mask=Volume(mask), z_sigma=0.25)
 
     # lcc_scan retains negative scores, whereas lcc retains only improvements over zero.
     # FFT scoring uses float32 and subtraction of nearly equal second moments.
@@ -63,11 +63,11 @@ def test_score_pose_matches_correlator(
 
 
 def test_score_returns_fisher_scores():
-    template = Volume(np.array([[[0.0, 1.0, 0.0, -1.0]]]))
+    structure = Volume(np.array([[[0.0, 1.0, 0.0, -1.0]]]))
     target = Volume(np.array([[[1.0, 1.0, -1.0, -1.0]]]))
-    mask = Volume(np.ones(template.shape))
+    mask = Volume(np.ones(structure.shape))
 
-    solution = score_pose(target=target, template=template, mask=mask, z_sigma=0.25)
+    solution = score_pose(target=target, structure=structure, mask=mask, z_sigma=0.25)
 
     assert solution == pytest.approx([0.70710678, 0.88137359, 3.52549435])
 
@@ -117,10 +117,10 @@ def test_scoring_preserves_prepared_target(target_file: Path, laplace: bool):
             target_volume=stream, resolution=8, no_resampling=True, no_trimming=True, laplace=laplace
         )
     snapshot = _volume_state(prepared)
-    template = Volume(np.random.default_rng(95).random(prepared.shape), prepared.voxelspacing, prepared.origin)
-    mask = Volume(np.ones(template.shape), prepared.voxelspacing, prepared.origin)
+    structure = Volume(np.random.default_rng(95).random(prepared.shape), prepared.voxelspacing, prepared.origin)
+    mask = Volume(np.ones(structure.shape), prepared.voxelspacing, prepared.origin)
 
-    score_pose(target=prepared, template=template, mask=mask, z_sigma=0.25)
+    score_pose(target=prepared, structure=structure, mask=mask, z_sigma=0.25)
 
     assert _volume_state(prepared) == snapshot
 
@@ -130,16 +130,16 @@ def test_no_overlap_does_not_wrap():
     model = Volume(np.arange(64, dtype=float).reshape(4, 4, 4), origin=(100, 200, -100))
     mask = Volume(np.ones(model.shape), origin=model.origin)
 
-    solution = score_pose(target=target, template=model, mask=mask, z_sigma=0.2)
+    solution = score_pose(target=target, structure=model, mask=mask, z_sigma=0.2)
 
     assert solution == [0, 0, 0]
 
 
-@pytest.mark.parametrize("constant", ["target", "template"])
+@pytest.mark.parametrize("constant", ["target", "structure"])
 def test_constant_density_has_clear_error(constant: str):
     volumes = {
         "target": Volume(np.arange(64, dtype=float).reshape(4, 4, 4)),
-        "template": Volume(np.arange(64, dtype=float).reshape(4, 4, 4)),
+        "structure": Volume(np.arange(64, dtype=float).reshape(4, 4, 4)),
     }
     volumes[constant] = Volume(np.ones((4, 4, 4)))
     mask = Volume(np.ones((4, 4, 4)))
@@ -187,19 +187,17 @@ def score_inputs(tmp_path: Path) -> tuple[Path, Path]:
         pytest.param(True, [-3.442947706, -5.006438421, -4.483174977, -2.981073614, -2.250094814], id="laplace"),
     ],
 )
-def test_setup_template_structure_with_laplace(
-    score_inputs: tuple[Path, Path], laplace: bool, expected_density: list[float]
-):
+def test_setup_structure_with_laplace(score_inputs: tuple[Path, Path], laplace: bool, expected_density: list[float]):
     target_file, pdb = score_inputs
     target = Volume.fromfile(str(target_file))
 
     with pdb.open("rb") as stream:
-        template, mask, z_sigma = setup_template_structure_with_laplace(
-            template_structure=stream, chain=None, target=target, resolution=8, core_weighted=True, laplace=laplace
+        structure, mask, z_sigma = setup_structure_with_laplace(
+            structure=stream, chain=None, target=target, resolution=8, core_weighted=True, laplace=laplace
         )
 
     assert {
-        "density": template.array[11, 10, 8:13].tolist(),
+        "density": structure.array[11, 10, 8:13].tolist(),
         "mask": mask.array[11, 10, 8:13].tolist(),
         "z_sigma": z_sigma,
     } == {
