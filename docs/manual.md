@@ -115,7 +115,7 @@ atomic coordinates, for example before and after molecular dynamics (MD) refinem
 
 ```shell
 powerfit-score target.mrc 3.7 fit_1.pdb --out scores-before.csv
-powerfit-score target.mrc 3.7 post-md_1.pdb.gz --out scores-after.csv
+powerfit-score target.mrc 3.7 refined_1.pdb.gz --out scores-after.csv
 ```
 
 Use the same settings for both models and compare the two rescored values.
