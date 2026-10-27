@@ -246,7 +246,11 @@ def make_parser():
             "Scores can differ from powerfit search results because powerfit rotates\n"
             "precomputed density and mask grids, while powerfit-score rebuilds them\n"
             "from the supplied atomic coordinates. Grid interpolation and mask\n"
-            "discretization can therefore change the score, even for an exported fit."
+            "discretization can therefore change the score, even for an exported fit.\n"
+            "With Laplace filtering enabled, scores can also differ when the pose's\n"
+            "mask reaches a target map boundary: powerfit uses periodic target\n"
+            "filtering, while powerfit-score treats density outside the target as\n"
+            "zero. This filtering difference does not affect interior poses."
         ),
         formatter_class=HelpFormatter,
     )
