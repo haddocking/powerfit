@@ -21,11 +21,12 @@ def pytest_addoption(parser):
 
 
 @pytest.fixture
-def powerfit_args(request) -> list[str]:
+def powerfit_args(request, capsys) -> list[str] | None:
     """Parse and validate --powerfit option using PowerFit's argument parser.
 
     Only allows computational resource arguments,
     use `pytest ... --powerfit="--help"` to see available options.
+    Help is printed without capture and returns None to indicate successful completion.
     Rejects all other arguments to preserve test determinism.
     """
     powerfit_str = request.config.getoption("--powerfit", default="").strip()
@@ -37,8 +38,11 @@ def powerfit_args(request) -> list[str]:
     add_computational_resources2parser(parser)
     raw_args = shlex.split(powerfit_str)
     try:
-        parser.parse_args(raw_args)
+        with capsys.disabled():
+            parser.parse_args(raw_args)
     except SystemExit as e:
+        if e.code == 0:
+            return None
         pytest.fail(f"Failed to parse --powerfit: {powerfit_str}\nParser error: {e}")
 
     return raw_args

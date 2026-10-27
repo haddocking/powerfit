@@ -48,7 +48,7 @@ def baseline_solutions() -> Path:
 
 
 def test_powerfit_solutions_match_baseline(
-    ribosome_map: Path, ksga_pdb: Path, tmp_path: Path, powerfit_args: list[str], baseline_solutions: Path
+    ribosome_map: Path, ksga_pdb: Path, tmp_path: Path, powerfit_args: list[str] | None, baseline_solutions: Path
 ):
     """Test that solutions.out matches baseline across execution profiles.
 
@@ -56,6 +56,10 @@ def test_powerfit_solutions_match_baseline(
     and verifies that all profiles produce numerically identical results (within rounding
     tolerance) by comparing against a single cached baseline.
     """
+    if powerfit_args is None:
+        # The argument parser has successfully displayed help; no fitting is needed.
+        return
+
     args_list = [
         str(ribosome_map),
         "13",
