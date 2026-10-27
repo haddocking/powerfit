@@ -116,25 +116,25 @@ To run OpenCL on **C**PU install use `pip install -e .[pocl]` and make sure no o
 The Docker container, that works for CPU and OpenCL backends, can be build with
 
 ```shell
-docker build -t ghcr.io/haddocking/powerfit:v5.0.0 .
+docker build -t ghcr.io/haddocking/powerfit:v6.1.0 .
 ```
 
 The Docker container, that works for NVIDIA GPUs via CUDA version 13, can be build with
 
 ```shell
-docker build -t ghcr.io/haddocking/powerfit-cuda13:v5.0.0 -f Dockerfile.cuda13 .
+docker build -t ghcr.io/haddocking/powerfit-cuda13:v6.1.0 -f Dockerfile.cuda13 .
 ```
 
 For CUDA version 12, use
 
 ```shell
-docker build -t ghcr.io/haddocking/powerfit-cuda12:v5.0.0 -f Dockerfile.cuda12 .
+docker build -t ghcr.io/haddocking/powerfit-cuda12:v6.1.0 -f Dockerfile.cuda12 .
 ```
 
 The Docker container, that works for AMD gpus, can be build with
 
 ```shell
-docker build -t ghcr.io/haddocking/powerfit-rocm:v5.0.0 -f Dockerfile.rocm .
+docker build -t ghcr.io/haddocking/powerfit-rocm:v6.1.0 -f Dockerfile.rocm .
 ```
 
 The binary wheels can be build for all supported platforms by running the
