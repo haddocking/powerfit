@@ -49,13 +49,20 @@ def test_score_pose_matches_correlator(
     correlator = CPUCorrelator(target, structure, rotations, mask, laplace=laplace)
     correlator.compute_rotation(0, rotations[0])
     target_file = tmp_path / "target.mrc"
-    Volume(target).tofile(target_file)
+    # Compare an interior pose: search uses periodic filtering, whereas fixed-pose
+    # scoring treats density beyond the target boundary as zero.
+    Volume(np.fft.fftshift(target)).tofile(target_file)
     with target_file.open("rb") as stream:
         prepared = setup_target_with_laplace(
             target_volume=stream, resolution=8, no_resampling=True, no_trimming=True, laplace=laplace
         )
 
-    solution = score_pose(target=prepared, structure=Volume(filter_density(structure)), mask=Volume(mask), z_sigma=0.25)
+    solution = score_pose(
+        target=prepared,
+        structure=Volume(np.fft.fftshift(filter_density(structure))),
+        mask=Volume(np.fft.fftshift(mask)),
+        z_sigma=0.25,
+    )
 
     # lcc_scan retains negative scores, whereas lcc retains only improvements over zero.
     # FFT scoring uses float32 and subtraction of nearly equal second moments.
@@ -80,7 +87,32 @@ def test_setup_target_laplace_filters_density(tmp_path: Path):
     with target_file.open("rb") as stream:
         prepared = setup_target_with_laplace(target_volume=stream, resolution=8, no_resampling=True, no_trimming=True)
 
-    np.testing.assert_array_equal(prepared.array, [[[-2, 1, 1]]])
+    np.testing.assert_array_equal(prepared.array, [[[-6, 1, 0]]])
+
+
+@pytest.mark.parametrize("axis", [0, 1, 2])
+@pytest.mark.parametrize("face", [0, -1])
+def test_boundary_pose_score_ignores_opposite_face(tmp_path: Path, axis: int, face: int):
+    rng = np.random.default_rng(94)
+    density = rng.random((12, 12, 12))
+    origin = [0, 0, 0]
+    origin[2 - axis] = -1 if face == 0 else 9
+    structure = Volume(rng.random((4, 4, 4)), origin=origin)
+    mask = Volume(np.ones(structure.shape), origin=origin)
+    target_file = tmp_path / "target.mrc"
+
+    def score_target() -> list[float]:
+        Volume(density).tofile(target_file)
+        with target_file.open("rb") as stream:
+            target = setup_target_with_laplace(target_volume=stream, resolution=8, no_resampling=True, no_trimming=True)
+        return score_pose(target=target, structure=structure, mask=mask, z_sigma=0.25)
+
+    original_score = score_target()
+    opposite_face = [slice(None)] * 3
+    opposite_face[axis] = -1 if face == 0 else 0
+    density[tuple(opposite_face)] += 100
+
+    assert score_target() == pytest.approx(original_score, abs=1e-12)
 
 
 @pytest.fixture

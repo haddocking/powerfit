@@ -31,6 +31,7 @@ def setup_target_with_laplace(
     """Load and preprocess a target, optionally applying Laplace filtering once.
 
     Reuse the returned volume with score_pose for many structures.
+    Laplace filtering treats density beyond the target map as zero.
 
     Args:
         target_volume: Open density map file accepted by setup_target.
@@ -76,7 +77,7 @@ def setup_target_with_laplace(
     )
     target.array = np.asarray(target.array, dtype=np.float64)
     if laplace:
-        target.array = laplace_filter(target.array, mode="wrap")
+        target.array = laplace_filter(target.array, mode="constant", cval=0.0)
     return target
 
 
