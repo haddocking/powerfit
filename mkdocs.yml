@@ -39,8 +39,7 @@ plugins:
   - search
   - autorefs
   - mkdocs-rich-argparse:
-      module: powerfit_em.powerfit
-      factory: make_parser
+      package: powerfit-em
   - mkdocstrings:
       handlers:
         python:
