@@ -170,7 +170,7 @@ def score_pose(*, target: Volume, structure: Volume, mask: Volume, z_sigma: floa
         numerator = np.dot(normalized_model[support], density[support])
         cc = float(np.clip(numerator / (norm_factor * target_values.std()), -1.0, 1.0))
     with np.errstate(divide="ignore"):
-        fishers_z = float(np.arctanh(cc))
+        fishers_z = float(0.5 * (np.log(1 + cc) - np.log(1 - cc)))
     return [cc, fishers_z, fishers_z / z_sigma]
 
 
