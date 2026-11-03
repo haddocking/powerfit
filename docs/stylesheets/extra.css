@@ -1,0 +1,7 @@
+/* Blue of the wenmr.science.uu.nl banner */
+:root > * {
+  --md-primary-fg-color: #3464b8;
+  --md-primary-fg-color--light: #5a83cc;
+  --md-primary-fg-color--dark: #2b5499;
+  --md-accent-fg-color: #2b5499;
+}
