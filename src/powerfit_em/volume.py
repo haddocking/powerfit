@@ -198,7 +198,8 @@ def structure_to_shape(xyz, resolution, out=None, voxelspacing=None, radii=None,
     return out
 
 
-def structure_to_shape_like(vol, xyz, resolution=None, weights=None, radii=None, shape="vol"):
+def structure_to_shape_like(vol, xyz, resolution=None, weights=None, radii=None, shape="vol", wraparound=True):
+    """Rasterize a structure on a volume's grid, optionally without periodic boundaries."""
     if resolution is None:
         resolution = vol.resolution
 
@@ -225,9 +226,9 @@ def structure_to_shape_like(vol, xyz, resolution=None, weights=None, radii=None,
 
     out = zeros_like(vol)
     if shape == "vol":
-        blur_points(xyz_grid, weights, sigma, out.array, True)
+        blur_points(xyz_grid, weights, sigma, out.array, wraparound)
     elif shape == "mask":
-        dilate_points(xyz_grid, radii, out.array, True)
+        dilate_points(xyz_grid, radii, out.array, wraparound)
     return out
 
 
